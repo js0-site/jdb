@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = []
+members = ["jdb","jdb_comm"]
 exclude = ["sh/_tmpl"]
 
 [profile.release]
