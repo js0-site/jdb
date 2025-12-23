@@ -1,0 +1,21 @@
+[package]
+name = "jdb_comm"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_comm"
+description = "jdb_comm"
+keywords = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+
+[dependencies]
+thiserror = "2"
+gxhash = "3"
+coarsetime = "0.1"
