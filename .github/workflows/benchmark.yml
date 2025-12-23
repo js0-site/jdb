@@ -1,0 +1,111 @@
+name: Performance Benchmark
+
+on:
+  # Manual trigger 手动触发
+  workflow_dispatch:
+    inputs:
+      compare_base:
+        description: 'Base commit to compare (optional)'
+        required: false
+        default: ''
+  
+  # On push to main 推送到 main 时
+  push:
+    branches: [main, master]
+    paths:
+      - 'jdb/**'
+      - 'jdb_*/**'
+      - '.github/workflows/benchmark.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comparison 完整历史用于比较
+      
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: nightly
+      
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Install jq
+        run: sudo apt-get install -y jq
+      
+      - name: Run benchmark
+        working-directory: jdb
+        run: |
+          mkdir -p bench_results
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(date +%Y%m%d_%H%M%S)
+          
+          echo "Running benchmark for commit: $COMMIT"
+          
+          # Run criterion 运行 criterion
+          cargo bench --bench perf -- --noplot 2>&1 | tee bench_output.txt
+          
+          # Parse results 解析结果
+          cat > "bench_results/${DATE}_${COMMIT}.json" << EOF
+          {
+            "commit": "$COMMIT",
+            "branch": "${{ github.ref_name }}",
+            "date": "$(date -Iseconds)",
+            "runner": "${{ runner.os }}",
+            "event": "${{ github.event_name }}"
+          }
+          EOF
+      
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: jdb/bench_results/
+          retention-days: 90
+      
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('jdb/bench_output.txt', 'utf8');
+            
+            // Extract key metrics 提取关键指标
+            const lines = output.split('\n').filter(l => l.includes('time:'));
+            const summary = lines.slice(0, 10).join('\n');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Benchmark Results\n\`\`\`\n${summary}\n\`\`\``
+            });
+      
+      - name: Performance regression check
+        working-directory: jdb
+        run: |
+          echo "=== Benchmark Complete ==="
+          echo "Results saved to artifacts"
+          
+          # Show summary from criterion output 显示 criterion 输出摘要
+          if [ -f bench_output.txt ]; then
+            echo ""
+            echo "=== Performance Summary ==="
+            grep -E "(time:|thrpt:)" bench_output.txt | head -20 || true
+          fi

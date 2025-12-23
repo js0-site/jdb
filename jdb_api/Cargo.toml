@@ -1,0 +1,31 @@
+[package]
+name = "jdb_api"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0/jdb.git"
+homepage = "https://github.com/js0/jdb/tree/main/jdb_api"
+description = "jdb_api"
+keywords = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+jdb_comm = { version = "0.1.0", path = "../jdb_comm" }
+jdb_runtime = { version = "0.1.0", path = "../jdb_runtime" }
+thiserror = "2.0.17"
+
+[dev-dependencies]
+aok = "0.1.18"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
+
+[dev-dependencies.tokio]
+version = "1.48.0"
+features = ["macros", "rt", "rt-multi-thread", "time", "sync"]

@@ -1,0 +1,35 @@
+[package]
+name = "jdb_comm"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0/jdb.git"
+homepage = "https://github.com/js0/jdb/tree/main/jdb_comm"
+description = "jdb_comm"
+keywords = [ ]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
+
+[dependencies]
+thiserror = "2.0"
+gxhash = "3.0"
+serde = { version = "1.0", features = ["derive"] }
+bitcode = "0.6.9"
+coarsetime = "0.1.36"
+hipstr = "0.8.0"
+
+[dev-dependencies]
+aok = "0.1.18"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
+serde_json = "1.0"
+
+[dev-dependencies.tokio]
+version = "1.48.0"
+features = [ "macros", "rt", "rt-multi-thread", "time", "sync" ]

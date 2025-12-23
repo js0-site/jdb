@@ -1,0 +1,22 @@
+[package]
+name = "jdb_trait"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0/jdb.git"
+homepage = "https://github.com/js0/jdb/tree/main/jdb_trait"
+description = "jdb_trait"
+keywords = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+futures-core = "0.3.31"
+gxhash = "3.5.0"
+hipstr = "0.8.0"
+ordered-float = "4.2"

@@ -1,0 +1,35 @@
+[package]
+name = "jdb_tablet"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0/jdb.git"
+homepage = "https://github.com/js0/jdb/tree/main/jdb_tablet"
+description = "jdb_tablet"
+keywords = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+jdb_comm = { version = "0.1.0", path = "../jdb_comm" }
+jdb_index = { version = "0.1.0", path = "../jdb_index" }
+jdb_layout = { version = "0.1.0", path = "../jdb_layout" }
+jdb_tag = { version = "0.1.0", path = "../jdb_tag" }
+jdb_vlog = { version = "0.1.0", path = "../jdb_vlog" }
+jdb_wal = { version = "0.1.0", path = "../jdb_wal" }
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = "0.17.0"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
+
+[dev-dependencies.tokio]
+version = "1.48.0"
+features = ["macros", "rt", "rt-multi-thread", "time", "sync"]
