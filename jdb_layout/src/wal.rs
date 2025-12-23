@@ -2,7 +2,11 @@
 //! Binary serialization via bitcode 通过 bitcode 二进制序列化
 
 use bitcode::{Decode, Encode};
-use jdb_comm::{Lsn, TableID, Timestamp};
+
+// Type aliases for common types
+pub type Lsn = u64;         // Log Sequence Number
+pub type TableID = u32;     // Table identifier  
+pub type Timestamp = u64;   // Timestamp in microseconds
 
 /// WAL entry type WAL 条目类型
 #[derive(Debug, Clone, Encode, Decode)]

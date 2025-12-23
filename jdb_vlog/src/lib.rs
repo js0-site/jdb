@@ -10,7 +10,7 @@ use jdb_fs::File;
 use jdb_layout::{crc32, BlobPtr};
 
 use crate::consts::{HEADER, PAGE_SIZE};
-use crate::error::{E, R};
+use crate::error::{Error, Result};
 
 /// VLog 写入器 VLog writer
 pub struct Writer {

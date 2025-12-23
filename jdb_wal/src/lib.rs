@@ -8,8 +8,10 @@ use jdb_alloc::AlignedBuf;
 use jdb_fs::File;
 use jdb_layout::crc32;
 
-use crate::consts::{HEADER, PAGE_SIZE};
-use crate::error::{E, R};
+mod writer;
+pub use writer::{JdbError, JdbResult, PAGE_SIZE, WalWriter, WalReader};
+
+const HEADER: usize = 16; // len(4) + crc(4) + lsn(8)
 
 /// WAL 写入器 WAL writer
 pub struct Writer {
@@ -22,11 +24,11 @@ pub struct Writer {
 
 impl Writer {
   /// 创建新 WAL 文件 Create new WAL file
-  pub async fn create(path: impl AsRef<Path>) -> R<Self> {
+  pub async fn create(path: impl AsRef<Path>) -> JdbResult<Self> {
     let file = File::create(path).await?;
     Ok(Self {
       file,
-      buf: AlignedBuf::zeroed(PAGE_SIZE),
+      buf: AlignedBuf::zeroed(PAGE_SIZE).expect("Failed to create aligned buffer"),
       pos: 0,
       offset: 0,
       lsn: 1,
@@ -34,12 +36,12 @@ impl Writer {
   }
 
   /// 打开已有 WAL 文件 Open existing WAL file
-  pub async fn open(path: impl AsRef<Path>) -> R<Self> {
+  pub async fn open(path: impl AsRef<Path>) -> JdbResult<Self> {
     let file = File::open_rw(path).await?;
     let size = file.size().await?;
     Ok(Self {
       file,
-      buf: AlignedBuf::zeroed(PAGE_SIZE),
+      buf: AlignedBuf::zeroed(PAGE_SIZE).expect("Failed to create aligned buffer"),
       pos: 0,
       offset: size,
       lsn: 1,
@@ -59,12 +61,12 @@ impl Writer {
   }
 
   /// 追加记录 Append record, returns LSN
-  pub async fn append(&mut self, data: &[u8]) -> R<u64> {
+  pub async fn append(&mut self, data: &[u8]) -> JdbResult<u64> {
     let record_len = HEADER + data.len();
 
     // 超过单页大小 Exceeds single page
     if record_len > PAGE_SIZE {
-      return Err(E::Full);
+      return Err(JdbError::Serialize("Record too large".into()));
     }
 
     // 缓冲区空间不足 Buffer full
@@ -88,12 +90,12 @@ impl Writer {
   }
 
   /// 刷新缓冲区 Flush buffer to disk
-  pub async fn flush(&mut self) -> R<()> {
+  pub async fn flush(&mut self) -> JdbResult<()> {
     if self.pos == 0 {
       return Ok(());
     }
 
-    let buf = std::mem::replace(&mut self.buf, AlignedBuf::zeroed(PAGE_SIZE));
+    let buf = std::mem::replace(&mut self.buf, AlignedBuf::zeroed(PAGE_SIZE).expect("Failed to create aligned buffer"));
     let buf = self.file.write_at(self.offset, buf).await?;
 
     self.offset += PAGE_SIZE as u64;
@@ -105,7 +107,7 @@ impl Writer {
   }
 
   /// 同步到磁盘 Sync to disk
-  pub async fn sync(&mut self) -> R<()> {
+  pub async fn sync(&mut self) -> JdbResult<()> {
     self.flush().await?;
     self.file.sync().await?;
     Ok(())
@@ -124,7 +126,7 @@ pub struct Reader {
 
 impl Reader {
   /// 打开 WAL 文件 Open WAL file
-  pub async fn open(path: impl AsRef<Path>) -> R<Self> {
+  pub async fn open(path: impl AsRef<Path>) -> JdbResult<Self> {
     let file = File::open(path).await?;
     let file_size = file.size().await?;
     Ok(Self {
@@ -138,7 +140,7 @@ impl Reader {
   }
 
   /// 读取下一条记录 Read next record
-  pub async fn next(&mut self) -> R<Option<(u64, Vec<u8>)>> {
+  pub async fn next(&mut self) -> JdbResult<Option<(u64, Vec<u8>)>> {
     loop {
       // 需要读取更多数据
       if self.pos + HEADER > self.buf_len {
@@ -181,7 +183,7 @@ impl Reader {
   }
 
   /// 填充缓冲区 Fill buffer
-  async fn fill_buf(&mut self) -> R<bool> {
+  async fn fill_buf(&mut self) -> JdbResult<bool> {
     if self.offset >= self.file_size {
       return Ok(false);
     }
@@ -196,7 +198,7 @@ impl Reader {
   }
 
   /// 获取最后有效 LSN Get last valid LSN
-  pub async fn last_lsn(&mut self) -> R<u64> {
+  pub async fn last_lsn(&mut self) -> JdbResult<u64> {
     let mut last = 0u64;
     while let Some((lsn, _)) = self.next().await? {
       last = lsn;

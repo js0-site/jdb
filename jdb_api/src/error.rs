@@ -3,11 +3,11 @@
 use thiserror::Error;
 
 /// 结果类型 Result type
-pub type R<T> = Result<T, E>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// 错误类型 Error type
 #[derive(Debug, Error)]
-pub enum E {
+pub enum Error {
   #[error("not connected")]
   NotConnected,
 
@@ -26,5 +26,8 @@ pub enum E {
   #[error("connection error: {0}")]
   ConnectionError(String),
 }
+
+/// 结果类型别名 Result type alias  
+pub type ApiResult<T> = std::result::Result<T, Error>;
 
 

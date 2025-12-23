@@ -6,7 +6,6 @@
 
 ```toml
 jdb_alloc = { path = "../jdb_alloc" }
-jdb_comm = { path = "../jdb_comm" }
 jdb_fs = { path = "../jdb_fs" }
 jdb_layout = { path = "../jdb_layout" }
 ```

@@ -1,6 +1,8 @@
-use jdb_comm::R;
 use jdb_compress::Codec;
 use jdb_vlog::{Reader, Writer};
+
+// Result type alias for tests
+pub type R<T> = Result<T, Box<dyn std::error::Error>>;
 
 fn run<F: std::future::Future<Output = R<()>>>(f: F) -> R<()> {
   compio::runtime::Runtime::new().unwrap().block_on(f)

@@ -2,6 +2,6 @@
 
 mod error;
 
-pub use error::{E, R};
+pub use error::{Error, SubResult};
 
 // TODO: 待实现

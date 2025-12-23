@@ -3,8 +3,22 @@
 use compio::fs::OpenOptions;
 use compio::io::{AsyncReadAtExt, AsyncWriteAtExt};
 use jdb_alloc::AlignedBuf;
-use jdb_comm::{JdbError, JdbResult, PAGE_SIZE};
 use std::path::Path;
+
+// Page size constant - 4KB
+pub const PAGE_SIZE: usize = 4096;
+
+// Result type alias
+pub type JdbResult<T> = Result<T, JdbError>;
+
+// Error types
+#[derive(Debug, thiserror::Error)]
+pub enum JdbError {
+  #[error("IO error: {0}")]
+  Io(#[from] std::io::Error),
+  #[error("Page size mismatch: expected {expected}, actual {actual}")]
+  PageSizeMismatch { expected: usize, actual: usize },
+}
 
 /// Async file wrapper 异步文件封装
 pub struct File {

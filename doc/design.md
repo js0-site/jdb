@@ -106,7 +106,6 @@ JDB 选择 **Binary Fuse Filter** 作为默认过滤器：
 | 编号 | 模块 | 定位 | 文档 |
 |-----|------|-----|------|
 | L0 | **jdb_trait** | 核心 Traits: Engine, Table, SubTable, Schema, Val, Query | [0_trait.md](0_trait.md) |
-| L1 | **jdb_comm** | 通用工具: Error, Config, Hash | [1_comm.md](1_comm.md) |
 | L1 | **jdb_layout** | 磁盘二进制布局 (Encoding/Decoding) | [2_layout.md](2_layout.md) |
 | L2 | **jdb_alloc** | Direct I/O 对齐内存分配器 (4KB) | [3_alloc.md](3_alloc.md) |
 | L2 | **jdb_fs** | compio 异步文件系统封装 | [4_fs.md](4_fs.md) |
@@ -134,7 +133,6 @@ graph TB
     jdb_fs --> jdb_alloc
     jdb_meta --> jdb_fs
     jdb_layout --> jdb_trait
-    jdb_layout --> jdb_comm
 ```
 
 ### 3.1 亿级子表管理

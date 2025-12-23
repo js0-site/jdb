@@ -5,7 +5,6 @@
 ## 依赖
 
 ```toml
-jdb_comm = { path = "../jdb_comm" }
 crc32fast = "1"
 ```
 

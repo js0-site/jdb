@@ -3,11 +3,11 @@
 use thiserror::Error;
 
 /// 结果类型 Result type
-pub type R<T> = Result<T, E>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// 错误类型 Error type
 #[derive(Error, Debug)]
-pub enum E {
+pub enum Error {
   #[error("IO error: {0}")]
   Io(#[from] std::io::Error),
 
@@ -23,3 +23,6 @@ pub enum E {
   #[error("Subscription error: {0}")]
   SubscriptionError(String),
 }
+
+/// 结果类型别名 Result type alias  
+pub type SubResult<T> = std::result::Result<T, Error>;

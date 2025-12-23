@@ -2,6 +2,6 @@
 
 mod error;
 
-pub use error::{E, R};
+pub use error::{Error, ApiResult};
 
 // TODO: 待实现

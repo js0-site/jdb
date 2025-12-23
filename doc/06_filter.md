@@ -71,5 +71,5 @@ assert!(!filter.may_contain(999));  // 大概率 false
 ## 设计要点
 
 1. **极简封装**: 仅包装 xorf::BinaryFuse8
-2. **零依赖**: 不依赖 jdb_comm，上层自行 hash
+2. **零外部依赖**: 不依赖其他jdb模块，上层自行 hash
 3. **零拷贝查询**: contains 无内存分配

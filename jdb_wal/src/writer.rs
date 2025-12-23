@@ -1,10 +1,44 @@
 //! WAL writer WAL 写入器
 
 use jdb_alloc::AlignedBuf;
-use jdb_comm::{JdbResult, Lsn, PAGE_SIZE};
 use jdb_fs::File;
 use jdb_layout::{crc32, decode, encode, WalEntry};
 use std::path::Path;
+
+// Page size constant - 4KB
+pub const PAGE_SIZE: usize = 4096;
+
+// Type aliases for common types
+pub type Lsn = u64;         // Log Sequence Number
+
+// Result type alias
+pub type JdbResult<T> = Result<T, JdbError>;
+
+// Lsn extension methods
+impl Lsn {
+  #[inline]
+  pub fn new(value: u64) -> Self {
+    value
+  }
+  
+  #[inline]
+  pub fn next(&self) -> Self {
+    self + 1
+  }
+}
+
+// Error types
+#[derive(Debug, thiserror::Error)]
+pub enum JdbError {
+  #[error("IO error: {0}")]
+  Io(#[from] std::io::Error),
+  #[error("Checksum mismatch: expected {expected}, actual {actual}")]
+  Checksum { expected: u32, actual: u32 },
+  #[error("Serialization error: {0}")]
+  Serialize(Box<str>),
+  #[error("Page size mismatch: expected {expected}, actual {actual}")]
+  PageSizeMismatch { expected: usize, actual: usize },
+}
 
 /// Entry header size (len:u32 + crc:u32) 条目头大小
 const ENTRY_HEADER: usize = 8;
@@ -163,7 +197,7 @@ impl WalReader {
     let actual_crc = crc32(data);
 
     if actual_crc != expected_crc {
-      return Err(jdb_comm::JdbError::Checksum {
+      return Err(JdbError::Checksum {
         expected: expected_crc,
         actual: actual_crc,
       });
@@ -171,7 +205,7 @@ impl WalReader {
 
     self.pos = data_end;
 
-    let entry = decode(data).map_err(|e| jdb_comm::JdbError::Serialize(e.to_string().into()))?;
+    let entry = decode(data).map_err(|e| JdbError::Serialize(e.to_string().into()))?;
 
     Ok(Some(entry))
   }

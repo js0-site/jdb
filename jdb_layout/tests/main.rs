@@ -1,5 +1,10 @@
-use jdb_comm::{PAGE_HEADER_SIZE, PAGE_SIZE};
 use jdb_layout::{crc32, verify, page_type, PageHeader, BlobPtr, PAGE_MAGIC};
+
+// Page size constant - 4KB
+pub const PAGE_SIZE: usize = 4096;
+
+// Page header size constant
+pub const PAGE_HEADER_SIZE: usize = 32;
 
 #[test]
 fn test_page_header_size() {

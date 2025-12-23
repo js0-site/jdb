@@ -1,14 +1,16 @@
-use jdb_comm::R;
 use jdb_fs::File;
 use jdb_page::Pool;
 
-fn run<F: std::future::Future<Output = R<()>>>(f: F) -> R<()> {
+// Result type alias for tests
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+fn run<F: std::future::Future<Output = Result<()>>>(f: F) -> Result<()> {
   compio::runtime::Runtime::new().unwrap().block_on(f)
 }
 
 #[test]
-fn test_page_new() -> R<()> {
-  let page = jdb_page::Page::new(42);
+fn test_page_new() -> Result<()> {
+  let page = jdb_page::Page::new(42)?;
   assert_eq!(page.id(), 42);
   assert!(page.is_dirty());
   assert!(!page.is_pinned());
@@ -16,8 +18,8 @@ fn test_page_new() -> R<()> {
 }
 
 #[test]
-fn test_page_pin_unpin() -> R<()> {
-  let mut page = jdb_page::Page::new(0);
+fn test_page_pin_unpin() -> Result<()> {
+  let mut page = jdb_page::Page::new(0)?;
   assert!(!page.is_pinned());
 
   page.pin();
@@ -33,7 +35,7 @@ fn test_page_pin_unpin() -> R<()> {
 }
 
 #[test]
-fn test_pool_alloc() -> R<()> {
+fn test_pool_alloc() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_page_test_alloc.dat";
     let file = File::create(path).await?;
@@ -56,7 +58,7 @@ fn test_pool_alloc() -> R<()> {
 }
 
 #[test]
-fn test_pool_get() -> R<()> {
+fn test_pool_get() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_page_test_get.dat";
 
@@ -92,7 +94,7 @@ fn test_pool_get() -> R<()> {
 }
 
 #[test]
-fn test_pool_evict() -> R<()> {
+fn test_pool_evict() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_page_test_evict.dat";
     let file = File::create(path).await?;
@@ -119,7 +121,7 @@ fn test_pool_evict() -> R<()> {
 }
 
 #[test]
-fn test_pool_pin_prevents_evict() -> R<()> {
+fn test_pool_pin_prevents_evict() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_page_test_pin.dat";
     let file = File::create(path).await?;
@@ -150,7 +152,7 @@ fn test_pool_pin_prevents_evict() -> R<()> {
 }
 
 #[test]
-fn test_pool_flush() -> R<()> {
+fn test_pool_flush() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_page_test_flush.dat";
     let file = File::create(path).await?;

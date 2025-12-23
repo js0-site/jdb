@@ -1,5 +1,7 @@
-use jdb_comm::R;
 use jdb_wal::{Reader, Writer};
+
+// Result type alias for tests
+pub type R<T> = Result<T, Box<dyn std::error::Error>>;
 
 fn run<F: std::future::Future<Output = R<()>>>(f: F) -> R<()> {
   compio::runtime::Runtime::new().unwrap().block_on(f)

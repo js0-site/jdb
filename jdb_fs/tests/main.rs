@@ -1,12 +1,12 @@
 use jdb_alloc::{AlignedBuf, PAGE_SIZE};
-use jdb_fs::{File, R};
+use jdb_fs::{File, Result};
 
-fn run<F: std::future::Future<Output = R<()>>>(f: F) -> R<()> {
+fn run<F: std::future::Future<Output = Result<()>>>(f: F) -> Result<()> {
   compio::runtime::Runtime::new().unwrap().block_on(f)
 }
 
 #[test]
-fn test_create_and_size() -> R<()> {
+fn test_create_and_size() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_fs_test_create.dat";
     let file = File::create(path).await?;
@@ -17,7 +17,7 @@ fn test_create_and_size() -> R<()> {
 }
 
 #[test]
-fn test_write_read_at() -> R<()> {
+fn test_write_read_at() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_fs_test_write_read.dat";
     let mut file = File::create(path).await?;
@@ -40,7 +40,7 @@ fn test_write_read_at() -> R<()> {
 }
 
 #[test]
-fn test_write_read_page() -> R<()> {
+fn test_write_read_page() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_fs_test_page.dat";
     let mut file = File::create(path).await?;
@@ -76,7 +76,7 @@ fn test_write_read_page() -> R<()> {
 }
 
 #[test]
-fn test_read_pages() -> R<()> {
+fn test_read_pages() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_fs_test_pages.dat";
     let mut file = File::create(path).await?;
@@ -103,7 +103,7 @@ fn test_read_pages() -> R<()> {
 }
 
 #[test]
-fn test_open_rw() -> R<()> {
+fn test_open_rw() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_fs_test_open_rw.dat";
 
@@ -129,7 +129,7 @@ fn test_open_rw() -> R<()> {
 }
 
 #[test]
-fn test_open_readonly() -> R<()> {
+fn test_open_readonly() -> Result<()> {
   run(async {
     let path = "/tmp/jdb_fs_test_readonly.dat";
 

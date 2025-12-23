@@ -10,10 +10,10 @@ pub enum Error {
   Io(#[from] std::io::Error),
 
   #[error("page: {0}")]
-  Page(#[from] jdb_page::error::E),
+  Page(#[from] jdb_page::Error),
 
   #[error("filesystem: {0}")]
-  Fs(#[from] jdb_fs::error::E),
+  Fs(#[from] jdb_fs::Error),
 
   #[error("duplicate key")]
   Duplicate,

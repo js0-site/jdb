@@ -15,6 +15,7 @@ pub use page::{Page, PageState};
 use std::sync::{
   Arc,
   atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering},
+  Mutex,
 };
 
 use jdb_alloc::AlignedBuf;
@@ -26,7 +27,7 @@ use parking_lot::RwLock;
 use crate::consts::{
   INVALID_PAGE, PAGE_HEADER_SIZE, PAGE_SIZE, PIN_MASK, USAGE_BIT, DIRTY_BIT, VALID_BIT,
 };
-use crate::error::{E, R};
+use crate::error::Result;
 
 type FrameID = usize;
 
@@ -48,7 +49,7 @@ impl Frame {
       latch: RwLock::new(()),
       page_id: AtomicU32::new(INVALID_PAGE),
       state: AtomicU64::new(0),
-      buf: RwLock::new(AlignedBuf::zeroed(PAGE_SIZE)),
+      buf: RwLock::new(AlignedBuf::zeroed(PAGE_SIZE).unwrap()),
     }
   }
 
@@ -218,7 +219,7 @@ impl Clone for PageGuard {
 /// 高性能缓冲池 High-performance buffer pool
 pub struct Pool {
   /// 文件句柄（支持并发 pread/pwrite）File handle (concurrent pread/pwrite)
-  file: File,
+  file: Arc<Mutex<File>>,
   /// 物理帧数组 Physical frame array
   frames: Vec<Frame>,
   /// 页表 Page table: PageID -> FrameID
@@ -233,7 +234,7 @@ pub struct Pool {
 
 impl Pool {
   /// 打开缓冲池 Open buffer pool
-  pub async fn open(file: File, cap: usize) -> R<Arc<Self>> {
+  pub async fn open(file: File, cap: usize) -> Result<Arc<Self>> {
     let size = file.size().await?;
     let next_id = (size / PAGE_SIZE as u64) as u32;
 
@@ -244,7 +245,7 @@ impl Pool {
     }
 
     Ok(Arc::new(Self {
-      file,
+      file: Arc::new(Mutex::new(file)),
       frames,
       page_table: HashMap::new(),
       clock_hand: AtomicUsize::new(0),
@@ -254,7 +255,7 @@ impl Pool {
   }
 
   /// 获取页面 Get page
-  pub async fn get(self: &Arc<Self>, id: u32) -> R<PageGuard> {
+  pub async fn get(self: &Arc<Self>, id: u32) -> Result<PageGuard> {
     loop {
       // 快速路径：检查页表 Fast path: check page table
       let frame_idx = {
@@ -289,7 +290,7 @@ impl Pool {
   }
 
   /// 加载页面 Load page from disk
-  async fn load_page(self: &Arc<Self>, id: u32) -> R<PageGuard> {
+  async fn load_page(self: &Arc<Self>, id: u32) -> Result<PageGuard> {
     // 双重检查 Double check
     {
       let guard = self.page_table.pin();
@@ -317,7 +318,7 @@ impl Pool {
     let _latch = frame.latch.write();
 
     // 读取磁盘 Read from disk
-    let buf = self.file.read_page(id).await?;
+    let buf = self.file.lock().unwrap().read_page(id).await?;
     *frame.buf.write() = buf;
     frame.reset(id);
 
@@ -332,7 +333,7 @@ impl Pool {
   }
 
   /// CLOCK 算法找牺牲帧 CLOCK algorithm to find victim frame
-  async fn find_victim(&self) -> R<FrameID> {
+  async fn find_victim(&self) -> Result<FrameID> {
     let mut attempts = 0;
     let max_attempts = self.cap * 2;
 
@@ -360,7 +361,7 @@ impl Pool {
             if Frame::is_dirty(state) {
               let page_id = frame.page_id.load(Ordering::Acquire);
               let buf = frame.buf.read();
-              self.file.write_page(page_id, buf.clone()).await?;
+              self.file.lock().unwrap().write_page(page_id, buf.clone()).await?;
               frame.clear_dirty();
             }
 
@@ -380,14 +381,15 @@ impl Pool {
       attempts += 1;
       if attempts >= max_attempts {
         // 所有帧都被 pin，强制等待 All frames pinned, force wait
-        tokio::task::yield_now().await;
+        // Simple yield
+        compio::time::sleep(std::time::Duration::from_millis(1)).await;
         attempts = 0;
       }
     }
   }
 
   /// 分配新页 Allocate new page
-  pub fn alloc(self: &Arc<Self>) -> R<PageGuard> {
+  pub fn alloc(self: &Arc<Self>) -> Result<PageGuard> {
     let id = self.next_id.fetch_add(1, Ordering::Relaxed);
 
     // 找空闲帧 Find free frame
@@ -461,7 +463,7 @@ impl Pool {
   }
 
   /// 刷新单页 Flush single page
-  pub async fn flush(&self, id: u32) -> R<()> {
+  pub async fn flush(&self, id: u32) -> Result<()> {
     let guard = self.page_table.pin();
     if let Some(&f_idx) = guard.get(&id) {
       let frame = &self.frames[f_idx];
@@ -470,7 +472,7 @@ impl Pool {
       if Frame::is_dirty(state) {
         let _latch = frame.latch.read();
         let buf = frame.buf.read();
-        self.file.write_page(id, buf.clone()).await?;
+        self.file.lock().unwrap().write_page(id, buf.clone()).await?;
         frame.clear_dirty();
       }
     }
@@ -478,14 +480,14 @@ impl Pool {
   }
 
   /// 刷新所有脏页 Flush all dirty pages
-  pub async fn flush_all(&self) -> R<()> {
+  pub async fn flush_all(&self) -> Result<()> {
     for frame in &self.frames {
       let state = frame.state.load(Ordering::Acquire);
       if Frame::is_valid(state) && Frame::is_dirty(state) {
         let _latch = frame.latch.read();
         let page_id = frame.page_id.load(Ordering::Acquire);
         let buf = frame.buf.read();
-        self.file.write_page(page_id, buf.clone()).await?;
+        self.file.lock().unwrap().write_page(page_id, buf.clone()).await?;
         frame.clear_dirty();
       }
     }
@@ -493,9 +495,9 @@ impl Pool {
   }
 
   /// 同步到磁盘 Sync to disk
-  pub async fn sync(&self) -> R<()> {
+  pub async fn sync(&self) -> Result<()> {
     self.flush_all().await?;
-    self.file.sync().await?;
+    self.file.lock().unwrap().sync().await?;
     Ok(())
   }
 

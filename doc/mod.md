@@ -34,19 +34,18 @@ Engine
 | 编号 | 模块 | 职责 | 依赖 |
 |-----|------|------|-----|
 | 01 | jdb_trait | 核心 trait 定义 | - |
-| 02 | jdb_comm | 错误/哈希/常量 | - |
-| 03 | jdb_layout | 磁盘布局协议 | trait, comm |
-| 04 | jdb_alloc | 4KB 对齐分配器 | - |
-| 05 | jdb_fs | compio 文件封装 | alloc |
-| 06 | jdb_filter | Binary Fuse Filter | comm |
-| 07 | jdb_compress | LZ4/Zstd 压缩 | comm |
-| 08 | jdb_wal | 预写日志 | fs, layout |
-| 09 | jdb_page | 缓冲池管理 | fs, layout |
-| 10 | jdb_vlog | 值日志 (KV分离) | fs, layout, compress |
-| 11 | jdb_index | B+ 树索引 | page, filter |
-| 12 | jdb_meta | 元数据管理 | fs, layout, filter |
-| 13 | jdb_sub | 子表实现 | wal, page, vlog, index |
-| 14 | jdb_api | Engine/Table API | sub, meta |
+| 02 | jdb_layout | 磁盘布局协议 | trait |
+| 03 | jdb_alloc | 4KB 对齐分配器 | - |
+| 04 | jdb_fs | compio 文件封装 | alloc |
+| 05 | jdb_filter | Binary Fuse Filter | - |
+| 06 | jdb_compress | LZ4/Zstd 压缩 | - |
+| 07 | jdb_wal | 预写日志 | fs, layout |
+| 08 | jdb_page | 缓冲池管理 | fs, layout |
+| 09 | jdb_vlog | 值日志 (KV分离) | fs, layout, compress |
+| 10 | jdb_index | B+ 树索引 | page, filter |
+| 11 | jdb_meta | 元数据管理 | fs, layout, filter |
+| 12 | jdb_sub | 子表实现 | wal, page, vlog, index |
+| 13 | jdb_api | Engine/Table API | sub, meta |
 
 ## 4. 层级架构
 
@@ -62,7 +61,7 @@ Engine
 ├─────────────────────────────────────────────────────────┤
 │ L2: IO         jdb_fs | jdb_alloc | jdb_filter/compress │
 ├─────────────────────────────────────────────────────────┤
-│ L1: Infra      jdb_comm | jdb_layout                    │
+│ L1: Infra      jdb_layout                               │
 ├─────────────────────────────────────────────────────────┤
 │ L0: Trait      jdb_trait                                │
 └─────────────────────────────────────────────────────────┘
@@ -88,7 +87,6 @@ graph TB
     jdb_fs --> jdb_alloc
     jdb_meta --> jdb_filter
     jdb_layout --> jdb_trait
-    jdb_layout --> jdb_comm
 ```
 
 ## 6. 参考文献

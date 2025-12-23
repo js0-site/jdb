@@ -10,8 +10,10 @@ use std::{
   time::Duration,
 };
 
-use jdb_comm::PAGE_HEADER_SIZE;
 use jdb_layout::page_type;
+
+// Page header size constant
+pub const PAGE_HEADER_SIZE: usize = 32;
 
 /// 节点头偏移 Node header offsets
 mod off {

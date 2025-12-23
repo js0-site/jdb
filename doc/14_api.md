@@ -6,7 +6,6 @@
 
 ```toml
 jdb_trait = { path = "../jdb_trait" }
-jdb_comm = { path = "../jdb_comm" }
 jdb_sub = { path = "../jdb_sub" }
 jdb_meta = { path = "../jdb_meta" }
 papaya = "0.2"

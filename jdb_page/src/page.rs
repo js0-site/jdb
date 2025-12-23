@@ -1,8 +1,10 @@
 //! Page abstraction 页面抽象
 
 use jdb_alloc::AlignedBuf;
-use jdb_comm::PageID;
 use jdb_layout::PageHeader;
+
+// Page ID type
+pub type PageID = u32;
 
 /// Page state 页面状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,13 +26,13 @@ pub struct Page {
 impl Page {
   /// Create new page 创建新页面
   #[inline]
-  pub fn new(id: PageID) -> Self {
-    Self {
+  pub fn new(id: PageID) -> std::result::Result<Self, jdb_alloc::Error> {
+    Ok(Self {
       id,
       state: PageState::Clean,
-      buf: AlignedBuf::page(),
+      buf: AlignedBuf::page()?,
       pin_count: 0,
-    }
+    })
   }
 
   /// Create from buffer 从缓冲区创建
@@ -47,7 +49,7 @@ impl Page {
   /// Get header 获取页头
   #[inline]
   pub fn header(&self) -> PageHeader {
-    PageHeader::read(&self.buf)
+    PageHeader::decode(&self.buf)
   }
 
   /// Mark dirty 标记为脏

@@ -6,19 +6,25 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/js0-site/jdb.git"
 homepage = "https://github.com/js0-site/jdb/tree/main/jdb_fs"
 description = "jdb_fs"
-keywords = []
-
-[features]
-default = []
+keywords = [ ]
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
 
 [dependencies]
-compio = { version = "0.17.0", features = ["runtime"] }
-jdb_alloc = { version = "0.1.0", path = "../jdb_alloc" }
 thiserror = "2"
+
+[dependencies.compio]
+version = "0.17.0"
+features = [ "runtime" ]
+
+[dependencies.jdb_alloc]
+version = "0.1.2"
+path = "../jdb_alloc"
 
 [dev-dependencies]
 aok = "0.1.18"
@@ -28,4 +34,4 @@ static_init = "1.0.4"
 
 [dev-dependencies.tokio]
 version = "1.48.0"
-features = ["macros", "rt", "rt-multi-thread", "time", "sync"]
+features = [ "macros", "rt", "rt-multi-thread", "time", "sync" ]

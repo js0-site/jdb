@@ -6,7 +6,6 @@
 
 ```toml
 jdb_trait = { path = "../jdb_trait" }
-jdb_comm = { path = "../jdb_comm" }
 jdb_fs = { path = "../jdb_fs" }
 jdb_layout = { path = "../jdb_layout" }
 jdb_filter = { path = "../jdb_filter" }

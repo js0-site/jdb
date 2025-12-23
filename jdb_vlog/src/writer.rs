@@ -1,10 +1,26 @@
 //! Vlog writer/reader Vlog 读写器
 
 use jdb_alloc::AlignedBuf;
-use jdb_comm::{JdbResult, PAGE_SIZE};
 use jdb_fs::File;
 use jdb_layout::{crc32, BlobHeader, BlobPtr, BLOB_HEADER_SIZE};
 use std::path::Path;
+
+// Page size constant - 4KB
+pub const PAGE_SIZE: usize = 4096;
+
+// Result type alias
+pub type JdbResult<T> = Result<T, JdbError>;
+
+// Error types
+#[derive(Debug, thiserror::Error)]
+pub enum JdbError {
+  #[error("IO error: {0}")]
+  Io(#[from] std::io::Error),
+  #[error("Checksum mismatch: expected {expected}, actual {actual}")]
+  Checksum { expected: u32, actual: u32 },
+  #[error("Page size mismatch: expected {expected}, actual {actual}")]
+  PageSizeMismatch { expected: usize, actual: usize },
+}
 
 /// Vlog writer (append-only) Vlog 写入器（追加写）
 pub struct VlogWriter {
@@ -114,7 +130,7 @@ impl VlogReader {
     let actual_crc = crc32(data);
 
     if actual_crc != hdr.checksum {
-      return Err(jdb_comm::JdbError::Checksum {
+      return Err(JdbError::Checksum {
         expected: hdr.checksum,
         actual: actual_crc,
       });

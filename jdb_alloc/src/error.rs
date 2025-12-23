@@ -1,6 +1,8 @@
 //! Error types for jdb_alloc
 //! jdb_alloc 错误类型
 
+use std::alloc::LayoutError;
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -9,13 +11,13 @@ pub enum Error {
   Io(#[from] std::io::Error),
 
   #[error("invalid layout: {0}")]
-  InvalidLayout(String),
+  InvalidLayout(#[from] LayoutError),
 
-  #[error("allocation failed")]
+  #[error("alloc failed")]
   AllocFailed,
 
-  #[error("buffer overflow: requested {requested}, capacity {capacity}")]
-  BufferOverflow { requested: usize, capacity: usize },
+  #[error("overflow: {0}/{1}")]
+  Overflow(usize, usize),
 
   #[error("{0}")]
   Other(Box<str>),

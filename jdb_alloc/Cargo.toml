@@ -1,12 +1,12 @@
 [package]
 name = "jdb_alloc"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/js0-site/jdb.git"
 homepage = "https://github.com/js0-site/jdb/tree/main/jdb_alloc"
-description = "jdb_alloc"
-keywords = []
+description = "Aligned memory allocator for Direct I/O / Direct I/O 对齐内存分配器"
+keywords = ["allocator", "direct-io", "aligned", "buffer", "zero-copy"]
 
 [features]
 default = []

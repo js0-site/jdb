@@ -20,7 +20,6 @@
 ## 依赖
 
 ```toml
-jdb_comm = { path = "../jdb_comm" }
 jdb_layout = { path = "../jdb_layout" }
 jdb_page = { path = "../jdb_page" }
 jdb_fs = { path = "../jdb_fs" }
