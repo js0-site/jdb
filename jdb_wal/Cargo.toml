@@ -24,7 +24,7 @@ version = "0.1.2"
 path = "../jdb_alloc"
 
 [dependencies.jdb_fs]
-version = "0.1.0"
+version = "0.1.2"
 path = "../jdb_fs"
 
 [dependencies.jdb_trait]
