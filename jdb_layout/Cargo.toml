@@ -1,0 +1,20 @@
+[package]
+name = "jdb_layout"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_layout"
+description = "jdb_layout"
+keywords = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+jdb_comm = { path = "../jdb_comm" }
+crc32fast = "1"
