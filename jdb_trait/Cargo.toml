@@ -1,0 +1,23 @@
+[package]
+name = "jdb_trait"
+version = "0.1.4"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_trait"
+description = "异步存储引擎数据库抽象层 / Async database abstraction layer for storage engines"
+keywords = ["database", "async", "storage", "trait"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+crc32fast = "1.5.0"
+futures-core = "0.3.31"
+gxhash = "3.5.0"
+hipstr = "0.8.0"
+ordered-float = "5.1"

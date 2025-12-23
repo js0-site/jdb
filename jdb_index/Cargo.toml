@@ -1,0 +1,32 @@
+[package]
+name = "jdb_index"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_index"
+description = "jdb_index"
+keywords = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+jdb_fs = { version = "0.1.0", path = "../jdb_fs" }
+
+jdb_page = { version = "0.1.0", path = "../jdb_page" }
+jdb_trait = { version = "0.1.4", path = "../jdb_trait" }
+parking_lot = "0.12.5"
+thiserror = "2"
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = { version = "0.17.0", features = ["dispatcher", "runtime", "time"] }
+fastrand = "2.3.0"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
