@@ -1,0 +1,317 @@
+JDB 设计蓝图 v3 - 单线程 CoW B+ Tree + KV 分离
+================================================================================
+
+核心设计哲学 / Core Philosophy
+================================================================================
+
+基于 compio (io_uring) 实现单线程异步 CoW B+ Tree，KV 分离存储。
+为后续 Shard + Share-Nothing 架构奠定基础。
+
+目标：
+- 单线程极致性能，充分利用 NVMe 异步 IO
+- 秒级 Fork，支持海量冷 Fork
+- 时间旅行，Git-like 版本历史
+- 子库隔离，独立版本链
+
+================================================================================
+1. 架构总览 / Architecture Overview
+================================================================================
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Jdb (顶层入口)                        │
+│  - open(path) -> Jdb                                        │
+│  - db(id) -> Db                                             │
+│  - fork(id) -> Db                                           │
+│  - scan(start, order) -> Stream<Db>                         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Db (子库/Namespace)                      │
+│  - put(k, v) -> Option<Prev>                                │
+│  - get(k) -> Option<v>                                      │
+│  - rm(k)                                                    │
+│  - scan(start, order) -> Stream<Kv>                         │
+│  - history(k) -> Stream<ValRef>                             │
+│  - fork(ts, order) -> Option<Db>                            │
+│  - pipeline() -> Pipeline                                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   CoW B+ Tree (索引层)                       │
+│  - 不可变节点，路径复制                                       │
+│  - 结构共享，Fork 零拷贝                                      │
+│  - Key -> ValRef 映射                                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Value Log (值存储层)                       │
+│  - Append-only 日志                                         │
+│  - ValRef = (file_id, offset)                               │
+│  - GC: 扫描引用，回收无效值                                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   PageStore (物理存储)                       │
+│  - Direct I/O，绕过 Page Cache                               │
+│  - compio 异步读写                                           │
+│  - 对齐内存分配 (jdb_alloc)                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+================================================================================
+2. 核心数据结构 / Core Data Structures
+================================================================================
+
+2.1 ValRef (值引用)
+```rust
+pub struct ValRef {
+    pub file_id: u64,  // Value Log 文件 ID
+    pub offset: u64,   // 文件内偏移
+}
+```
+
+2.2 CoW B+ Tree Node
+```rust
+// 内部节点 / Internal Node
+struct InternalNode {
+    keys: Vec<Bytes>,      // 分隔键
+    children: Vec<PageId>, // 子节点页 ID
+}
+
+// 叶子节点 / Leaf Node
+struct LeafNode {
+    keys: Vec<Bytes>,      // 键
+    vals: Vec<ValRef>,     // 值引用 (KV 分离)
+    prev: Option<PageId>,  // 前驱叶子
+    next: Option<PageId>,  // 后继叶子
+}
+```
+
+2.3 Commit (版本快照)
+```rust
+struct Commit {
+    ts: u64,              // 时间戳 (秒)
+    root: PageId,         // B+ Tree 根节点
+    parent: Option<PageId>, // 父 Commit (版本链)
+}
+```
+
+2.4 DbMeta (子库元数据)
+```rust
+struct DbMeta {
+    id: DbId,
+    head: PageId,         // 当前 Commit Head
+    created_at: u64,
+}
+```
+
+================================================================================
+3. KV 分离设计 / KV Separation Design
+================================================================================
+
+为什么 KV 分离：
+- B+ Tree 节点更紧凑，扇出更高
+- 大 Value 不影响索引性能
+- Value Log 顺序写，GC 友好
+
+写入流程：
+1. Value 追加写入 Value Log，得到 ValRef
+2. (Key, ValRef) 插入 CoW B+ Tree
+3. 生成新 Commit，更新 Head
+
+读取流程：
+1. B+ Tree 查找 Key，得到 ValRef
+2. 根据 ValRef 从 Value Log 读取 Value
+
+历史查询：
+1. 遍历 Commit Chain，找到目标版本
+2. 使用该版本的 root 查询
+
+================================================================================
+4. CoW B+ Tree 设计 / CoW B+ Tree Design
+================================================================================
+
+4.1 路径复制 (Path Copying)
+- 修改时只复制从根到叶的路径
+- 未修改的子树共享
+- 天然支持 MVCC
+
+4.2 Fork 实现
+```rust
+// Fork 只是复制 Commit Head 指针
+async fn fork(&self, ts: Sec, order: Order) -> Option<Db> {
+    // 1. 找到 ts 对应的 Commit
+    let commit = self.find_commit_at(ts, order).await?;
+    // 2. 创建新 Db，指向同一个 Commit
+    let new_db = Db::from_commit(commit);
+    // 3. 增加引用计数
+    self.inc_ref(commit.root);
+    Some(new_db)
+}
+```
+
+4.3 时间旅行
+- 每个 Db 维护 Commit Chain
+- fork(ts, Asc): 找到 <= ts 的最新 Commit
+- fork(ts, Desc): 找到 >= ts 的最早 Commit
+- history(key): 遍历 Commit Chain，返回 key 的所有历史值
+
+================================================================================
+5. Value Log 设计 / Value Log Design
+================================================================================
+
+5.1 文件结构
+```
+value_log/
+├── 0001.vlog  # 第一个 Value Log 文件
+├── 0002.vlog  # 第二个 Value Log 文件
+└── ...
+```
+
+5.2 记录格式
+```
+┌──────────┬──────────┬──────────┬──────────┐
+│ len (4B) │ crc (4B) │ key_len  │ key      │
+├──────────┴──────────┴──────────┴──────────┤
+│ value                                      │
+└────────────────────────────────────────────┘
+```
+
+5.3 GC 策略
+- 扫描所有活跃 Commit 的 B+ Tree
+- 标记所有被引用的 ValRef
+- 回收未被引用的 Value Log 段
+
+================================================================================
+6. 引用计数与 GC / Reference Counting & GC
+================================================================================
+
+6.1 引用计数对象
+- B+ Tree 节点页
+- Commit 页
+- Value Log 段
+
+6.2 RefLog (引用变更日志)
+```rust
+enum RefOp {
+    Inc { page_id: PageId },
+    Dec { page_id: PageId },
+}
+```
+
+6.3 GC 流程
+1. 定期扫描 RefLog
+2. 合并同一 PageId 的 Inc/Dec
+3. Ref == 0 的页加入空闲列表
+4. Value Log GC 单独处理
+
+================================================================================
+7. Pipeline 批量操作 / Pipeline Batch Operations
+================================================================================
+
+```rust
+let pipe = db.pipeline();
+pipe.put("k1", "v1");
+pipe.put("k2", "v2");
+pipe.get("k3");
+pipe.rm("k4");
+
+let results = pipe.exec().await;
+// results: Stream<Rt>
+```
+
+优势：
+- 减少 await 开销
+- 批量 IO 提交
+- 原子性保证 (可选)
+
+================================================================================
+8. 模块规划 / Module Planning
+================================================================================
+
+基础设施 (已完成):
+- jdb_alloc: 对齐内存分配
+- jdb_fs: compio 异步 IO 封装
+- jdb_buf: 内存池
+
+核心模块 (待实现):
+- jdb_trait: 接口定义 ✅
+- jdb_tree: CoW B+ Tree
+- jdb_vlog: Value Log
+- jdb_page: PageStore
+- jdb_core: Jdb/Db 实现
+
+================================================================================
+9. 接口定义 (jdb_trait) / Interface Definition
+================================================================================
+
+```rust
+// 排序方向 / Sort Order
+pub enum Order { Asc, Desc }
+
+// 键值对 / Key-Value Pair
+pub type Kv = (Bytes, Bytes);
+pub type Sec = u64;  // 时间戳 (秒)
+pub type DbId = u64; // 子库 ID
+
+// 值引用 / Value Reference
+pub struct ValRef {
+    pub file_id: u64,
+    pub offset: u64,
+}
+
+// 操作结果 / Operation Result
+pub enum Rt {
+    Get(Option<Bytes>),
+    Put(Option<Prev>),  // 返回旧值引用
+    Rm(bool),
+}
+
+// 批量操作 / Pipeline
+pub trait Pipeline {
+    fn put(&self, key: K, val: V);
+    fn get(&self, key: K);
+    fn rm(&self, key: K);
+    fn exec(&self) -> impl Future<Output = impl Stream<Item = Rt>>;
+}
+
+// 子库 / Database
+pub trait Db {
+    fn put(&self, key, val) -> Option<Prev>;
+    fn get(&self, key) -> Option<Bytes>;
+    fn rm(&self, key);
+    fn scan(&self, start, order) -> Stream<Kv>;
+    fn history(&self, key) -> Stream<ValRef>;
+    fn val(&self, val_ref) -> Option<Bytes>;
+    fn fork(&self, ts, order) -> Option<Db>;
+    fn last_ts(&self) -> Sec;
+    fn pipeline(&self) -> Pipeline;
+}
+
+// 顶层入口 / Top-level Entry
+pub trait Jdb {
+    fn open(conf) -> Jdb;
+    fn db(&self, id, conf) -> Db;
+    fn fork(&self, id) -> Option<Db>;
+    fn scan(&self, start, order) -> Stream<Db>;
+}
+```
+
+================================================================================
+10. 后续扩展 / Future Extensions
+================================================================================
+
+Phase 2: Shard + Share-Nothing
+- 多线程，每个线程一个 Shard
+- Region 动态分裂/迁移
+- 全局路由表
+
+Phase 3: 分布式
+- 跨节点 Region 迁移
+- Raft 复制
+- 分布式事务
