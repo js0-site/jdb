@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = [
+  "jdb_alloc", "jdb_bench", "jdb_flush",
+  "jdb_fs", "jdb_slab",
+]
+exclude = ["sh/_tmpl"]
+
+[profile.release]
+lto = true
+opt-level = 3
+incremental = true
+codegen-units = 1
+overflow-checks = false
+debug-assertions = false
+# panic = 'abort'
+# strip = false
+
+[profile.dev]
+split-debuginfo = "unpacked"
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
