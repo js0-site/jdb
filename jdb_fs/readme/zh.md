@@ -1,0 +1,203 @@
+# jdb_fs : 数据库存储异步直接 I/O
+
+高性能异步文件 I/O 库，支持 Direct I/O，基于 compio 构建。
+
+## 目录
+
+- [特性](#特性)
+- [安装](#安装)
+- [使用](#使用)
+- [API 参考](#api-参考)
+- [架构](#架构)
+- [目录结构](#目录结构)
+- [技术栈](#技术栈)
+- [历史](#历史)
+
+## 特性
+
+- 异步 Direct I/O，绕过操作系统页缓存
+- Unix 上通过 BorrowedFd 实现零拷贝 I/O（无 Arc 开销）
+- 页对齐读写，运行时对齐检查
+- WAL 模式，O_DSYNC 保证持久性
+- 跨平台：Linux (io_uring + O_DIRECT)、macOS (kqueue + F_NOCACHE)、Windows (IOCP + NO_BUFFERING)
+- 通过 fallocate/F_PREALLOCATE/SetFileInformationByHandle 预分配空间
+
+## 安装
+
+```toml
+[dependencies]
+jdb_fs = "0.1"
+jdb_alloc = "0.1"  # 用于 AlignedBuf
+```
+
+## 使用
+
+基本文件操作：
+
+```rust
+use jdb_alloc::{AlignedBuf, PAGE_SIZE};
+use jdb_fs::File;
+
+async fn example() -> jdb_fs::Result<()> {
+  // 创建文件
+  let file = File::create("/tmp/test.dat").await?;
+
+  // 写入页对齐数据
+  let mut buf = AlignedBuf::zeroed(PAGE_SIZE)?;
+  buf[0..5].copy_from_slice(b"hello");
+  file.write_at(buf, 0).await?;
+  file.sync_data().await?;
+
+  // 读取
+  let buf = AlignedBuf::with_cap(PAGE_SIZE)?;
+  let buf = file.read_at(buf, 0).await?;
+  assert_eq!(&buf[0..5], b"hello");
+
+  Ok(())
+}
+```
+
+WAL 模式，同步持久化：
+
+```rust
+let wal = File::open_wal("/tmp/wal.log").await?;
+// 写入返回时数据已落盘 (O_DSYNC)
+```
+
+文件系统工具：
+
+```rust
+// 目录操作
+jdb_fs::mkdir("/tmp/data").await?;
+jdb_fs::rename("/tmp/old.dat", "/tmp/new.dat").await?;
+jdb_fs::remove("/tmp/unwanted.dat").await?;
+
+// 目录列表（仅文件）
+let file_li = jdb_fs::ls("/tmp/data").await?;
+
+// 文件元数据
+let size = jdb_fs::size("/tmp/file.dat").await?;
+let exists = jdb_fs::exists("/tmp/file.dat");
+
+// 目录同步保证 WAL 持久性
+jdb_fs::sync_dir("/tmp/wal_dir").await?;
+```
+
+## API 参考
+
+### File
+
+支持 Direct I/O 的异步文件封装。
+
+| 方法 | 描述 |
+|------|------|
+| `open(path)` | 只读打开 |
+| `create(path)` | 创建新文件（存在则截断） |
+| `open_rw(path)` | 读写打开（不存在则创建） |
+| `open_wal(path)` | WAL 模式打开，启用 O_DSYNC |
+| `read_at(buf, offset)` | 指定偏移读取（页对齐） |
+| `write_at(buf, offset)` | 指定偏移写入（页对齐） |
+| `size()` | 获取文件大小 |
+| `sync_all()` | 同步数据和元数据 |
+| `sync_data()` | 仅同步数据 |
+| `truncate(len)` | 截断文件到指定长度 |
+| `preallocate(len)` | 预分配磁盘空间 |
+
+### Error
+
+| 变体 | 描述 |
+|------|------|
+| `Io` | 系统 I/O 错误 |
+| `Alloc` | 内存分配错误 |
+| `Alignment` | 缓冲区/偏移未页对齐 |
+| `ShortRead` | 读取字节数不足 |
+| `ShortWrite` | 写入字节数不足 |
+| `Join` | spawn_blocking 任务失败 |
+| `Overflow` | 文件大小超出 i64 |
+
+### 文件系统函数
+
+| 函数 | 描述 |
+|------|------|
+| `exists(path)` | 检查路径是否存在 |
+| `mkdir(path)` | 递归创建目录 |
+| `ls(path)` | 列出目录中的文件（不含子目录） |
+| `size(path)` | 获取文件大小（无需打开） |
+| `rename(from, to)` | 原子重命名 |
+| `remove(path)` | 删除文件 |
+| `sync_dir(path)` | 同步目录元数据 |
+
+### 常量
+
+- `PAGE_SIZE`：系统页大小（从 jdb_alloc 重导出）
+
+## 架构
+
+```mermaid
+graph TD
+  A[应用层] --> B[File]
+  B --> C{平台}
+  C -->|Linux| D[io_uring + O_DIRECT]
+  C -->|macOS| E[kqueue + F_NOCACHE]
+  C -->|Windows| F[IOCP + NO_BUFFERING]
+  D --> G[compio 运行时]
+  E --> G
+  F --> G
+```
+
+`write_at` 调用流程：
+
+1. 检查对齐（offset 和 len 必须 PAGE_SIZE 对齐）
+2. 通过 BorrowedFd 借用原始 fd（零拷贝）
+3. 向 compio 运行时提交 WriteAt 操作
+4. io_uring/kqueue/IOCP 异步完成
+5. 将缓冲区所有权返回调用方
+
+## 目录结构
+
+```
+jdb_fs/
+├── src/
+│   ├── lib.rs      # 公开导出
+│   ├── file.rs     # File 结构体和异步方法
+│   ├── error.rs    # 错误类型 (thiserror)
+│   ├── fs.rs       # 文件系统工具
+│   └── os/         # 平台特定实现
+│       ├── mod.rs
+│       ├── linux.rs   # O_DIRECT, fallocate
+│       ├── macos.rs   # F_NOCACHE, F_PREALLOCATE
+│       └── windows.rs # FILE_FLAG_NO_BUFFERING
+├── tests/
+│   └── main.rs     # 集成测试
+└── Cargo.toml
+```
+
+## 技术栈
+
+| 组件 | 技术 |
+|------|------|
+| 异步运行时 | compio |
+| Linux I/O | io_uring |
+| macOS I/O | kqueue |
+| Windows I/O | IOCP |
+| 错误处理 | thiserror |
+| 内存对齐 | jdb_alloc |
+
+## 历史
+
+io_uring 由 Jens Axboe（Linux 块 I/O 维护者）在 2019 年 3 月引入 Linux 内核 5.1。在 io_uring 之前，Linux 异步 I/O (AIO) 设置复杂且限制颇多。Axboe 设计 io_uring 时采用内核与用户空间共享环形缓冲区，在高吞吐场景下消除系统调用开销。
+
+Direct I/O (O_DIRECT) 自 Linux 内核 2.4 起就已存在。它绕过页缓存，让数据库直接控制缓存策略，确保 I/O 延迟可预测。MySQL InnoDB、PostgreSQL、RocksDB 等数据库引擎都重度依赖 Direct I/O 以获得稳定性能。
+
+io_uring + Direct I/O 的组合代表了 Linux 数据库存储引擎的最先进技术，在现代 NVMe 驱动器上可达数百万 IOPS。
+
+---
+
+## 关于
+
+本项目为 [js0.site ⋅ 重构互联网计划](https://js0.site) 的开源组件。
+
+我们正在以组件化的方式重新定义互联网的开发范式，欢迎关注：
+
+* [谷歌邮件列表](https://groups.google.com/g/js0-site)
+* [js0site.bsky.social](https://bsky.app/profile/js0site.bsky.social)
