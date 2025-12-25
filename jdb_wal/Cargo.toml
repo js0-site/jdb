@@ -1,0 +1,30 @@
+[package]
+name = "jdb_wal"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0/jdb.git"
+homepage = "https://github.com/js0/jdb/tree/main/jdb_wal"
+description = "jdb_wal"
+keywords = []
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+bytes = "1.11.0"
+jdb_alloc = { version = "0.1.4", path = "../jdb_alloc" }
+jdb_fs = { version = "0.1.4", path = "../jdb_fs" }
+thiserror = "2.0.17"
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = { version = "0.17.0", features = ["macros"] }
+fastrand = "2.3.0"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
