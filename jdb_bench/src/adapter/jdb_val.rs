@@ -1,0 +1,74 @@
+// JdbVal WAL adapter / JdbVal WAL 适配器
+
+use std::{
+  collections::HashMap,
+  path::{Path, PathBuf},
+};
+
+use jdb_val::{Conf, Pos, Wal};
+
+use crate::{BenchEngine, Result};
+
+const ENGINE_NAME: &str = "jdb_val";
+
+/// JdbVal adapter / JdbVal 适配器
+pub struct JdbValAdapter {
+  wal: Wal,
+  /// key -> pos mapping / 键到位置的映射
+  index: HashMap<Vec<u8>, Pos>,
+  /// Data directory / 数据目录
+  path: PathBuf,
+}
+
+impl JdbValAdapter {
+  /// Create new adapter / 创建新适配器
+  pub async fn new(path: &Path) -> Result<Self> {
+    let path_buf = path.to_path_buf();
+    // Larger cache for better small value performance / 更大缓存提升小值性能
+    let mut wal = Wal::new(path, &[Conf::HeadLru(65536), Conf::DataLru(65536)]);
+    wal.open().await?;
+
+    Ok(Self {
+      wal,
+      index: HashMap::new(),
+      path: path_buf,
+    })
+  }
+}
+
+impl BenchEngine for JdbValAdapter {
+  fn name(&self) -> &str {
+    ENGINE_NAME
+  }
+
+  fn data_path(&self) -> &Path {
+    &self.path
+  }
+
+  async fn put(&mut self, key: &[u8], val: &[u8]) -> Result<()> {
+    let pos = self.wal.put(key, val).await?;
+    self.index.insert(key.to_vec(), pos);
+    Ok(())
+  }
+
+  async fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+    let Some(&pos) = self.index.get(key) else {
+      return Ok(None);
+    };
+    let head = self.wal.read_head(pos).await?;
+    let data = self.wal.head_val(&head).await?;
+    Ok(Some(data))
+  }
+
+  async fn del(&mut self, key: &[u8]) -> Result<()> {
+    if self.index.remove(key).is_some() {
+      self.wal.del(key).await?;
+    }
+    Ok(())
+  }
+
+  async fn sync(&self) -> Result<()> {
+    self.wal.sync_all().await?;
+    Ok(())
+  }
+}
