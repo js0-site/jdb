@@ -1,0 +1,30 @@
+[package]
+name = "zbin"
+version = "0.1.3"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/zbin"
+description = "Zero-copy binary trait for compio / compio 的零拷贝二进制 trait"
+keywords = ["io", "buffer", "async", "zero-copy"]
+
+[features]
+default = []
+bytes = ["dep:bytes"]
+hipstr = ["dep:hipstr"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+compio = { version = "0.17.0", features = ["runtime", "io"] }
+hipstr = { version = "0.8.0", optional = true }
+bytes = { version = "1.11.0", optional = true }
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = { version = "0.17.0", features = ["macros"] }
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"

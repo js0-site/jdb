@@ -1,0 +1,315 @@
+//! WAL streaming API / WAL 流式接口
+
+use std::mem;
+
+use compio::{
+  buf::{IntoInner, IoBuf},
+  io::{AsyncReadAtExt, AsyncWriteAtExt},
+};
+use compio_fs::{File, OpenOptions};
+
+use super::{Wal, WalConf, WalInner, lz4};
+use crate::{Bin, Flag, Head, INFILE_MAX, Pos, Result};
+
+impl<C: WalConf> WalInner<C> {
+  /// Default chunk size for streaming (64KB) / 流式读写默认块大小
+  pub(super) const CHUNK_SIZE: usize = 64 * 1024;
+
+  /// First chunk size for mode detection (INFILE_MAX + CHUNK_SIZE, 64KB aligned)
+  /// 首次读取大小用于模式检测（INFILE_MAX + CHUNK_SIZE，64KB 对齐）
+  const FIRST_CHUNK_SIZE: usize = INFILE_MAX + Self::CHUNK_SIZE;
+
+  /// Put with streaming value / 流式写入值
+  ///
+  /// First read uses INFILE_MAX + CHUNK_SIZE buffer to detect storage mode:
+  /// 首次读取使用 INFILE_MAX + CHUNK_SIZE 大小的 buffer 来检测存储模式：
+  /// - If total <= inline limit: store inline / 若总大小 <= 内联限制：内联存储
+  /// - If total <= INFILE_MAX: store in WAL file / 若总大小 <= INFILE_MAX：存入 WAL 文件
+  /// - Otherwise: store in separate bin file / 否则：存入独立 bin 文件
+  pub async fn put_stream<'a, I>(&mut self, key: impl Bin<'a>, mut val_iter: I) -> Result<Pos>
+  where
+    I: Iterator<Item = Vec<u8>>,
+  {
+    // Reuse data_buf to avoid allocation / 复用 data_buf 避免分配
+    let mut first_buf = mem::take(&mut self.data_buf);
+    first_buf.clear();
+    first_buf.reserve(Self::FIRST_CHUNK_SIZE);
+
+    let mut has_more = false;
+    let mut leftover: Option<Vec<u8>> = None; // Save remaining part of split chunk / 保存分割块的剩余部分
+    for mut chunk in val_iter.by_ref() {
+      let remain = Self::FIRST_CHUNK_SIZE - first_buf.len();
+      if chunk.len() <= remain {
+        // Zero-copy: consume chunk ownership / 零拷贝：消费 chunk 所有权
+        first_buf.extend(chunk);
+        if first_buf.len() >= Self::FIRST_CHUNK_SIZE {
+          has_more = true;
+          break;
+        }
+      } else {
+        // Exceeds threshold, must use FILE mode / 超过阈值，必须用 FILE 模式
+        first_buf.extend_from_slice(&chunk[..remain]);
+        // Reuse chunk allocation: drain prefix, keep suffix / 复用 chunk 分配：移除前缀，保留后缀
+        chunk.drain(..remain);
+        leftover = Some(chunk);
+        has_more = true;
+        break;
+      }
+    }
+
+    // Determine mode based on first chunk / 根据首块数据确定模式
+    if !has_more && first_buf.len() <= INFILE_MAX {
+      // Small enough for inline/infile, use normal put / 足够小，用普通 put
+      let res = self.put(key, &first_buf).await;
+      // Restore buffer / 归还 buffer
+      self.data_buf = first_buf;
+      return res;
+    }
+
+    // Large value, must use FILE mode / 大值，必须用 FILE 模式
+    // Stream value to bin file / 流式写入值到 bin 文件
+    let val_id = self.ider.get();
+    // Chain leftover with remaining iterator / 将剩余部分与迭代器链接
+    let combined_iter = leftover.into_iter().chain(val_iter);
+    let (val_len, val_crc) = self
+      .write_file_stream_with_first(val_id, first_buf, combined_iter)
+      .await?;
+
+    // Use put_with_file to handle key mode selection and index update consistently
+    // 使用 put_with_file 统一处理键模式选择和索引更新
+    self
+      .put_with_file(key, Flag::FILE, val_id, val_len, val_crc)
+      .await
+  }
+
+  /// Write file in streaming mode with pre-read first chunk
+  ///
+  /// Write coalescing: buffer small chunks to reduce syscalls, improves throughput
+  /// 写合并：缓冲小块减少系统调用，显著提高小分片流式写入吞吐量
+  ///
+  /// Returns (total_len, crc32) / 返回 (总长度, crc32)
+  async fn write_file_stream_with_first<I>(
+    &mut self,
+    id: u64,
+    first: Vec<u8>,
+    iter: I,
+  ) -> Result<(u32, u32)>
+  where
+    I: Iterator<Item = Vec<u8>>,
+  {
+    let path = self.bin_path(id);
+
+    let mut file = OpenOptions::new()
+      .write(true)
+      .create(true)
+      .open(&path)
+      .await?;
+
+    let mut hasher = crc32fast::Hasher::new();
+
+    // Write first chunk / 写入首块
+    hasher.update(&first);
+    let mut pos = first.len() as u64;
+    let res = file.write_all_at(first, 0).await;
+    res.0?;
+
+    // Reclaim buffer for write coalescing / 取回缓冲区用于写合并
+    let mut buf = res.1;
+    let cap = buf.capacity();
+    buf.clear();
+
+    // Write remaining chunks with coalescing / 写入剩余块（带合并）
+    for chunk in iter {
+      hasher.update(&chunk);
+
+      // Flush if adding chunk exceeds capacity / 若添加块超过容量则先刷盘
+      if buf.len() + chunk.len() > cap && !buf.is_empty() {
+        let len = buf.len();
+        let res = file.write_all_at(buf, pos).await;
+        res.0?;
+        pos += len as u64;
+        buf = res.1;
+        buf.clear();
+      }
+
+      // Large chunk: write directly to avoid double copy / 大块：直接写入避免二次拷贝
+      if chunk.len() > cap {
+        let len = chunk.len();
+        file.write_all_at(chunk, pos).await.0?;
+        pos += len as u64;
+      } else {
+        // Zero-copy: consume chunk ownership / 零拷贝：消费 chunk 所有权
+        buf.extend(chunk);
+      }
+    }
+
+    // Flush remaining buffer / 刷入剩余缓冲区
+    if !buf.is_empty() {
+      let len = buf.len();
+      let res = file.write_all_at(buf, pos).await;
+      res.0?;
+      pos += len as u64;
+      buf = res.1;
+    }
+
+    // Restore buffer to WAL / 归还 buffer 给 WAL
+    self.data_buf = buf;
+
+    Ok((pos as u32, hasher.finalize()))
+  }
+
+  /// Read key in streaming mode / 流式读取键
+  pub async fn head_key_stream(&self, head: &Head) -> Result<DataStream> {
+    if head.key_flag.is_inline() {
+      return Ok(DataStream::Inline(head.key_data().to_vec()));
+    }
+    self
+      .open_stream(head.key_flag, head.key_pos(), head.key_len.get() as u64)
+      .await
+  }
+
+  /// Read value in streaming mode / 流式读取值
+  ///
+  /// Note: LZ4 compressed data is read entirely and decompressed, returned as Inline
+  /// 注意：LZ4 压缩数据会完整读取并解压缩，以 Inline 形式返回
+  pub async fn head_val_stream(&self, head: &Head) -> Result<DataStream> {
+    if head.val_flag.is_inline() {
+      return Ok(DataStream::Inline(head.val_data().to_vec()));
+    }
+    // LZ4 compressed: read all and decompress / LZ4 压缩：完整读取并解压缩
+    if head.val_flag.is_lz4() {
+      return self.read_lz4_as_inline(head).await;
+    }
+    self
+      .open_stream(head.val_flag, head.val_pos(), head.val_len.get() as u64)
+      .await
+  }
+
+  /// Read LZ4 compressed value as inline data / 读取 LZ4 压缩值为内联数据
+  async fn read_lz4_as_inline(&self, head: &Head) -> Result<DataStream> {
+    let original_len = head.val_len.get() as usize;
+    let loc = head.val_pos();
+
+    // Read compressed data / 读取压缩数据
+    let (compressed, expected_crc) = if head.val_flag.is_infile() {
+      // INFILE_LZ4: compressed_len in val_crc32 / INFILE_LZ4: 压缩长度在 val_crc32
+      let compressed_len = head.val_crc32() as usize;
+      let path = self.wal_path(loc.id());
+      let file = OpenOptions::new().read(true).open(&path).await?;
+      let buf = vec![0u8; compressed_len];
+      let res = file
+        .read_exact_at(buf.slice(0..compressed_len), loc.pos())
+        .await;
+      res.0?;
+      (res.1.into_inner(), None) // No CRC check for INFILE / INFILE 无 CRC 校验
+    } else {
+      // FILE_LZ4: read entire file / FILE_LZ4: 读取整个文件
+      let path = self.bin_path(loc.id());
+      let file = OpenOptions::new().read(true).open(&path).await?;
+      let file_len = file.metadata().await?.len() as usize;
+      let buf = vec![0u8; file_len];
+      let res = file.read_exact_at(buf.slice(0..file_len), 0).await;
+      res.0?;
+      (res.1.into_inner(), Some(head.val_crc32()))
+    };
+
+    // Verify CRC for FILE mode / FILE 模式校验 CRC
+    if let Some(expected) = expected_crc {
+      let crc = crc32fast::hash(&compressed);
+      if crc != expected {
+        return Err(crate::Error::CrcMismatch(expected, crc));
+      }
+    }
+
+    // Decompress / 解压缩
+    let mut decompressed = Vec::new();
+    lz4::decompress(&compressed, original_len, &mut decompressed)?;
+    Ok(DataStream::Inline(decompressed))
+  }
+
+  /// Open data stream by flag and location / 根据标志和位置打开数据流
+  async fn open_stream(&self, flag: Flag, loc: Pos, len: u64) -> Result<DataStream> {
+    let path = if flag.is_file() {
+      self.bin_path(loc.id())
+    } else {
+      self.wal_path(loc.id())
+    };
+    let file = OpenOptions::new().read(true).open(&path).await?;
+    let pos = if flag.is_file() { 0 } else { loc.pos() };
+    Ok(DataStream::File {
+      file,
+      pos,
+      remain: len,
+      buf: Vec::new(),
+    })
+  }
+}
+
+/// Data stream for reading large data / 用于读取大数据的流
+pub enum DataStream {
+  /// Inline data / 内联数据
+  Inline(Vec<u8>),
+  /// File-based stream / 基于文件的流
+  File {
+    file: File,
+    pos: u64,
+    remain: u64,
+    buf: Vec<u8>,
+  },
+}
+
+impl DataStream {
+  /// Read next chunk / 读取下一块
+  ///
+  /// Returns None when finished / 结束时返回 None
+  pub async fn next(&mut self) -> Result<Option<Vec<u8>>> {
+    match self {
+      DataStream::Inline(data) => {
+        if data.is_empty() {
+          Ok(None)
+        } else {
+          Ok(Some(mem::take(data)))
+        }
+      }
+      DataStream::File {
+        file,
+        pos,
+        remain,
+        buf,
+      } => {
+        if *remain == 0 {
+          return Ok(None);
+        }
+        // Safe: min ensures result fits in usize / 安全：min 确保结果适合 usize
+        let size = (*remain).min(Wal::CHUNK_SIZE as u64) as usize;
+        let tmp = Wal::prepare_buf(buf, size);
+        let res = file.read_exact_at(tmp.slice(0..size), *pos).await;
+        res.0?;
+        *pos += size as u64;
+        *remain -= size as u64;
+        Ok(Some(res.1.into_inner()))
+      }
+    }
+  }
+
+  /// Read all remaining data / 读取所有剩余数据
+  pub async fn read_all(&mut self) -> Result<Vec<u8>> {
+    match self {
+      DataStream::Inline(data) => Ok(mem::take(data)),
+      DataStream::File {
+        file,
+        pos,
+        remain,
+        buf,
+      } => {
+        let size = *remain as usize;
+        let tmp = Wal::prepare_buf(buf, size);
+        let res = file.read_exact_at(tmp.slice(0..size), *pos).await;
+        res.0?;
+        *pos += *remain;
+        *remain = 0;
+        Ok(res.1.into_inner())
+      }
+    }
+  }
+}
