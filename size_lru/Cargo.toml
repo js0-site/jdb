@@ -1,0 +1,28 @@
+[package]
+name = "size_lru"
+version = "0.1.3"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/size_lru"
+description = "Size-aware cache library with intelligent eviction strategies. / 具备智能淘汰策略的大小感知缓存库。"
+keywords = ["cache", "lru", "eviction", "size-aware", "lhd"]
+
+[features]
+default = []
+lhd = ["dep:fastrand", "dep:gxhash"]
+no = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+aok = "0.1.18"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
+
+[dependencies]
+fastrand = { version = "2.3.0", optional = true }
+gxhash = { version = "3.5.0", optional = true }
