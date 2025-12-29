@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000">
+<g transform="translate(0,0)">
+<rect width="800" height="300" x="0" y="0" fill="none"></rect>
+<path d="M80 240.5L760 240.5" fill="transparent" stroke="#E0E6F1" class="zr0-cls-0"></path>
+<path d="M80 201.5L760 201.5" fill="transparent" stroke="#E0E6F1" class="zr0-cls-0"></path>
+<path d="M80 162.5L760 162.5" fill="transparent" stroke="#E0E6F1" class="zr0-cls-0"></path>
+<path d="M80 123.5L760 123.5" fill="transparent" stroke="#E0E6F1" class="zr0-cls-0"></path>
+<path d="M80 84.5L760 84.5" fill="transparent" stroke="#E0E6F1" class="zr0-cls-0"></path>
+<path d="M80 45.5L760 45.5" fill="transparent" stroke="#E0E6F1" class="zr0-cls-0"></path>
+<path d="M80 240.5L760 240.5" fill="transparent" stroke="#6E7079" stroke-linecap="round" class="zr0-cls-0"></path>
+<path d="M80.5 240L80.5 245" fill="transparent" stroke="#6E7079" class="zr0-cls-0"></path>
+<path d="M306.5 240L306.5 245" fill="transparent" stroke="#6E7079" class="zr0-cls-0"></path>
+<path d="M533.5 240L533.5 245" fill="transparent" stroke="#6E7079" class="zr0-cls-0"></path>
+<path d="M760.5 240L760.5 245" fill="transparent" stroke="#6E7079" class="zr0-cls-0"></path>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 240)" fill="#6E7079">0</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 201)" fill="#6E7079">10</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 162)" fill="#6E7079">20</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 123)" fill="#6E7079">30</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 84)" fill="#6E7079">40</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 45)" fill="#6E7079">50</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="6" transform="translate(193.3333 248)" fill="#6E7079">查询</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="6" transform="translate(420 248)" fill="#6E7079">添加</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="6" transform="translate(646.6667 248)" fill="#6E7079">删除</text>
+<path d="M106.1 240l51.3 0l0 -170.4l-51.3 0Z" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr0-cls-1"></path>
+<path d="M332.7 240l51.3 0l0 -107.8l-51.3 0Z" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr0-cls-1"></path>
+<path d="M559.4 240l51.3 0l0 -184.7l-51.3 0Z" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr0-cls-1"></path>
+<path d="M167.7 240l51.3 0l0 -64.3l-51.3 0Z" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr0-cls-2"></path>
+<path d="M394.3 240l51.3 0l0 -70.8l-51.3 0Z" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr0-cls-2"></path>
+<path d="M621 240l51.3 0l0 -68.7l-51.3 0Z" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr0-cls-2"></path>
+<path d="M229.3 240l51.3 0l0 -79.8l-51.3 0Z" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr0-cls-3"></path>
+<path d="M455.9 240l51.3 0l0 -83.1l-51.3 0Z" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr0-cls-3"></path>
+<path d="M682.6 240l51.3 0l0 -46.9l-51.3 0Z" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr0-cls-3"></path>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(131.7333 64.6063)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">43.69068465542877</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(358.4 127.2354)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">27.63194252555955</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(585.0667 50.2753)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">47.365304914150386</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(193.3333 170.7243)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">16.48095016503919</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(420 164.1789)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">18.159254482702767</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(646.6667 166.2978)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">17.615961470369072</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(254.9333 155.1868)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">20.464913024599547</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(481.6 151.93)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">21.300012162306945</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(708.2667 188.1391)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">12.015620306398318</text>
+<path d="M-5 -5l425.2 0l0 24l-425.2 0Z" transform="translate(192.42 281)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#ccc" stroke-width="0" class="zr0-cls-0"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(192.42 281)" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr0-cls-0"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:sans-serif;" x="30" y="7" transform="translate(192.42 281)" fill="#333">autoscale_cuckoo_filter</text>
+<path d="M0 0l155.9 0l0 14l-155.9 0Z" transform="translate(192.42 281)" fill="transparent" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="legend" class="zr0-cls-4"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(358.3 281)" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="1" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr0-cls-0"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:sans-serif;" x="30" y="7" transform="translate(358.3 281)" fill="#333">scalable_cuckoo_filter</text>
+<path d="M0 0l148.4 0l0 14l-148.4 0Z" transform="translate(358.3 281)" fill="transparent" ecmeta_series_index="1" ecmeta_data_index="1" ecmeta_ssr_type="legend" class="zr0-cls-4"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(516.74 281)" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="2" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr0-cls-0"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:sans-serif;" x="30" y="7" transform="translate(516.74 281)" fill="#333">cuckoofilter</text>
+<path d="M0 0l90.8 0l0 14l-90.8 0Z" transform="translate(516.74 281)" fill="transparent" ecmeta_series_index="2" ecmeta_data_index="2" ecmeta_ssr_type="legend" class="zr0-cls-4"></path>
+<path d="M-87.5 -5l175.1 0l0 28l-175.1 0Z" transform="translate(400 5)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#ccc" stroke-width="0" class="zr0-cls-0"></path>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:18px;font-family:sans-serif;font-weight:bold;" xml:space="preserve" y="9" transform="translate(400 5)" fill="#464646">性能测试 - 百万次/秒</text>
+<style ><![CDATA[
+.zr0-cls-0:hover {
+pointer-events:none;
+}
+.zr0-cls-1:hover {
+cursor:pointer;
+fill:rgba(92,123,217,1);
+}
+.zr0-cls-2:hover {
+cursor:pointer;
+fill:rgba(159,224,128,1);
+}
+.zr0-cls-3:hover {
+cursor:pointer;
+fill:rgba(255,220,96,1);
+}
+.zr0-cls-4:hover {
+cursor:pointer;
+fill:rgba(0,0,0,0);
+}
+
+]]>
+
+</style>
+</g>
+<g transform="translate(0,300)">
+<rect width="800" height="300" x="0" y="0" fill="none"></rect>
+<path d="M80 240.5L760 240.5" fill="transparent" stroke="#E0E6F1" class="zr1-cls-5"></path>
+<path d="M80 207.5L760 207.5" fill="transparent" stroke="#E0E6F1" class="zr1-cls-5"></path>
+<path d="M80 175.5L760 175.5" fill="transparent" stroke="#E0E6F1" class="zr1-cls-5"></path>
+<path d="M80 142.5L760 142.5" fill="transparent" stroke="#E0E6F1" class="zr1-cls-5"></path>
+<path d="M80 110.5L760 110.5" fill="transparent" stroke="#E0E6F1" class="zr1-cls-5"></path>
+<path d="M80 77.5L760 77.5" fill="transparent" stroke="#E0E6F1" class="zr1-cls-5"></path>
+<path d="M80 45.5L760 45.5" fill="transparent" stroke="#E0E6F1" class="zr1-cls-5"></path>
+<path d="M80 240.5L760 240.5" fill="transparent" stroke="#6E7079" stroke-linecap="round" class="zr1-cls-5"></path>
+<path d="M80.5 240L80.5 245" fill="transparent" stroke="#6E7079" class="zr1-cls-5"></path>
+<path d="M306.5 240L306.5 245" fill="transparent" stroke="#6E7079" class="zr1-cls-5"></path>
+<path d="M533.5 240L533.5 245" fill="transparent" stroke="#6E7079" class="zr1-cls-5"></path>
+<path d="M760.5 240L760.5 245" fill="transparent" stroke="#6E7079" class="zr1-cls-5"></path>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 240)" fill="#6E7079">0</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 207.5)" fill="#6E7079">200</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 175)" fill="#6E7079">400</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 142.5)" fill="#6E7079">600</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 110)" fill="#6E7079">800</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 77.5)" fill="#6E7079">1,000</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 45)" fill="#6E7079">1,200</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="6" transform="translate(193.3333 248)" fill="#6E7079">autoscale_cuckoo_filter</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="6" transform="translate(420 248)" fill="#6E7079">scalable_cuckoo_filter</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="6" transform="translate(646.6667 248)" fill="#6E7079">cuckoofilter</text>
+<path d="M115.1 240l156.4 0l0 -57.4l-156.4 0Z" fill="#73c0de" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr1-cls-6"></path>
+<path d="M341.8 240l156.4 0l0 -57.4l-156.4 0Z" fill="#73c0de" ecmeta_series_index="0" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr1-cls-6"></path>
+<path d="M568.5 240l156.4 0l0 -166.4l-156.4 0Z" fill="#73c0de" ecmeta_series_index="0" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr1-cls-6"></path>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(193.3333 177.6375)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">353</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(420 177.6375)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">353</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(646.6667 68.5962)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">1024.0234375</text>
+<path d="M-5 -5l83.3 0l0 24l-83.3 0Z" transform="translate(363.34 281)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#ccc" stroke-width="0" class="zr1-cls-5"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(363.34 281)" fill="#73c0de" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr1-cls-5"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:sans-serif;" x="30" y="7" transform="translate(363.34 281)" fill="#333">Memory</text>
+<path d="M0 0l73.3 0l0 14l-73.3 0Z" transform="translate(363.34 281)" fill="transparent" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="legend" class="zr1-cls-7"></path>
+<path d="M-43.5 -5l87 0l0 28l-87 0Z" transform="translate(400 5)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#ccc" stroke-width="0" class="zr1-cls-5"></path>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:18px;font-family:sans-serif;font-weight:bold;" xml:space="preserve" y="9" transform="translate(400 5)" fill="#464646">内存 (KB)</text>
+<style ><![CDATA[
+.zr1-cls-5:hover {
+pointer-events:none;
+}
+.zr1-cls-6:hover {
+cursor:pointer;
+fill:rgba(126,211,244,1);
+}
+.zr1-cls-7:hover {
+cursor:pointer;
+fill:rgba(0,0,0,0);
+}
+
+]]>
+
+</style>
+</g>
+<g transform="translate(0,600)">
+<rect width="800" height="300" x="0" y="0" fill="none"></rect>
+<path d="M80 240.5L760 240.5" fill="transparent" stroke="#E0E6F1" class="zr2-cls-8"></path>
+<path d="M80 207.5L760 207.5" fill="transparent" stroke="#E0E6F1" class="zr2-cls-8"></path>
+<path d="M80 175.5L760 175.5" fill="transparent" stroke="#E0E6F1" class="zr2-cls-8"></path>
+<path d="M80 142.5L760 142.5" fill="transparent" stroke="#E0E6F1" class="zr2-cls-8"></path>
+<path d="M80 110.5L760 110.5" fill="transparent" stroke="#E0E6F1" class="zr2-cls-8"></path>
+<path d="M80 77.5L760 77.5" fill="transparent" stroke="#E0E6F1" class="zr2-cls-8"></path>
+<path d="M80 45.5L760 45.5" fill="transparent" stroke="#E0E6F1" class="zr2-cls-8"></path>
+<path d="M80 240.5L760 240.5" fill="transparent" stroke="#6E7079" stroke-linecap="round" class="zr2-cls-8"></path>
+<path d="M80.5 240L80.5 245" fill="transparent" stroke="#6E7079" class="zr2-cls-8"></path>
+<path d="M306.5 240L306.5 245" fill="transparent" stroke="#6E7079" class="zr2-cls-8"></path>
+<path d="M533.5 240L533.5 245" fill="transparent" stroke="#6E7079" class="zr2-cls-8"></path>
+<path d="M760.5 240L760.5 245" fill="transparent" stroke="#6E7079" class="zr2-cls-8"></path>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 240)" fill="#6E7079">0</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 207.5)" fill="#6E7079">0.05</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 175)" fill="#6E7079">0.1</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 142.5)" fill="#6E7079">0.15</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 110)" fill="#6E7079">0.2</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 77.5)" fill="#6E7079">0.25</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:sans-serif;" transform="translate(72 45)" fill="#6E7079">0.3</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="6" transform="translate(193.3333 248)" fill="#6E7079">autoscale_cuckoo_filter</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="6" transform="translate(420 248)" fill="#6E7079">scalable_cuckoo_filter</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="6" transform="translate(646.6667 248)" fill="#6E7079">cuckoofilter</text>
+<path d="M115.1 240l156.4 0l0 -110.5l-156.4 0Z" fill="#ee6666" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr2-cls-9"></path>
+<path d="M341.8 240l156.4 0l0 -97.5l-156.4 0Z" fill="#ee6666" ecmeta_series_index="0" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr2-cls-9"></path>
+<path d="M568.5 240l156.4 0l0 -175.5l-156.4 0Z" fill="#ee6666" ecmeta_series_index="0" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr2-cls-9"></path>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(193.3333 124.5)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">0.17</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(420 137.5)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">0.15</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:sans-serif;" y="-6" transform="translate(646.6667 59.5)" fill="#333" stroke="rgb(255,255,255)" stroke-width="2" paint-order="stroke" stroke-miterlimit="2">0.27</text>
+<path d="M-5 -5l63.4 0l0 24l-63.4 0Z" transform="translate(373.3 281)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#ccc" stroke-width="0" class="zr2-cls-8"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(373.3 281)" fill="#ee6666" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr2-cls-8"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:sans-serif;" x="30" y="7" transform="translate(373.3 281)" fill="#333">FPP</text>
+<path d="M0 0l53.4 0l0 14l-53.4 0Z" transform="translate(373.3 281)" fill="transparent" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="legend" class="zr2-cls-10"></path>
+<path d="M-96.5 -5l193.1 0l0 28l-193.1 0Z" transform="translate(400 5)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#ccc" stroke-width="0" class="zr2-cls-8"></path>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:18px;font-family:sans-serif;font-weight:bold;" xml:space="preserve" y="9" transform="translate(400 5)" fill="#464646">FPP 误判率 (越低越好)</text>
+<style ><![CDATA[
+.zr2-cls-8:hover {
+pointer-events:none;
+}
+.zr2-cls-9:hover {
+cursor:pointer;
+fill:rgba(255,112,112,1);
+}
+.zr2-cls-10:hover {
+cursor:pointer;
+fill:rgba(0,0,0,0);
+}
+
+]]>
+
+</style>
+</g>
+</svg>
