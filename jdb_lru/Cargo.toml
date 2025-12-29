@@ -1,0 +1,26 @@
+[package]
+name = "jdb_lru"
+version = "0.1.1"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_lru"
+description = "Efficient LRU cache implementation / 高效LRU缓存实现"
+keywords = ["lru", "cache", "no-cache", "rust", "performance"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+hashlink = "0.11.0"
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = { version = "0.17.0", features = ["macros"] }
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
