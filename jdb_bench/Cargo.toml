@@ -1,0 +1,84 @@
+[package]
+name = "jdb_val_bench"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb_val.git"
+homepage = "https://github.com/js0-site/jdb_val/tree/main/jdb_val_bench"
+description = "jdb_val_bench"
+keywords = [ ]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
+jdb_val = [ "dep:jdb_val" ]
+fjall = [ "dep:fjall" ]
+rocksdb = [ "dep:rocksdb" ]
+all = [ "fjall", "rocksdb", "jdb_val" ]
+
+[dependencies]
+fastrand = "2.3.0"
+hdrhistogram = "7.5.4"
+sonic-rs = "0.5.6"
+thiserror = "2.0.17"
+memory-stats = "1.2.0"
+humansize = "2.1.3"
+hipstr = "0.8.0"
+jdb_bench_data = { version = "0.1.0", path = "../jdb_bench_data" }
+
+[dependencies.serde]
+version = "1.0.228"
+features = [ "derive" ]
+
+[dependencies.fjall]
+version = "3.0.0-rc.6"
+optional = true
+
+[dependencies.rocksdb]
+version = "0.24.0"
+optional = true
+
+[dependencies.compio]
+version = "0.17.0"
+features = [ "macros" ]
+
+[dependencies.jdb_val]
+version = "0.1.0"
+path = "../jdb_val"
+optional = true
+
+[dependencies.autoscale_cuckoo_filter]
+path = "../autoscale_cuckoo_filter"
+version = "0.5.8"
+
+[dependencies.cuckoofilter]
+version = "0.5.0"
+features = [ "farmhash" ]
+
+[dependencies.mimalloc]
+version = "0.1.48"
+default-features = false
+
+[dev-dependencies]
+aok = "0.1.18"
+humansize = "2.1.3"
+log = "0.4.29"
+log_init = "0.1.34"
+proptest = "1.9.0"
+sonic-rs = "0.5.6"
+static_init = "1.0.4"
+
+[dev-dependencies.compio]
+version = "0.17.0"
+features = [ "macros" ]
+
+[[bench]]
+name = "engine"
+harness = false
+
+[[bench]]
+name = "filter_bench"
+harness = false
