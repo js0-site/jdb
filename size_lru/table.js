@@ -140,7 +140,7 @@ const genMdEn = (data, sys) => {
   lines.push("|-------|-------|------|");
   for (const b of stats.size_distribution) {
     if (b.count > 0) {
-      lines.push(`| ${b.label} | ${b.percent.toFixed(0)}% | ${b.size_percent.toFixed(0)}% |`);
+      lines.push(`| ${b.label} | ${b.percent.toFixed(2)}% | ${b.size_percent.toFixed(2)}% |`);
     }
   }
   lines.push("");
@@ -216,7 +216,7 @@ const genMdZh = (data, sys) => {
   lines.push("|------|------|------|");
   for (const b of stats.size_distribution) {
     if (b.count > 0) {
-      lines.push(`| ${b.label} | ${b.percent.toFixed(0)}% | ${b.size_percent.toFixed(0)}% |`);
+      lines.push(`| ${b.label} | ${b.percent.toFixed(2)}% | ${b.size_percent.toFixed(2)}% |`);
     }
   }
   lines.push("");
