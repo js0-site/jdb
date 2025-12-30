@@ -1,0 +1,110 @@
+{
+  "config": {
+    "mem_budget": 67108864,
+    "read_ratio": 90,
+    "write_ratio": 9,
+    "delete_ratio": 1,
+    "real_miss_ratio": 5,
+    "zipf_s": 1.0,
+    "ops_per_loop": 120000000,
+    "loops": 3
+  },
+  "miss_latency_ns": 1934,
+  "miss_latency_method": "NVMe 4KB random read (16MB tempfile, 100 iterations)",
+  "stats": {
+    "total_size_bytes": 2081451521,
+    "item_count": 224195,
+    "avg_item_size": 9284,
+    "min_item_size": 16,
+    "max_item_size": 1048169,
+    "mem_budget": 67108864,
+    "size_distribution": [
+      {
+        "label": "16-100B",
+        "count": 88643,
+        "percent": 39.53834831285265,
+        "total_size_bytes": 5083914,
+        "size_percent": 0.24424849431792264
+      },
+      {
+        "label": "100B-1KB",
+        "count": 79417,
+        "percent": 35.42318071321841,
+        "total_size_bytes": 44203315,
+        "size_percent": 2.123677373891621
+      },
+      {
+        "label": "1-10KB",
+        "count": 44923,
+        "percent": 20.037467383304712,
+        "total_size_bytes": 252596728,
+        "size_percent": 12.135604670660019
+      },
+      {
+        "label": "10-100KB",
+        "count": 8971,
+        "percent": 4.001427328887798,
+        "total_size_bytes": 505137597,
+        "size_percent": 24.26852568525424
+      },
+      {
+        "label": "100KB-1MB",
+        "count": 2241,
+        "percent": 0.9995762617364348,
+        "total_size_bytes": 1274429967,
+        "size_percent": 61.227943775876206
+      }
+    ]
+  },
+  "results": [
+    {
+      "lib": "size_lru",
+      "hit_rate": 0.7181052628628996,
+      "ops_per_second": 6009900.208778925,
+      "effective_ops": 1405330.2070738084,
+      "memory_kb": 67768.6015625
+    },
+    {
+      "lib": "moka",
+      "hit_rate": 0.7077374010435019,
+      "ops_per_second": 2170215.3953919588,
+      "effective_ops": 974640.229809073,
+      "memory_kb": 65402.46875
+    },
+    {
+      "lib": "mini-moka",
+      "hit_rate": 0.7053095188255701,
+      "ops_per_second": 1911746.1650745675,
+      "effective_ops": 914901.8778787232,
+      "memory_kb": 66822.53125
+    },
+    {
+      "lib": "clru",
+      "hit_rate": 0.5832503898420734,
+      "ops_per_second": 5339176.742560253,
+      "effective_ops": 1006756.8095437512,
+      "memory_kb": 69705.8671875
+    },
+    {
+      "lib": "lru",
+      "hit_rate": 0.5782610798163864,
+      "ops_per_second": 5800529.288124057,
+      "effective_ops": 1012103.6132271586,
+      "memory_kb": 65240.015625
+    },
+    {
+      "lib": "hashlink",
+      "hit_rate": 0.5769520311858597,
+      "ops_per_second": 6026538.771579601,
+      "effective_ops": 1016149.1539112242,
+      "memory_kb": 63796.734375
+    },
+    {
+      "lib": "schnellru",
+      "hit_rate": 0.5826458837807259,
+      "ops_per_second": 5933395.912765531,
+      "effective_ops": 1024904.7666127254,
+      "memory_kb": 68288.2109375
+    }
+  ]
+}
