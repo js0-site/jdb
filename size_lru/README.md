@@ -323,7 +323,7 @@ Memory: 64.0MB · Zipf s=1 · R/W/D: 90/9/1% · Miss: 5% · Ops: 120M×3
 
 ---
 
-<details><summary>Notes</summary>
+### Notes
 
 #### Data Distribution
 
@@ -375,7 +375,6 @@ Formula: `effective_ops = 1 / (hit_time + miss_rate × miss_latency)`
 - OSDI'20: Twitter cache analysis
 - FAST'20: Facebook RocksDB workloads
 - ATC'13: Scaling Memcache at Facebook
-</details>
 
 ---
 
@@ -710,7 +709,7 @@ size_lru 将 LHD 带入 Rust，并进行了实用优化：
 
 ---
 
-<details><summary>备注</summary>
+### 备注
 
 #### 数据分布
 
@@ -762,7 +761,6 @@ LRU 缓存通常位于持久化存储（数据库、KV 存储）前面。缓存�
 - OSDI'20: Twitter 缓存分析
 - FAST'20: Facebook RocksDB 负载
 - ATC'13: Facebook Memcache 扩展
-</details>
 
 ---
 

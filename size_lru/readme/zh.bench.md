@@ -30,7 +30,7 @@
 
 ---
 
-<details><summary>备注</summary>
+### 备注
 
 #### 数据分布
 
@@ -82,4 +82,3 @@ LRU 缓存通常位于持久化存储（数据库、KV 存储）前面。缓存�
 - OSDI'20: Twitter 缓存分析
 - FAST'20: Facebook RocksDB 负载
 - ATC'13: Facebook Memcache 扩展
-</details>

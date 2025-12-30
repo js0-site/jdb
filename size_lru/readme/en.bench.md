@@ -30,7 +30,7 @@ Memory: 64.0MB · Zipf s=1 · R/W/D: 90/9/1% · Miss: 5% · Ops: 120M×3
 
 ---
 
-<details><summary>Notes</summary>
+### Notes
 
 #### Data Distribution
 
@@ -82,4 +82,3 @@ Formula: `effective_ops = 1 / (hit_time + miss_rate × miss_latency)`
 - OSDI'20: Twitter cache analysis
 - FAST'20: Facebook RocksDB workloads
 - ATC'13: Scaling Memcache at Facebook
-</details>

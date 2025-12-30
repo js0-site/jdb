@@ -33,7 +33,7 @@ vb = "0.2.6"
 gxhash = "3.5.0"
 
 [dependencies.size_lru]
-version = "0.1.6"
+version = "0.1.8"
 path = "../size_lru"
 features = [ "lhd", "no" ]
 
