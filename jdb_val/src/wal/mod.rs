@@ -7,11 +7,9 @@
 mod conf;
 pub(crate) mod consts;
 mod header;
-/// LZ4 compression module (public for testing)
-/// LZ4 压缩模块（公开用于测试）
-pub mod lz4;
 mod open;
 mod read;
+mod replay;
 mod stream;
 mod write;
 mod write_buf;
@@ -28,7 +26,7 @@ use std::{
 use compio::io::AsyncWriteAtExt;
 use compio_fs::File;
 use compio_runtime::spawn;
-pub use conf::{Conf, Gc, Val};
+pub use conf::{Conf, DefaultGc, Gc, NoGc, Val};
 pub(crate) use conf::{DefaultConf, GcConf, ParsedConf, WalConf};
 use consts::{BIN_SUBDIR, WAL_SUBDIR};
 use hashlink::lru_cache::Entry;
@@ -285,5 +283,29 @@ impl<C: WalConf> WalInner<C> {
   #[inline(always)]
   pub fn has_pending(&self) -> bool {
     !self.shared.is_empty() || self.shared.is_task_running()
+  }
+
+  /// Get data directory / 获取数据目录
+  #[inline(always)]
+  pub(crate) fn dir(&self) -> PathBuf {
+    self.wal_dir.parent().unwrap().to_path_buf()
+  }
+
+  /// Create checkpoint at current position / 在当前位置创建检查点
+  #[inline]
+  pub fn checkpoint(&self) -> crate::Checkpoint {
+    crate::Checkpoint::new(self.cur_id(), self.cur_pos)
+  }
+
+  /// Load checkpoint from file / 从文件加载检查点
+  #[inline]
+  pub async fn load_checkpoint(path: &std::path::Path) -> Result<Option<crate::Checkpoint>> {
+    crate::Checkpoint::load(path).await
+  }
+
+  /// Save checkpoint to file / 保存检查点到文件
+  #[inline]
+  pub async fn save_checkpoint(&self, path: &std::path::Path) -> Result<()> {
+    self.checkpoint().save(path).await
   }
 }

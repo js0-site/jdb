@@ -1,4 +1,5 @@
-//! WAL position / WAL 位置
+//! WAL position
+//! WAL 位置
 
 use std::hash::Hash;
 
@@ -38,7 +39,7 @@ impl Hash for Pos {
 impl Pos {
   pub const SIZE: usize = 24;
 
-  /// Create position with flag / 创建带标志的位置
+  /// Create position with flag
   #[inline(always)]
   pub fn new(flag: Flag, wal_id: u64, offset_or_file_id: u64, len: u32) -> Self {
     Self {
@@ -50,79 +51,79 @@ impl Pos {
     }
   }
 
-  /// Create INFILE position / 创建 INFILE 位置
+  /// Create INFILE position
   #[inline(always)]
   pub fn infile(wal_id: u64, offset: u64, len: u32) -> Self {
     Self::new(Flag::Infile, wal_id, offset, len)
   }
 
-  /// Create INFILE position with flag / 创建带标志的 INFILE 位置
+  /// Create INFILE position with flag
   #[inline(always)]
   pub fn infile_with_flag(flag: Flag, wal_id: u64, offset: u64, len: u32) -> Self {
     Self::new(flag, wal_id, offset, len)
   }
 
-  /// Create FILE position / 创建 FILE 位置
+  /// Create FILE position
   #[inline(always)]
   pub fn file(wal_id: u64, file_id: u64, len: u32) -> Self {
     Self::new(Flag::File, wal_id, file_id, len)
   }
 
-  /// Create FILE position with flag / 创建带标志的 FILE 位置
+  /// Create FILE position with flag
   #[inline(always)]
   pub fn file_with_flag(flag: Flag, wal_id: u64, file_id: u64, len: u32) -> Self {
     Self::new(flag, wal_id, file_id, len)
   }
 
-  /// Create tombstone position / 创建删除标记位置
+  /// Create tombstone position
   #[inline(always)]
   pub fn tombstone(wal_id: u64, offset: u64) -> Self {
     Self::new(Flag::Tombstone, wal_id, offset, 0)
   }
 
-  /// Get flag / 获取标志
+  /// Get flag
   #[inline(always)]
   pub fn flag(&self) -> Flag {
     Flag::from_u8(self.flag)
   }
 
-  /// Check if INFILE mode / 检查是否 INFILE 模式
+  /// Is INFILE mode
   #[inline(always)]
   pub fn is_infile(&self) -> bool {
     self.flag().is_infile()
   }
 
-  /// Check if tombstone / 检查是否删除标记
+  /// Is tombstone
   #[inline(always)]
   pub fn is_tombstone(&self) -> bool {
     self.flag().is_tombstone()
   }
 
-  /// Get WAL file ID / 获取 WAL 文件 ID
+  /// Get WAL file ID
   #[inline(always)]
   pub fn id(&self) -> u64 {
     self.wal_id.get()
   }
 
-  /// Get val offset (INFILE mode) / 获取 val 偏移（INFILE 模式）
+  /// Get val offset (INFILE mode)
   #[inline(always)]
   pub fn offset(&self) -> u64 {
     self.offset_or_file_id.get()
   }
 
-  /// Get file ID (FILE mode) / 获取文件 ID（FILE 模式）
+  /// Get file ID (FILE mode)
   #[inline(always)]
   pub fn file_id(&self) -> u64 {
     self.offset_or_file_id.get()
   }
 
-  /// Get val length / 获取 val 长度
+  /// Get val length
   #[inline(always)]
   pub fn len(&self) -> u32 {
     self.len
   }
 
-  /// Check if empty / 检查是否为空
+  /// Is empty
   #[inline(always)]
   pub fn is_empty(&self) -> bool {
     self.len == 0

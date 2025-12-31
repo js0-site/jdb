@@ -9,7 +9,12 @@ members = [
   "jdb_lock",
   "autopin",
   "cpu_load",
-  "size_lru", "jdb_bench_data", "jdb", "wlog",
+  "size_lru",
+  "jdb_bench_data",
+  "jdb",
+  "wlog",
+  "jdb_gc",
+  "jdb_base",
 ]
 exclude = ["sh/_tmpl"]
 

@@ -253,7 +253,7 @@ mod prop {
 mod gc {
   use std::future::Future;
 
-  use jdb_val::{Conf, DefaultGc, GcState, Gcable, IndexUpdate, PosMap, Wal};
+  use jdb_val::{Conf, Gcable, IndexUpdate, PosMap, Wal};
 
   struct MockGc {
     deleted: Vec<Vec<u8>>,
@@ -273,8 +273,6 @@ mod gc {
     }
   }
 
-  // Mock index for testing
-  // 测试用 mock 索引
   struct MockIndex;
 
   impl IndexUpdate for MockIndex {
@@ -289,13 +287,9 @@ mod gc {
     wal.put(b"k", b"v").await.unwrap();
 
     let checker = MockGc::new(vec![]);
-    let mut state = GcState::new(dir.path());
-    let mut gc = DefaultGc;
     let index = MockIndex;
 
-    let result = wal
-      .gc(&[wal.cur_id()], &checker, &mut state, &mut gc, &index)
-      .await;
+    let result = wal.gc(&[wal.cur_id()], &checker, &index).await;
     assert!(result.is_err());
   }
 
@@ -306,14 +300,9 @@ mod gc {
     wal.open().await.unwrap();
 
     let checker = MockGc::new(vec![]);
-    let mut state = GcState::new(dir.path());
-    let mut gc = DefaultGc;
     let index = MockIndex;
 
-    let (reclaimed, total) = wal
-      .gc(&[], &checker, &mut state, &mut gc, &index)
-      .await
-      .unwrap();
+    let (reclaimed, total) = wal.gc(&[], &checker, &index).await.unwrap();
     assert_eq!(reclaimed, 0);
     assert_eq!(total, 0);
   }
@@ -339,14 +328,9 @@ mod gc {
     }
 
     let checker = MockGc::new(vec![vec![b'k', 0], vec![b'k', 1]]);
-    let mut state = GcState::new(dir.path());
-    let mut gc = DefaultGc;
     let index = MockIndex;
 
-    let (reclaimed, total) = wal
-      .gc(&ids, &checker, &mut state, &mut gc, &index)
-      .await
-      .unwrap();
+    let (reclaimed, total) = wal.gc(&ids, &checker, &index).await.unwrap();
     assert!(reclaimed <= total);
   }
 }

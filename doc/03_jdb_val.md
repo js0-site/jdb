@@ -1,173 +1,124 @@
-# jdb_val 设计文档
-# jdb_val Design Document
+# jdb_val
 
-## 概述 / Overview
+本文档仅记录暴露给上层 KV 分离数据库的公开接口、结构体和 trait。
 
-`jdb_val` 是一个高性能 WAL 值存储库，专为 KV 分离架构设计。支持异步 IO、LRU 缓存、LZ4 压缩和 GC。
+## 概述
 
-## 核心类型 / Core Types
+高性能 WAL 值存储库，专为 KV 分离架构设计。支持异步 IO（compio）、LHD 缓存、LZ4 压缩和 GC。
 
-| Type | Size | Description |
-|------|------|-------------|
-| `Wal` | - | WAL 管理器（带缓存） |
-| `Pos` | 24B | 值位置（INFILE/FILE 模式） |
+## 类型
+
+| 类型 | 大小 | 说明 |
+|------|------|------|
+| `Wal` | - | WAL 管理器 |
+| `Pos` | 24B | 值位置 |
+| `Record` | 16B | 记录位置 |
 | `Flag` | 1B | 存储标志 |
-| `Val` | - | 缓存数据 `Rc<[u8]>` |
+| `Val` | - | 缓存值 `Rc<[u8]>` |
+| `Conf` | - | 配置枚举 |
+| `Error`, `Result` | - | 错误类型 |
 
-## 配置 / Configuration
+## 常量
+
+| 常量 | 值 | 说明 |
+|------|-----|------|
+| `KEY_MAX` | 64 KB | Key 最大长度 |
+| `INFILE_MAX` | 4 MB | INFILE 模式最大值长度 |
+
+## 配置
 
 ```rust
 pub enum Conf {
-  MaxSize(u64),      // WAL 文件最大大小
-  CacheSize(u64),    // 缓存大小
+  MaxSize(u64),     // WAL 文件最大大小（默认 512MB）
+  CacheSize(u64),   // 缓存大小（默认 8MB）
+  FileLru(usize),   // 文件句柄缓存容量
+  WriteChan(usize), // 写入队列容量
+  SlotMax(usize),   // 等待前的最大槽大小（默认 8MB）
 }
 ```
 
-## 核心接口 / Core API
-
-### 初始化 / Initialize
+## Traits
 
 ```rust
-let mut wal = Wal::new("./data", &[Conf::CacheSize(64 * 1024 * 1024)]);
-wal.open().await?;
-```
+// GC 压缩处理
+pub trait Gc: Default {
+  fn process(&mut self, flag: Flag, data: &[u8], buf: &mut Vec<u8>) -> (Flag, Option<usize>);
+}
 
-### 写入 / Write
-
-```rust
-let pos = wal.put(key, val).await?;   // 写入 KV
-let pos = wal.del(key).await?;        // 删除
-wal.sync_all().await?;                // 同步
-```
-
-### 读取 / Read
-
-```rust
-let data: Val = wal.val(pos).await?;  // 按位置读取
-let data = wal.val_cached(&pos);      // 缓存读取（无 IO）
-```
-
-### GC
-
-```rust
-let mut state = GcState::new(&dir);
-let mut gc = DefaultGc;
-let index = MyIndex::new();
-
-let (reclaimed, total) = wal.gc(&ids, &checker, &mut state, &mut gc, &index).await?;
-```
-
-## GC Traits
-
-```rust
 // 检查 key 是否已删除
-// Check if key is deleted
 pub trait Gcable {
-  fn is_rm(&self, key: &[u8]) -> impl Future<Output = bool>;
+  fn is_rm(&self, key: &[u8]) -> impl Future<Output = bool> + Send;
 }
 
 // 批量更新索引
-// Batch update index
 pub trait IndexUpdate: Send + Sync {
   fn update(&self, mapping: &[PosMap]);
 }
-
-// GC 压缩处理
-// GC compression processing
-pub trait GcTrait {
-  fn process(&mut self, store: Flag, data: &[u8], buf: &mut Vec<u8>) -> (Flag, Option<usize>);
-}
-
-// 位置映射
-// Position mapping
-pub struct PosMap {
-  pub key: HipByt<'static>,
-  pub new: Pos,
-}
 ```
 
-## Pos 结构 / Pos Structure
+## Wal 方法
 
 ```rust
-impl Pos {
-  pub fn is_infile(&self) -> bool;  // 是否内联
-  pub fn id(&self) -> u64;          // WAL 文件 ID
-  pub fn len(&self) -> u32;         // 值长度
-}
-```
-
-## Flag 值 / Flag Values
-
-| Value | Name | Description |
-|-------|------|-------------|
-| 0 | INFILE | 同 WAL 文件，无压缩 |
-| 1 | INFILE_LZ4 | LZ4 压缩 |
-| 2 | INFILE_ZSTD | ZSTD 压缩 |
-| 3 | INFILE_PROBED | 已探测不可压缩 |
-| 4 | FILE | 独立文件 |
-| 5 | FILE_LZ4 | 独立文件 + LZ4 |
-| 6 | FILE_ZSTD | 独立文件 + ZSTD |
-| 7 | FILE_PROBED | 已探测不可压缩 |
-| 8 | TOMBSTONE | 删除标记 |
-
-## 使用示例 / Usage Example
-
-```rust
-use jdb_val::{Conf, DefaultGc, GcState, Gcable, IndexUpdate, PosMap, Pos, Wal};
-use gxhash::HashMap;
-use hipstr::HipByt;
-use std::future::Future;
-
-// 实现 Gcable
-// Implement Gcable
-struct MyChecker { deleted: HashSet<Vec<u8>> }
-
-impl Gcable for MyChecker {
-  fn is_rm(&self, key: &[u8]) -> impl Future<Output = bool> {
-    let found = self.deleted.contains(key);
-    async move { found }
-  }
-}
-
-// 实现 IndexUpdate
-// Implement IndexUpdate
-struct MyIndex { map: RwLock<HashMap<HipByt<'static>, Pos>> }
-
-impl IndexUpdate for MyIndex {
-  fn update(&self, mapping: &[PosMap]) {
-    let mut map = self.map.write();
-    for m in mapping {
-      map.insert(m.key.clone(), m.new);
-    }
-  }
-}
-
-// 使用
-// Usage
-let mut wal = Wal::new("./data", &[Conf::CacheSize(64 << 20)]);
-wal.open().await?;
+// 创建与打开
+fn new(dir: impl Into<PathBuf>, conf: &[Conf]) -> Self;
+async fn open(&mut self) -> Result<()>;
 
 // 写入
-let pos = wal.put(b"key1", b"value1").await?;
+async fn put(&mut self, key: impl Bin, val: impl Bin) -> Result<Pos>;
+async fn del(&mut self, key: impl Bin) -> Result<Pos>;
 
 // 读取
-let data = wal.val(pos).await?;
+async fn val(&mut self, pos: Pos) -> Result<Val>;
+fn val_cached(&mut self, pos: &Pos) -> Option<Val>;
+
+// 迭代
+fn iter(&self) -> impl Iterator<Item = u64>;  // WAL 文件 ID
+async fn scan<F>(&self, id: u64, f: F) -> Result<()>
+  where F: FnMut(u64, &Head, &[u8]) -> bool;
+
+// 同步
+async fn flush(&mut self) -> Result<()>;
+async fn sync_all(&mut self) -> Result<()>;
+fn cur_id(&self) -> u64;
 
 // GC
-let mut state = GcState::new("./data");
-let mut gc = DefaultGc;
-let checker = MyChecker::new();
-let index = MyIndex::new();
-
-let ids: Vec<_> = wal.iter().filter(|&id| id < wal.cur_id()).collect();
-let (reclaimed, total) = wal.gc(&ids, &checker, &mut state, &mut gc, &index).await?;
-
-wal.sync_all().await?;
+async fn gc<T, M>(&mut self, ids: &[u64], checker: &T, index: &M) -> Result<(usize, usize)>
+where T: Gcable, M: IndexUpdate;
 ```
 
-## 限制 / Limits
+## 示例
 
-| Item | Limit |
-|------|-------|
-| Key 最大 | 64 KB |
-| INFILE 最大 | 4 MB |
+```rust
+use jdb_val::{Conf, Gcable, IndexUpdate, PosMap, Wal};
+
+async fn example() -> jdb_val::Result<()> {
+  let mut wal = Wal::new("./data", &[Conf::CacheSize(64 << 20)]);
+  wal.open().await?;
+
+  // 写入
+  let pos = wal.put(b"key", b"val").await?;
+
+  // 读取
+  let _data = wal.val(pos).await?;
+
+  // GC
+  let ids: Vec<_> = wal.iter().filter(|&id| id < wal.cur_id()).collect();
+  wal.gc(&ids, &checker, &index).await?;
+
+  wal.sync_all().await
+}
+```
+
+## Flag 值
+
+| 值 | 名称 | 说明 |
+|----|------|------|
+| 0 | Infile | 同 WAL 文件，无压缩 |
+| 1 | InfileLz4 | LZ4 压缩 |
+| 2 | InfileZstd | ZSTD 压缩 |
+| 3 | InfileProbed | 已探测不可压缩 |
+| 4 | File | 独立文件 |
+| 5 | FileLz4 | 独立文件 + LZ4 |
+| 6 | FileZstd | 独立文件 + ZSTD |
+| 7 | FileProbed | 已探测不可压缩 |
+| 8 | Tombstone | 删除标记 |

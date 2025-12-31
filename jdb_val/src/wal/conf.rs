@@ -14,18 +14,35 @@ use crate::{Flag, Pos};
 
 /// GC trait for data processing during GC
 /// GC 数据处理 trait
-///
-/// Process data during GC, may compress
-/// GC 过程中处理数据，可能压缩
-pub trait Gc: Send + 'static {
-  /// Process data during GC
-  /// GC 过程中处理数据
+pub trait Gc: Default {
+  /// Process data, may compress
+  /// 处理数据，可能压缩
   ///
-  /// Returns (new_store, data_slice_end)
-  /// 返回 (新存储模式, 数据切片结束位置)
-  /// - compressed data in buf[..end] or original
-  /// - 压缩数据在 buf[..end] 或原始数据
-  fn process(&mut self, store: Flag, data: &[u8], buf: &mut Vec<u8>) -> (Flag, Option<usize>);
+  /// Returns (new_flag, compressed_len)
+  /// 返回 (新标志, 压缩后长度)
+  fn process(&mut self, flag: Flag, data: &[u8], buf: &mut Vec<u8>) -> (Flag, Option<usize>);
+}
+
+/// Default GC (no compression, upstream handles it)
+/// 默认 GC（不压缩，上游处理）
+#[derive(Default)]
+pub struct DefaultGc;
+
+impl Gc for DefaultGc {
+  fn process(&mut self, flag: Flag, _data: &[u8], _buf: &mut Vec<u8>) -> (Flag, Option<usize>) {
+    (flag, None)
+  }
+}
+
+/// No-op GC (no compression)
+/// 无操作 GC（不压缩）
+#[derive(Default)]
+pub struct NoGc;
+
+impl Gc for NoGc {
+  fn process(&mut self, flag: Flag, _data: &[u8], _buf: &mut Vec<u8>) -> (Flag, Option<usize>) {
+    (flag, None)
+  }
 }
 
 /// Cached value type
@@ -37,32 +54,35 @@ pub type Val = Rc<[u8]>;
 pub trait WalConf {
   type ValCache: SizeLru<Pos, Val>;
   type Lock: WalLock;
+  type Gc: Gc;
 
   /// Create cache and lock
   /// 创建缓存和锁
   fn create(conf: &ParsedConf) -> (Self::ValCache, Self::Lock);
 }
 
-/// Default WAL config (with LHD cache and lock)
-/// 默认 WAL 配置（带 LHD 缓存和锁）
+/// Default WAL config (with LHD cache, lock, and LZ4 GC)
+/// 默认 WAL 配置（带 LHD 缓存、锁和 LZ4 GC）
 pub struct DefaultConf;
 
 impl WalConf for DefaultConf {
   type ValCache = Lhd<Pos, Val>;
   type Lock = WLock;
+  type Gc = DefaultGc;
 
   fn create(conf: &ParsedConf) -> (Self::ValCache, Self::Lock) {
     (Lhd::new(conf.cache_size as usize), WLock::default())
   }
 }
 
-/// GC WAL config (no cache, no lock)
-/// GC WAL 配置（无缓存，无锁）
+/// GC WAL config (no cache, no lock, no compression)
+/// GC WAL 配置（无缓存、无锁、无压缩）
 pub struct GcConf;
 
 impl WalConf for GcConf {
   type ValCache = SzNoCache;
   type Lock = NoLock;
+  type Gc = NoGc;
 
   fn create(_: &ParsedConf) -> (Self::ValCache, Self::Lock) {
     (SzNoCache, NoLock)

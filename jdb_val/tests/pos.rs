@@ -5,7 +5,7 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use jdb_val::{Pos, RecPos};
+use jdb_val::{Flag, Pos, Record};
 
 #[test]
 fn test_infile() {
@@ -14,6 +14,17 @@ fn test_infile() {
   assert_eq!(pos.offset(), 456);
   assert_eq!(pos.len(), 100);
   assert!(pos.is_infile());
+  assert_eq!(pos.flag(), Flag::Infile);
+}
+
+#[test]
+fn test_infile_with_flag() {
+  let pos = Pos::infile_with_flag(Flag::InfileLz4, 123, 456, 100);
+  assert_eq!(pos.id(), 123);
+  assert_eq!(pos.offset(), 456);
+  assert_eq!(pos.len(), 100);
+  assert!(pos.is_infile());
+  assert_eq!(pos.flag(), Flag::InfileLz4);
 }
 
 #[test]
@@ -23,6 +34,28 @@ fn test_file() {
   assert_eq!(pos.file_id(), 789);
   assert_eq!(pos.len(), 200);
   assert!(!pos.is_infile());
+  assert_eq!(pos.flag(), Flag::File);
+}
+
+#[test]
+fn test_file_with_flag() {
+  let pos = Pos::file_with_flag(Flag::FileLz4, 123, 789, 200);
+  assert_eq!(pos.id(), 123);
+  assert_eq!(pos.file_id(), 789);
+  assert_eq!(pos.len(), 200);
+  assert!(!pos.is_infile());
+  assert_eq!(pos.flag(), Flag::FileLz4);
+}
+
+#[test]
+fn test_tombstone() {
+  let pos = Pos::tombstone(123, 456);
+  assert_eq!(pos.id(), 123);
+  assert_eq!(pos.offset(), 456);
+  assert_eq!(pos.len(), 0);
+  assert!(pos.is_tombstone());
+  assert!(pos.is_empty());
+  assert_eq!(pos.flag(), Flag::Tombstone);
 }
 
 #[test]
@@ -32,6 +65,7 @@ fn test_default() {
   assert_eq!(pos.offset(), 0);
   assert_eq!(pos.len(), 0);
   assert!(pos.is_empty());
+  assert_eq!(pos.flag(), Flag::Infile);
 }
 
 #[test]
@@ -62,8 +96,14 @@ fn test_eq() {
 }
 
 #[test]
-fn test_rec_pos() {
-  let pos = RecPos::new(123, 456);
+fn test_record() {
+  let pos = Record::new(123, 456);
   assert_eq!(pos.id(), 123);
   assert_eq!(pos.offset(), 456);
+}
+
+#[test]
+fn test_size() {
+  assert_eq!(Pos::SIZE, 24);
+  assert_eq!(std::mem::size_of::<Pos>(), 24);
 }

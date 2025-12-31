@@ -13,14 +13,13 @@ use super::{
   Val, Wal, WalConf, WalInner,
   consts::{ITER_BUF_SIZE, SMALL_BUF_SIZE},
   header::{HeaderState, check_header},
-  lz4,
 };
 use crate::{
   Pos,
   error::{Error, Result},
   fs::open_read,
   head::{HEAD_CRC, HEAD_TOTAL, Head, MAGIC},
-  pos::RecPos,
+  record::Record,
   wal::consts::HEADER_SIZE,
 };
 
@@ -28,7 +27,7 @@ impl<C: WalConf> WalInner<C> {
   /// Read head at location
   /// 在位置读取头
   #[allow(clippy::uninit_vec)]
-  pub async fn read_head(&mut self, loc: RecPos) -> Result<Head> {
+  pub async fn read_head(&mut self, loc: Record) -> Result<Head> {
     let buf = Wal::prepare_buf(&mut self.read_buf, HEAD_CRC);
     let slice = buf.slice(0..HEAD_CRC);
     let (res, slice) = self.read_from_file(loc.id(), slice, loc.offset()).await;
@@ -42,7 +41,7 @@ impl<C: WalConf> WalInner<C> {
   /// 在位置读取完整记录
   #[allow(clippy::uninit_vec)]
   #[inline(always)]
-  pub async fn read_record(&mut self, loc: RecPos) -> Result<(Head, Val)> {
+  pub async fn read_record(&mut self, loc: Record) -> Result<(Head, Val)> {
     let buf = Wal::prepare_buf(&mut self.read_buf, SMALL_BUF_SIZE);
     let slice = buf.slice(0..SMALL_BUF_SIZE);
     let (res, slice) = self.read_at_partial(loc.id(), slice, loc.offset()).await;
@@ -233,14 +232,14 @@ impl<C: WalConf> WalInner<C> {
 
   /// Get key by record pos
   /// 根据记录位置获取键
-  pub async fn key(&mut self, pos: RecPos) -> Result<Vec<u8>> {
+  pub async fn key(&mut self, pos: Record) -> Result<Vec<u8>> {
     let (head, record) = self.read_record(pos).await?;
     Ok(head.key_data(&record).to_vec())
   }
 
   /// Get key and val by record pos
   /// 根据记录位置获取键值对
-  pub async fn kv(&mut self, pos: RecPos) -> Result<(Vec<u8>, Vec<u8>)> {
+  pub async fn kv(&mut self, pos: Record) -> Result<(Vec<u8>, Vec<u8>)> {
     let (head, record) = self.read_record(pos).await?;
     let key = head.key_data(&record).to_vec();
 
@@ -249,8 +248,8 @@ impl<C: WalConf> WalInner<C> {
     Ok((key, val))
   }
 
-  /// Read value into buffer
-  /// 读取值到缓冲区
+  /// Read value into buffer (raw data, no decompression)
+  /// 读取值到缓冲区（原始数据，不解压）
   pub async fn read_val_into(
     &mut self,
     head: &Head,
@@ -262,21 +261,11 @@ impl<C: WalConf> WalInner<C> {
       return Ok(());
     }
 
-    let store = head.flag();
-
     if head.val_is_infile() {
       let val = head.val_data(record);
-      if store.is_lz4() {
-        lz4::decompress(val, head.val_len as usize, buf)?;
-      } else {
-        buf.extend_from_slice(val);
-      }
+      buf.extend_from_slice(val);
     } else {
       self.read_file_into(head.val_file_id, buf).await?;
-      if store.is_lz4() {
-        let compressed = std::mem::take(buf);
-        lz4::decompress(&compressed, head.val_len as usize, buf)?;
-      }
     }
     Ok(())
   }

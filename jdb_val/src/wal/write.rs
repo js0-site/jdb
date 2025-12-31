@@ -59,7 +59,7 @@ impl<C: WalConf> WalInner<C> {
       // val offset = magic(1) + HEAD_CRC
       // val 偏移 = magic(1) + HEAD_CRC
       let val_pos = start + 1 + HEAD_CRC as u64;
-      Pos::infile(wal_id, val_pos, v.len() as u32)
+      Pos::infile_with_flag(Flag::Infile, wal_id, val_pos, v.len() as u32)
     } else {
       let (file_id, len) = self.write_val_file(v).await?;
       let record = self
@@ -67,7 +67,7 @@ impl<C: WalConf> WalInner<C> {
         .file(id, Flag::File, file_id, len, k)
         .to_vec();
       self.write_record(&record).await;
-      Pos::file(wal_id, file_id, len)
+      Pos::file_with_flag(Flag::File, wal_id, file_id, len)
     };
 
     if val_infile {
@@ -97,7 +97,7 @@ impl<C: WalConf> WalInner<C> {
       .file(id, val_store, val_file_id, val_len, k)
       .to_vec();
     self.write_record(&record).await;
-    Ok(Pos::file(wal_id, val_file_id, val_len))
+    Ok(Pos::file_with_flag(val_store, wal_id, val_file_id, val_len))
   }
 
   pub async fn del<'a>(&mut self, key: impl Bin<'a>) -> Result<Pos> {
@@ -112,27 +112,7 @@ impl<C: WalConf> WalInner<C> {
     let start = self.write_record(&record).await;
     // Tombstone: len=0, pos points to head
     // 删除标记：len=0，pos 指向 head
-    Ok(Pos::infile(wal_id, start + 1, 0))
-  }
-
-  pub async fn put_lz4<'a>(&mut self, key: impl Bin<'a>, compressed: &[u8]) -> Result<Pos> {
-    let k = key.as_slice();
-    if k.len() > KEY_MAX {
-      return Err(Error::DataTooLong(k.len(), KEY_MAX));
-    }
-    if compressed.len() > INFILE_MAX {
-      return Err(Error::DataTooLong(compressed.len(), INFILE_MAX));
-    }
-
-    let id = self.ider.get();
-    let wal_id = self.cur_id();
-    let record = self
-      .head_builder
-      .infile(id, Flag::InfileLz4, compressed, k)
-      .to_vec();
-    let start = self.write_record(&record).await;
-    let val_pos = start + 1 + HEAD_CRC as u64;
-    Ok(Pos::infile(wal_id, val_pos, compressed.len() as u32))
+    Ok(Pos::tombstone(wal_id, start + 1))
   }
 
   pub async fn put_with_store<'a>(
@@ -154,6 +134,11 @@ impl<C: WalConf> WalInner<C> {
     let record = self.head_builder.infile(id, val_store, val, k).to_vec();
     let start = self.write_record(&record).await;
     let val_pos = start + 1 + HEAD_CRC as u64;
-    Ok(Pos::infile(wal_id, val_pos, val.len() as u32))
+    Ok(Pos::infile_with_flag(
+      val_store,
+      wal_id,
+      val_pos,
+      val.len() as u32,
+    ))
   }
 }

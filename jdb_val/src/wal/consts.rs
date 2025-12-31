@@ -33,9 +33,9 @@ pub const SMALL_BUF_SIZE: usize = 64 * 1024;
 
 // === Defaults / 默认值 ===
 
-/// Default max file size (256MB)
+/// Default max file size (512MB)
 /// 默认最大文件大小
-pub const DEFAULT_MAX_SIZE: u64 = 256 * 1024 * 1024;
+pub const DEFAULT_MAX_SIZE: u64 = 512 * 1024 * 1024;
 
 /// Default write queue capacity
 /// 默认写入队列容量
@@ -69,9 +69,9 @@ pub const DEFAULT_BIN_CAP: usize = 16;
 /// 最小 BIN 文件缓存容量
 pub const MIN_BIN_CAP: usize = 2;
 
-/// Default slot max size (128MB)
-/// 默认槽最大大小
-pub const DEFAULT_SLOT_MAX: usize = 128 * 1024 * 1024;
+/// Default slot max size (8MB, ~5ms+ write time on fast SSD)
+/// 默认槽最大大小（8MB，快速 SSD 上约 5ms+ 写入时间）
+pub const DEFAULT_SLOT_MAX: usize = 8 * 1024 * 1024;
 
 // === Paths / 路径 ===
 

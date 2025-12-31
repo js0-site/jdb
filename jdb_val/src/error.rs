@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -34,11 +36,11 @@ pub enum Error {
   #[error("io error / IO 错误: {0}")]
   Io(#[from] std::io::Error),
 
-  #[error("LZ4 decompress failed / LZ4 解压缩失败")]
-  DecompressFailed,
-
   #[error("lock error / 锁错误: {0}")]
   Lock(#[from] jdb_lock::Error),
+
+  #[error("checkpoint corrupted at {path} / 检查点损坏: {path}")]
+  CheckpointCorrupt { path: PathBuf },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

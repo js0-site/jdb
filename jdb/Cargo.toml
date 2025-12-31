@@ -24,3 +24,10 @@ static_init = "1.0.4"
 [dev-dependencies.compio]
 version = "0.17.0"
 features = [ "macros" ]
+
+[dependencies]
+autoscale_cuckoo_filter = { version = "0.5.9", path = "../autoscale_cuckoo_filter" }
+compio = { version = "0.17.0", features = ["runtime", "io", "macros"] }
+jdb_val = { version = "0.1.0", path = "../jdb_val" }
+log = "0.4.29"
+thiserror = "2.0.17"

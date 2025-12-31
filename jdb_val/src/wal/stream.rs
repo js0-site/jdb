@@ -10,7 +10,7 @@ use compio::{
 use compio_fs::File;
 use zbin::Bin;
 
-use super::{Wal, WalConf, WalInner, lz4};
+use super::{Wal, WalConf, WalInner};
 use crate::{
   Flag, Result,
   fs::{open_read, open_write_create},
@@ -115,45 +115,26 @@ impl<C: WalConf> WalInner<C> {
     Ok(pos)
   }
 
-  /// Read value in streaming mode
-  /// 流式读取值
+  /// Read value in streaming mode (raw data, no decompression)
+  /// 流式读取值（原始数据，不解压）
   pub async fn val_stream(&self, head: &Head, record: &[u8]) -> Result<DataStream> {
     if head.is_tombstone() {
       return Ok(DataStream::Inline(Vec::new()));
     }
 
-    let store = head.flag();
-
     if head.val_is_infile() {
       let val = head.val_data(record);
-      if store.is_lz4() {
-        let mut buf = Vec::new();
-        lz4::decompress(val, head.val_len as usize, &mut buf)?;
-        return Ok(DataStream::Inline(buf));
-      }
       return Ok(DataStream::Inline(val.to_vec()));
     }
 
     self
-      .open_stream(head.val_file_id, head.val_len as u64, store)
+      .open_stream(head.val_file_id, head.val_len as u64)
       .await
   }
 
-  async fn open_stream(&self, file_id: u64, len: u64, store: Flag) -> Result<DataStream> {
+  async fn open_stream(&self, file_id: u64, len: u64) -> Result<DataStream> {
     let path = self.bin_path(file_id);
     let file = open_read(&path).await?;
-
-    if store.is_lz4() {
-      let file_len = file.metadata().await?.len() as usize;
-      let buf = vec![0u8; file_len];
-      let res = file.read_exact_at(buf.slice(0..file_len), 0).await;
-      res.0?;
-      let compressed = res.1.into_inner();
-
-      let mut decompressed = Vec::new();
-      lz4::decompress(&compressed, len as usize, &mut decompressed)?;
-      return Ok(DataStream::Inline(decompressed));
-    }
 
     Ok(DataStream::File {
       file,
