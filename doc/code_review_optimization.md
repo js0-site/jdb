@@ -75,16 +75,39 @@ Ok(data)
 |--------|--------|----------|------|
 | 高 | block_cache 零拷贝 | +200%~285% | ✅ 完成 |
 | 高 | gxhash HashMap | +4%~6% | ✅ 完成 |
-| 中 | read_file_into 零拷贝 | 未知 | 待评估 |
+| 高 | read_file_into 零拷贝 | 未知 | ✅ 完成 |
 | 低 | val_slow clone | 极小 | 暂不优化 |
 | 低 | HeadBuilder to_vec | 极小 | 暂不优化 |
 | 低 | GC compress_buf | 无影响 | 暂不优化 |
 
 ---
 
+## 代码审查记录
+
+### 2026-01-01 审查
+
+**修复项**:
+1. `read_file_into` 中重复调用 `get_bin_file` - 已修复
+
+**确认安全项**:
+1. 所有 `unwrap()` 都是 100% 安全的场景
+2. `clone()` 用于 `Rc<[u8]>`，只增加引用计数，开销极小
+3. `to_vec()` 大部分是必要的，用于异步 IO 或返回数据
+
+**当前性能**:
+
+| 类别 | jdb_val | fjall | 结果 |
+|------|---------|-------|------|
+| Large read | ~500K | ~420K | ✅ +19% |
+| Medium read | ~637K | ~648K | ⚠️ -1.7% |
+| Small read | ~700K+ | ~550K | ✅ +27% |
+
+---
+
 ## 结论
 
 1. **核心优化已完成**：block_cache 零拷贝带来最大收益
-2. **read_file_into** 可以尝试，但仅影响 FILE 模式
+2. **read_file_into 零拷贝已完成**：仅影响 FILE 模式
 3. **其他优化点收益太小**，暂不处理
 4. **当前性能**：Large/Small 超过 fjall，Medium 接近 fjall
+5. **代码质量良好**：无明显 bug，unwrap 使用安全

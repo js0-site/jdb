@@ -166,7 +166,6 @@ impl<C: WalConf> WalInner<C> {
     unsafe { buf.set_len(len) };
 
     let slice = std::mem::take(buf).slice(0..len);
-    let file = self.get_bin_file(id).await?;
     let res = file.read_exact_at(slice, 0).await;
     *buf = res.1.into_inner();
     res.0?;

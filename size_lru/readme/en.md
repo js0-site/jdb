@@ -107,6 +107,12 @@ cache.set("key".into(), data, 1000);
 
 Callback fires before removal or eviction. Use `cache.get(key)` to access the value being evicted.
 
+**Why callback only passes key, not value?**
+
+- Many use cases only need key (logging, counting, notifying external systems)
+- If value not needed, avoids one memory access overhead
+- When value needed, call `cache.get(key)` to retrieve it
+
 ```rust
 use size_lru::{Lhd, OnRm};
 
@@ -118,7 +124,16 @@ impl<V> OnRm<i32, Lhd<i32, V, Self>> for EvictLogger {
     if let Some(_val) = cache.get(key) {
       println!("Evicting key={key}");
     }
-    // Warning: don't call rm/set in callback, may cause undefined behavior
+    // ⚠️ WARNING: NEVER call rm/set in callback - causes undefined behavior!
+    // Reasons:
+    // 1. Reentrancy: callback runs inside evict/rm while cache is in intermediate state
+    //    - index may have removed key, but metas/payloads not yet cleaned up
+    //    - calling set may trigger new eviction, causing recursive eviction
+    // 2. Iterator invalidation: rm_idx uses swap_remove, moving last element to deleted position
+    //    - removing other entries in callback may corrupt ongoing swap operation
+    //    - leads to index pointing to wrong position or dangling references
+    // 3. Borrow conflict: callback holds &mut cache, internal ops also need &mut self
+    //    - Rust borrow checker bypassed via unsafe, but data race actually exists
   }
 }
 

@@ -58,6 +58,18 @@ pub async fn read_into<B: IoBufMut>(&mut self, file_id: u64, buf: B, offset: u64
 
 ---
 
+### 次要：read_file_into 零拷贝
+
+**问题**：`read_file_into` 中调用了两次 `get_bin_file`，且原实现先读到内部 buffer 再复制。
+
+**解决**：直接读到调用者 buffer，消除双重复制和重复调用。
+
+**文件**：`jdb_val/src/wal/read.rs`
+
+**注意**：仅影响 FILE 模式（大文件存储），不影响 INFILE 模式热路径。
+
+---
+
 ## 失败的优化
 
 ### ❌ val_cached 同步缓存检查 (负优化)
@@ -136,3 +148,15 @@ pub async fn read_into<B: IoBufMut>(&mut self, file_id: u64, buf: B, offset: u64
 - `jdb_val/src/wal/read.rs` - WAL 读取路径
 - `jdb_bench/src/adapter/jdb_val.rs` - benchmark adapter
 - `size_lru/src/lhd.rs` - LHD 缓存实现
+
+---
+
+## 最终性能对比 (2026-01-01)
+
+| 类别 | jdb_val | fjall | 结果 |
+|------|---------|-------|------|
+| Large read | ~500K ops/s | ~420K ops/s | ✅ +19% |
+| Medium read | ~637K ops/s | ~648K ops/s | ⚠️ -1.7% |
+| Small read | ~700K+ ops/s | ~550K ops/s | ✅ +27% |
+
+Large 和 Small 超过 fjall，Medium 接近 fjall。

@@ -1,4 +1,5 @@
 //! `NoCache` - zero overhead no-op cache
+//!
 //! `NoCache` - 零开销空操作缓存
 
 use std::hash::Hash;
@@ -6,8 +7,10 @@ use std::hash::Hash;
 use crate::SizeLru;
 
 /// No-op cache
-/// 空操作缓存
 pub struct NoCache;
+
+//
+/// 空操作缓存
 
 impl<K, V> SizeLru<K, V> for NoCache {
   type WithRm<Rm> = NoCache;

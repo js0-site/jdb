@@ -1,10 +1,13 @@
 //! LHD (Least Hit Density) cache for variable-sized data
-//! LHD（最低命中密度）缓存，用于变长数据
 //!
 //! Based on: Beckmann et al. "LHD: Improving Cache Hit Rate by Maximizing Hit Density" (NSDI 2018)
-//! 基于论文：Beckmann 等人的 LHD 算法
 //!
 //! Core idea: evict items with lowest `expected_hits` / size
+//!
+//! LHD（最低命中密度）缓存，用于变长数据
+//!
+//! 基于论文：Beckmann 等人的 LHD 算法
+//!
 //! 核心思想：淘汰 预期命中数/大小 最低的条目
 
 use std::{borrow::Borrow, hash::Hash};
@@ -15,40 +18,41 @@ use gxhash::{HashMap, HashMapExt};
 use crate::{NoOnRm, OnRm, SizeLru};
 
 // Eviction sample count
-// 淘汰采样数
 const SAMPLES: usize = 256;
 
 // Age class count for hit pattern
-// 命中模式年龄类别数
 const AGE_CLASSES: usize = 16;
 
 // Max age buckets (fits in u16)
-// 最大年龄桶数（可存入 u16）
 const MAX_AGE: usize = 4096;
 const MAX_AGE_U16: u16 = MAX_AGE as u16;
 
 // Flattened bucket count
-// 扁平化桶总数
 const TOTAL_BUCKETS: usize = AGE_CLASSES * MAX_AGE;
 
 // Per-entry overhead bytes
-// 每条目开销字节
 const ENTRY_OVERHEAD: u32 = 96;
 
 // EWMA decay factor
-// EWMA 衰减因子
 const DECAY: f32 = 0.9;
 
 // Reconfig interval
-// 重配置间隔
 const RECONFIG: u64 = 1 << 15;
 
 // Age coarsening divisor
-// 年龄粗化除数
 const AGE_DIVISOR: f32 = 40.96;
 
+//
+// 淘汰采样数
+// 命中模式年龄类别数
+// 最大年龄桶数（可存入 u16）
+// 扁平化桶总数
+// 每条目开销字节
+// EWMA 衰减因子
+// 重配置间隔
+// 年龄粗化除数
+
 /// Hot metadata for eviction sampling (`SoA` layout)
-/// 淘汰采样热元数据（SoA 布局）
 #[derive(Clone, Copy)]
 #[repr(C)]
 struct Meta {
@@ -59,14 +63,12 @@ struct Meta {
 }
 
 /// Cold payload
-/// 冷载荷
 struct Payload<K, V> {
   key: K,
   val: V,
 }
 
 /// Per-age bucket stats
-/// 年龄桶统计
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
 struct Bucket {
@@ -75,17 +77,19 @@ struct Bucket {
   density: f32,
 }
 
+//
+/// 淘汰采样热元数据（SoA 布局）
+/// 冷载荷
+/// 年龄桶统计
+
 /// LHD cache with random sampling eviction
-/// 随机采样淘汰的 LHD 缓存
 #[must_use]
 pub struct Lhd<K, V, OnRm = NoOnRm> {
   // Hot/cold split for cache locality
-  // 热/冷分离提升缓存局部性
   metas: Vec<Meta>,
   payloads: Vec<Payload<K, V>>,
   index: HashMap<K, usize>,
   // Flattened stats buckets
-  // 扁平化统计桶
   buckets: Box<[Bucket]>,
   total: usize,
   max: usize,
@@ -96,10 +100,15 @@ pub struct Lhd<K, V, OnRm = NoOnRm> {
   on_rm: OnRm,
 }
 
+//
+/// 随机采样淘汰的 LHD 缓存
+//
+// 热/冷分离提升缓存局部性
+// 扁平化统计桶
+
 fn init_buckets() -> Box<[Bucket]> {
   let mut buckets = vec![Bucket::default(); TOTAL_BUCKETS].into_boxed_slice();
   // Init density ~ 1/age (GDSF-like)
-  // 初始化密度 ~ 1/age（类 GDSF）
   for cid in 0..AGE_CLASSES {
     let offset = cid * MAX_AGE;
     for i in 0..MAX_AGE {
@@ -111,16 +120,16 @@ fn init_buckets() -> Box<[Bucket]> {
   buckets
 }
 
+// 初始化密度 ~ 1/age（类 GDSF）
+
 impl<K, V> Lhd<K, V> {
   /// Create new cache with max size
-  /// 创建指定最大大小的缓存
   #[inline]
   pub fn new(max: usize) -> Self {
     Self::with_on_rm(max, NoOnRm)
   }
 
   /// Create new cache with callback
-  /// 创建带回调的缓存
   #[inline]
   pub fn with_on_rm<Rm>(max: usize, on_rm: Rm) -> Lhd<K, V, Rm> {
     Lhd {
@@ -137,6 +146,10 @@ impl<K, V> Lhd<K, V> {
       on_rm,
     }
   }
+
+  //
+  /// 创建指定最大大小的缓存
+  /// 创建带回调的缓存
 }
 
 impl<K: Hash + Eq + Clone, V> SizeLru<K, V> for Lhd<K, V> {
@@ -192,7 +205,6 @@ impl<K: Hash + Eq + Clone, V> SizeLru<K, V> for Lhd<K, V> {
 
 impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
   /// Get value and update stats
-  /// 获取值并更新统计
   #[inline]
   pub fn get<Q>(&mut self, key: &Q) -> Option<&V>
   where
@@ -205,7 +217,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
     let shift = self.shift;
 
     // Access hot metadata
-    // 访问热元数据
     let m = unsafe { self.metas.get_unchecked_mut(idx) };
     let age = ((ts.saturating_sub(m.ts) >> shift) as usize).min(MAX_AGE - 1);
     let cid = Self::class_id(m.last_age as u32 + m.prev_age as u32);
@@ -219,12 +230,16 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
     }
 
     // Access cold payload
-    // 访问冷载荷
     Some(&unsafe { self.payloads.get_unchecked(idx) }.val)
   }
 
+  //
+  /// 获取值并更新统计
+  //
+  // 访问热元数据
+  // 访问冷载荷
+
   /// Peek value without updating stats (for cache check)
-  /// 查看值但不更新统计（用于缓存检查）
   #[inline(always)]
   pub fn peek<Q>(&self, key: &Q) -> Option<&V>
   where
@@ -235,8 +250,10 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
     Some(&unsafe { self.payloads.get_unchecked(idx) }.val)
   }
 
+  //
+  /// 查看值但不更新统计（用于缓存检查）
+
   /// Insert with size
-  /// 插入并指定大小
   #[inline]
   pub fn set(&mut self, key: K, val: V, size: u32)
   where
@@ -272,8 +289,10 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
     self.total += sz;
   }
 
+  //
+  /// 插入并指定大小
+
   /// Remove by key
-  /// 按键删除
   #[inline]
   pub fn rm<Q>(&mut self, key: &Q)
   where
@@ -288,6 +307,9 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
       self.rm_idx(idx);
     }
   }
+
+  //
+  /// 按键删除
 
   #[inline]
   fn rm_idx(&mut self, idx: usize) {
@@ -309,7 +331,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
   }
 
   /// Get density for meta
-  /// 获取元数据的密度
   #[inline(always)]
   fn density(&self, m: &Meta) -> f32 {
     let age = self.age(m.ts);
@@ -317,8 +338,21 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
     unsafe { self.buckets.get_unchecked(cid * MAX_AGE + age).density }
   }
 
+  //
+  /// 获取元数据的密度
+
   /// Evict with callback
-  /// 带回调淘汰
+  ///
+  /// # Internal State During Callback
+  ///
+  /// When callback fires, cache is in intermediate state:
+  /// - victim index still in `self.index`
+  /// - metas/payloads not yet modified
+  /// - `self.total` not yet decremented
+  ///
+  /// Calling rm/set in callback causes:
+  /// - set: may trigger recursive evict, corrupting victim selection
+  /// - rm: swap_remove may move victim to different index, causing double-free or leak
   #[inline]
   fn evict(&mut self) {
     let n = self.metas.len();
@@ -330,7 +364,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
     let mut victim = self.rng.usize(0..n);
 
     // Cross-multiply for density/size comparison
-    // 交叉乘法比较 density/size
     let m = unsafe { self.metas.get_unchecked(victim) };
     let mut min_d = self.density(m);
     let mut min_s = m.size;
@@ -349,7 +382,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
     }
 
     // Callback before removal or eviction
-    // 删除/淘汰前回调
     let key_ptr = unsafe { &raw const self.payloads.get_unchecked(victim).key };
     let ptr = self as *mut Self;
     self.on_rm.call(unsafe { &*key_ptr }, unsafe { &mut *ptr });
@@ -357,6 +389,23 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
     self.index.remove(unsafe { &*key_ptr });
     self.rm_idx(victim);
   }
+
+  //
+  /// 带回调淘汰
+  ///
+  /// # 回调期间的内部状态
+  ///
+  /// 回调触发时，缓存处于中间状态：
+  /// - victim 索引仍在 `self.index` 中
+  /// - metas/payloads 尚未修改
+  /// - `self.total` 尚未减少
+  ///
+  /// 在回调中调用 rm/set 会导致：
+  /// - set：可能触发递归 evict，破坏 victim 选择
+  /// - rm：swap_remove 可能移动 victim 到不同索引，导致双重释放或泄漏
+  //
+  // 交叉乘法比较 density/size
+  // 删除/淘汰前回调
 
   #[inline]
   pub fn size(&self) -> usize {
@@ -423,14 +472,12 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
           events += b.hits + b.evicts;
           life += events;
           // Epsilon avoids div by zero
-          // epsilon 避免除零
           b.density = hits_sum / (life + 1e-9);
         }
       }
     }
 
     // Adapt age coarsening
-    // 自适应年龄粗化
     let n = self.metas.len();
     if n > 0 {
       let opt = (n as f32 / AGE_DIVISOR) as u32;
@@ -442,4 +489,8 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
       self.shift = s.min(20);
     }
   }
+
+  //
+  // epsilon 避免除零
+  // 自适应年龄粗化
 }
