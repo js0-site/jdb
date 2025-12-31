@@ -127,7 +127,6 @@ impl<V> OnRm<i32, Lhd<i32, V, Self>> for EvictLogger {
     // ⚠️ WARNING: NEVER call rm/set in callback - causes undefined behavior!
     // Reasons:
     // 1. Reentrancy: callback runs inside evict/rm while cache is in intermediate state
-    //    - index may have removed key, but metas/payloads not yet cleaned up
     //    - calling set may trigger new eviction, causing recursive eviction
     // 2. Iterator invalidation: rm_idx uses swap_remove, moving last element to deleted position
     //    - removing other entries in callback may corrupt ongoing swap operation

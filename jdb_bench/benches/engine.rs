@@ -13,7 +13,8 @@ use sonic_rs::to_string_pretty;
 
 const DATA_DIR: &str = "../jdb_bench_data/data";
 const REPORT_DIR: &str = "report";
-const BENCH_SECS: u64 = 3;
+const WRITE_BYTES: u64 = 3 * 1024 * 1024 * 1024; // 3GB
+const READ_SECS: u64 = 3;
 const WARMUP_SECS: u64 = 3;
 const CHECK_INTERVAL: u64 = 100;
 const MISS_RATE: f64 = 0.05;
@@ -68,28 +69,27 @@ fn bench_write<E: BenchEngine>(
   engine: &mut E,
   label: &str,
   items: &[KvPair],
-  duration: Duration,
+  target_bytes: u64,
 ) -> (OpResult, u64) {
   let mut keygen = KeyGen::new(items.len());
   let mut ops = 0u64;
   let mut bytes = 0u64;
   let start = Instant::now();
 
-  loop {
+  while bytes < target_bytes {
     let (key, val) = keygen.next_kv(items);
     rt.block_on(engine.put(&key, val)).expect("put failed");
     bytes += (key.len() + val.len()) as u64;
     ops += 1;
-    if ops.is_multiple_of(CHECK_INTERVAL) && start.elapsed() >= duration {
-      break;
-    }
   }
   rt.block_on(engine.sync()).expect("sync failed");
 
   let result = OpResult::new(ops, bytes, start.elapsed());
   println!(
-    "{label} write: {:>10.0} ops/s, {:>8.2} MB/s",
-    result.ops, result.mbs
+    "{label} write: {:>10.0} ops/s, {:>8.2} MB/s ({:.2} GB)",
+    result.ops,
+    result.mbs,
+    bytes as f64 / 1024.0 / MB
   );
   (result, bytes)
 }
@@ -166,7 +166,11 @@ fn main() {
   println!("  Large: {} items", corpus.large.len());
   println!("  Medium: {} items", corpus.medium.len());
   println!("  Small: {} items", corpus.small.len());
-  println!("  Duration: {BENCH_SECS}s per test");
+  println!(
+    "  Write: {:.1} GB per category",
+    WRITE_BYTES as f64 / 1024.0 / MB
+  );
+  println!("  Read: {READ_SECS}s per test");
   println!();
 
   let large = to_kv(corpus.large.data());
@@ -184,7 +188,7 @@ fn main() {
 
   let _ = fs::create_dir_all(REPORT_DIR);
   let rt = compio::runtime::Runtime::new().expect("create runtime");
-  let duration = Duration::from_secs(BENCH_SECS);
+  let read_duration = Duration::from_secs(READ_SECS);
 
   #[cfg(feature = "jdb_val")]
   run_bench::<jdb_val_bench::JdbValAdapter>(
@@ -192,7 +196,8 @@ fn main() {
     "jdb_val",
     "/tmp/bench_jdb_val",
     &data,
-    duration,
+    WRITE_BYTES,
+    read_duration,
     &mem_baseline,
   );
 
@@ -202,7 +207,8 @@ fn main() {
     "fjall",
     "/tmp/bench_fjall",
     &data,
-    duration,
+    WRITE_BYTES,
+    read_duration,
     &mem_baseline,
   );
 
@@ -212,7 +218,8 @@ fn main() {
     "rocksdb",
     "/tmp/bench_rocksdb",
     &data,
-    duration,
+    WRITE_BYTES,
+    read_duration,
     &mem_baseline,
   );
 }
@@ -248,16 +255,17 @@ fn bench_category<E: EngineNew>(
   path: &Path,
   label: &str,
   items: &[KvPair],
-  duration: Duration,
+  write_bytes: u64,
+  read_duration: Duration,
   mem_baseline: &MemBaseline,
 ) -> CategoryResult {
   println!("[{label}]");
   clean_dir(path);
   let mut engine = E::create(rt, path);
 
-  let (write, written_bytes) = bench_write(rt, &mut engine, "  ", items, duration);
+  let (write, written_bytes) = bench_write(rt, &mut engine, "  ", items, write_bytes);
   engine.flush_before_read();
-  let read = bench_read(rt, &mut engine, "  ", items, duration);
+  let read = bench_read(rt, &mut engine, "  ", items, read_duration);
 
   let disk = engine.disk_usage();
   let disk_mb = disk as f64 / MB;
@@ -287,7 +295,8 @@ fn run_bench<E: EngineNew>(
   name: &str,
   db_path: &str,
   data: &[(&str, Vec<KvPair>)],
-  duration: Duration,
+  write_bytes: u64,
+  read_duration: Duration,
   mem_baseline: &MemBaseline,
 ) {
   println!("=== {name} Benchmark ===\n");
@@ -296,14 +305,22 @@ fn run_bench<E: EngineNew>(
   let categories: Vec<_> = data
     .iter()
     .map(|(label, items)| {
-      let result = bench_category::<E>(rt, path, label, items, duration, mem_baseline);
+      let result = bench_category::<E>(
+        rt,
+        path,
+        label,
+        items,
+        write_bytes,
+        read_duration,
+        mem_baseline,
+      );
       ((*label).to_string(), result)
     })
     .collect();
 
   let result = BenchResult {
     engine: name.to_string(),
-    duration_secs: duration.as_secs(),
+    duration_secs: read_duration.as_secs(),
     categories,
   };
   let json = to_string_pretty(&result).expect("serialize json");

@@ -114,6 +114,12 @@ cache.set("key".into(), data, 1000);
 
 Callback fires before removal or eviction. Use `cache.get(key)` to access the value being evicted.
 
+**Why callback only passes key, not value?**
+
+- Many use cases only need key (logging, counting, notifying external systems)
+- If value not needed, avoids one memory access overhead
+- When value needed, call `cache.get(key)` to retrieve it
+
 ```rust
 use size_lru::{Lhd, OnRm};
 
@@ -125,7 +131,15 @@ impl<V> OnRm<i32, Lhd<i32, V, Self>> for EvictLogger {
     if let Some(_val) = cache.get(key) {
       println!("Evicting key={key}");
     }
-    // Warning: don't call rm/set in callback, may cause undefined behavior
+    // ⚠️ WARNING: NEVER call rm/set in callback - causes undefined behavior!
+    // Reasons:
+    // 1. Reentrancy: callback runs inside evict/rm while cache is in intermediate state
+    //    - calling set may trigger new eviction, causing recursive eviction
+    // 2. Iterator invalidation: rm_idx uses swap_remove, moving last element to deleted position
+    //    - removing other entries in callback may corrupt ongoing swap operation
+    //    - leads to index pointing to wrong position or dangling references
+    // 3. Borrow conflict: callback holds &mut cache, internal ops also need &mut self
+    //    - Rust borrow checker bypassed via unsafe, but data race actually exists
   }
 }
 
@@ -616,6 +630,12 @@ cache.set("key".into(), data, 1000);
 
 回调在被删除或淘汰前触发，此时可通过 `cache.get(key)` 获取即将被删除的值。
 
+**为什么回调只传 key 而不传 value？**
+
+- 很多场景只需要 key（如日志、计数、通知外部系统）
+- 若不需要 value，可避免一次内存访问开销
+- 需要 value 时，调用 `cache.get(key)` 即可获取
+
 ```rust
 use size_lru::{Lhd, OnRm};
 
@@ -627,7 +647,16 @@ impl<V> OnRm<i32, Lhd<i32, V, Self>> for EvictLogger {
     if let Some(_val) = cache.get(key) {
       println!("淘汰 key={key}");
     }
-    // 警告：不要在回调中调用 rm/set，可能导致未定义行为
+    // ⚠️ 警告：禁止在回调中调用 rm/set，会导致未定义行为！
+    // 原因：
+    // 1. 重入问题：回调在 evict/rm 内部执行，此时缓存正处于中间状态
+    //    - index 可能已删除 key，但 metas/payloads 尚未清理
+    //    - 调用 set 可能触发新的 evict，形成递归淘汰
+    // 2. 迭代器失效：rm_idx 使用 swap_remove，会移动最后一个元素到被删位置
+    //    - 若回调中删除其他条目，可能破坏正在进行的 swap 操作
+    //    - 导致 index 指向错误位置或悬垂引用
+    // 3. 借用冲突：回调持有 &mut cache，内部操作也需要 &mut self
+    //    - Rust 借用检查器被 unsafe 绕过，但实际存在数据竞争
   }
 }
 

@@ -81,7 +81,6 @@ struct Bucket {
 /// 淘汰采样热元数据（SoA 布局）
 /// 冷载荷
 /// 年龄桶统计
-
 /// LHD cache with random sampling eviction
 #[must_use]
 pub struct Lhd<K, V, OnRm = NoOnRm> {
@@ -105,7 +104,6 @@ pub struct Lhd<K, V, OnRm = NoOnRm> {
 //
 // 热/冷分离提升缓存局部性
 // 扁平化统计桶
-
 fn init_buckets() -> Box<[Bucket]> {
   let mut buckets = vec![Bucket::default(); TOTAL_BUCKETS].into_boxed_slice();
   // Init density ~ 1/age (GDSF-like)
@@ -148,8 +146,8 @@ impl<K, V> Lhd<K, V> {
   }
 
   //
-  /// 创建指定最大大小的缓存
-  /// 创建带回调的缓存
+  // 创建指定最大大小的缓存
+  // 创建带回调的缓存
 }
 
 impl<K: Hash + Eq + Clone, V> SizeLru<K, V> for Lhd<K, V> {
@@ -238,7 +236,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
   //
   // 访问热元数据
   // 访问冷载荷
-
   /// Peek value without updating stats (for cache check)
   #[inline(always)]
   pub fn peek<Q>(&self, key: &Q) -> Option<&V>
@@ -252,7 +249,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
 
   //
   /// 查看值但不更新统计（用于缓存检查）
-
   /// Insert with size
   #[inline]
   pub fn set(&mut self, key: K, val: V, size: u32)
@@ -291,7 +287,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
 
   //
   /// 插入并指定大小
-
   /// Remove by key
   #[inline]
   pub fn rm<Q>(&mut self, key: &Q)
@@ -310,7 +305,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
 
   //
   /// 按键删除
-
   #[inline]
   fn rm_idx(&mut self, idx: usize) {
     let n = self.metas.len();
@@ -340,7 +334,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
 
   //
   /// 获取元数据的密度
-
   /// Evict with callback
   ///
   /// # Internal State During Callback
@@ -406,7 +399,6 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
   //
   // 交叉乘法比较 density/size
   // 删除/淘汰前回调
-
   #[inline]
   pub fn size(&self) -> usize {
     self.total

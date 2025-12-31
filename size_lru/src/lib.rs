@@ -61,7 +61,6 @@ use std::{borrow::Borrow, hash::Hash};
 /// 原因：
 ///
 /// 1. 重入问题：回调在 evict/rm 内部执行，此时缓存正处于中间状态
-///    - index 可能已删除 key，但 metas/payloads 尚未清理
 ///    - 调用 set 可能触发新的 evict，形成递归淘汰
 ///
 /// 2. 迭代器失效：rm_idx 使用 swap_remove，会移动最后一个元素到被删位置
@@ -79,7 +78,6 @@ pub struct NoOnRm;
 
 //
 /// 空回调（零开销）
-
 impl<K, C> OnRm<K, C> for NoOnRm {
   #[inline(always)]
   fn call(&mut self, _: &K, _: &mut C) {}
@@ -118,7 +116,6 @@ pub trait SizeLru<K, V>: Sized {
 /// 查看值但不更新统计
 /// 检查缓存是否为空
 /// 获取条目数量
-
 #[cfg(feature = "lhd")]
 mod lhd;
 
