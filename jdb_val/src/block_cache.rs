@@ -7,11 +7,10 @@ use compio::{buf::IoBufMut, io::AsyncReadAtExt};
 use compio_fs::File;
 use jdb_lru::{Cache, Lru};
 
-use crate::{Result, id_path, open_read};
-
-/// NVMe optimal block size (4KB)
-/// NVMe 最佳块大小（4KB）
-pub const BLOCK_SIZE: usize = 4 * 1024;
+use crate::{
+  Result,
+  fs::{id_path, open_read},
+};
 
 // Min file cache capacity
 // 最小文件缓存容量

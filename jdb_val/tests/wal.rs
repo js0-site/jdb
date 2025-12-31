@@ -253,7 +253,7 @@ mod prop {
 mod gc {
   use std::future::Future;
 
-  use jdb_val::{Conf, GcState, Gcable, PosMap, Wal};
+  use jdb_val::{Conf, DefaultGc, GcState, Gcable, IndexUpdate, PosMap, Wal};
 
   struct MockGc {
     deleted: Vec<Vec<u8>>,
@@ -271,13 +271,14 @@ mod gc {
       let found = self.deleted.iter().any(|k| k == key);
       async move { found }
     }
+  }
 
-    fn batch_update(
-      &self,
-      _mapping: impl IntoIterator<Item = PosMap>,
-    ) -> impl Future<Output = bool> + Send {
-      async { true }
-    }
+  // Mock index for testing
+  // 测试用 mock 索引
+  struct MockIndex;
+
+  impl IndexUpdate for MockIndex {
+    fn update(&self, _mapping: &[PosMap]) {}
   }
 
   #[compio::test]
@@ -289,8 +290,12 @@ mod gc {
 
     let checker = MockGc::new(vec![]);
     let mut state = GcState::new(dir.path());
+    let mut gc = DefaultGc;
+    let index = MockIndex;
 
-    let result = wal.gc_merge(&[wal.cur_id()], &checker, &mut state).await;
+    let result = wal
+      .gc(&[wal.cur_id()], &checker, &mut state, &mut gc, &index)
+      .await;
     assert!(result.is_err());
   }
 
@@ -302,8 +307,13 @@ mod gc {
 
     let checker = MockGc::new(vec![]);
     let mut state = GcState::new(dir.path());
+    let mut gc = DefaultGc;
+    let index = MockIndex;
 
-    let (reclaimed, total) = wal.gc_merge(&[], &checker, &mut state).await.unwrap();
+    let (reclaimed, total) = wal
+      .gc(&[], &checker, &mut state, &mut gc, &index)
+      .await
+      .unwrap();
     assert_eq!(reclaimed, 0);
     assert_eq!(total, 0);
   }
@@ -330,8 +340,13 @@ mod gc {
 
     let checker = MockGc::new(vec![vec![b'k', 0], vec![b'k', 1]]);
     let mut state = GcState::new(dir.path());
+    let mut gc = DefaultGc;
+    let index = MockIndex;
 
-    let (reclaimed, total) = wal.gc_merge(&ids, &checker, &mut state).await.unwrap();
+    let (reclaimed, total) = wal
+      .gc(&ids, &checker, &mut state, &mut gc, &index)
+      .await
+      .unwrap();
     assert!(reclaimed <= total);
   }
 }

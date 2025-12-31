@@ -8,9 +8,14 @@ use compio::{
   io::{AsyncReadAtExt, AsyncWriteAtExt},
 };
 use compio_fs::File;
+use zbin::Bin;
 
 use super::{Wal, WalConf, WalInner, lz4};
-use crate::{Bin, Flag, Head, INFILE_MAX, Result, open_read, open_write_create};
+use crate::{
+  Flag, Result,
+  fs::{open_read, open_write_create},
+  head::{Head, INFILE_MAX},
+};
 
 impl<C: WalConf> WalInner<C> {
   pub(super) const CHUNK_SIZE: usize = 64 * 1024;

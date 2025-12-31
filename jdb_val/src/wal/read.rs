@@ -10,15 +10,17 @@ use log::warn;
 use size_lru::SizeLru;
 
 use super::{
-  CachedData, Wal, WalConf, WalInner,
+  Val, Wal, WalConf, WalInner,
   consts::{ITER_BUF_SIZE, SMALL_BUF_SIZE},
   header::{HeaderState, check_header},
   lz4,
 };
 use crate::{
-  HEAD_CRC, HEAD_TOTAL, Head, MAGIC, Pos, RecPos,
+  Pos,
   error::{Error, Result},
-  open_read,
+  fs::open_read,
+  head::{HEAD_CRC, HEAD_TOTAL, Head, MAGIC},
+  pos::RecPos,
   wal::consts::HEADER_SIZE,
 };
 
@@ -40,7 +42,7 @@ impl<C: WalConf> WalInner<C> {
   /// 在位置读取完整记录
   #[allow(clippy::uninit_vec)]
   #[inline(always)]
-  pub async fn read_record(&mut self, loc: RecPos) -> Result<(Head, CachedData)> {
+  pub async fn read_record(&mut self, loc: RecPos) -> Result<(Head, Val)> {
     let buf = Wal::prepare_buf(&mut self.read_buf, SMALL_BUF_SIZE);
     let slice = buf.slice(0..SMALL_BUF_SIZE);
     let (res, slice) = self.read_at_partial(loc.id(), slice, loc.offset()).await;
@@ -53,7 +55,7 @@ impl<C: WalConf> WalInner<C> {
     // Fast path: record fits in buffer
     // 快速路径：记录在缓冲区内
     if record_size <= self.read_buf.len() {
-      let data: CachedData = self.read_buf[..record_size].into();
+      let data: Val = self.read_buf[..record_size].into();
       return Ok((head, data));
     }
 
@@ -65,7 +67,7 @@ impl<C: WalConf> WalInner<C> {
     self.read_buf = slice.into_inner();
     res?;
 
-    let data: CachedData = self.read_buf[..record_size].into();
+    let data: Val = self.read_buf[..record_size].into();
     Ok((head, data))
   }
 
@@ -81,7 +83,7 @@ impl<C: WalConf> WalInner<C> {
   /// Read data from WAL file (Infile mode only, cached)
   /// 从 WAL 文件读取数据（仅 Infile 模式，有缓存）
   #[allow(clippy::uninit_vec)]
-  pub async fn read_data(&mut self, loc: Pos, len: usize) -> Result<CachedData> {
+  pub async fn read_data(&mut self, loc: Pos, len: usize) -> Result<Val> {
     if let Some(data) = self.val_cache.get(&loc) {
       return Ok(data.clone());
     }
@@ -91,7 +93,7 @@ impl<C: WalConf> WalInner<C> {
     let (res, slice) = self.read_from_file(loc.id(), slice, loc.offset()).await;
     self.read_buf = slice.into_inner();
     res?;
-    let data: CachedData = self.read_buf[..len].into();
+    let data: Val = self.read_buf[..len].into();
     self.val_cache.set(loc, data.clone(), len as u32);
     Ok(data)
   }
@@ -181,7 +183,7 @@ impl<C: WalConf> WalInner<C> {
   /// Get val by pos (direct read, no head parsing)
   /// 根据位置获取值（直接读取，无需解析 head）
   #[inline(always)]
-  pub async fn val(&mut self, pos: Pos) -> Result<CachedData> {
+  pub async fn val(&mut self, pos: Pos) -> Result<Val> {
     // Fast path: cache hit (sync)
     // 快速路径：缓存命中（同步）
     if let Some(data) = self.val_cache.get(&pos) {
@@ -196,17 +198,17 @@ impl<C: WalConf> WalInner<C> {
   /// Try get val from cache only (sync, no IO)
   /// 仅从缓存获取值（同步，无 IO）
   #[inline(always)]
-  pub fn val_cached(&mut self, pos: &Pos) -> Option<CachedData> {
+  pub fn val_cached(&mut self, pos: &Pos) -> Option<Val> {
     self.val_cache.get(pos).cloned()
   }
 
   /// Slow path for val() - cache miss
   /// val() 的慢速路径 - 缓存未命中
   #[cold]
-  async fn val_slow(&mut self, pos: Pos) -> Result<CachedData> {
+  async fn val_slow(&mut self, pos: Pos) -> Result<Val> {
     let len = pos.len() as usize;
     if len == 0 {
-      return Ok(CachedData::from([]));
+      return Ok(Val::from([]));
     }
 
     if pos.is_infile() {
@@ -217,7 +219,7 @@ impl<C: WalConf> WalInner<C> {
       let (res, slice) = self.read_from_file(pos.id(), slice, pos.offset()).await;
       self.read_buf = slice.into_inner();
       res?;
-      let data: CachedData = self.read_buf[..len].into();
+      let data: Val = self.read_buf[..len].into();
       self.val_cache.set(pos, data.clone(), len as u32);
       Ok(data)
     } else {

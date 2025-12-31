@@ -3,12 +3,14 @@
 
 use compio::{buf::IoBuf, io::AsyncWriteAtExt};
 use size_lru::SizeLru;
+use zbin::Bin;
 
-use super::{CachedData, WalConf, WalInner};
+use super::{Val, WalConf, WalInner};
 use crate::{
-  Bin, Flag, HEAD_CRC, INFILE_MAX, KEY_MAX, Pos,
+  Flag, Pos,
   error::{Error, Result},
-  write_file,
+  fs::{open_write_create, write_file},
+  head::{HEAD_CRC, INFILE_MAX, KEY_MAX},
 };
 
 impl<C: WalConf> WalInner<C> {
@@ -21,7 +23,7 @@ impl<C: WalConf> WalInner<C> {
 
   pub(crate) async fn write_file_io<T: IoBuf>(&mut self, id: u64, data: T) -> Result<T> {
     let path = self.bin_path(id);
-    let mut file = crate::open_write_create(&path).await?;
+    let mut file = open_write_create(&path).await?;
     let res = file.write_all_at(data, 0).await;
     res.0?;
     Ok(res.1)
@@ -69,7 +71,7 @@ impl<C: WalConf> WalInner<C> {
     };
 
     if val_infile {
-      let data: CachedData = v.into();
+      let data: Val = v.into();
       self.val_cache.set(pos, data, v.len() as u32);
     }
 

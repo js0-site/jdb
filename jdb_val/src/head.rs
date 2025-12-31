@@ -274,21 +274,6 @@ impl Head {
   }
 }
 
-/// FILE mode reference (for external file)
-/// FILE 模式引用（外部文件）
-#[derive(Debug, Clone, Copy, Default)]
-pub struct FilePos {
-  pub file_id: u64,
-  pub len: u64,
-}
-
-impl FilePos {
-  #[inline]
-  pub fn new(file_id: u64, len: u64) -> Self {
-    Self { file_id, len }
-  }
-}
-
 /// Head builder for writing records
 /// 头构建器（用于写入记录）
 pub struct HeadBuilder {

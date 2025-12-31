@@ -18,7 +18,9 @@ use super::{
   header::{HeaderState, build_header, check_header},
 };
 use crate::{
-  HEAD_TOTAL, Head, MAGIC, decode_id, error::Result, open_read_write, open_read_write_create,
+  error::Result,
+  fs::{decode_id, open_read_write, open_read_write_create},
+  head::{HEAD_TOTAL, Head, MAGIC},
 };
 
 impl<C: WalConf> WalInner<C> {

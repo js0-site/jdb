@@ -372,9 +372,10 @@ fn test_on_rm_callback() -> Void {
   struct Cb(Rc<RefCell<Vec<i32>>>);
 
   impl<V> OnRm<i32, Lhd<i32, V, Self>> for Cb {
-    fn call(&mut self, key: &i32, _cache: &mut Lhd<i32, V, Self>) {
-      // Can still get value before removal or eviction
-      // 删除/淘汰前仍可获取值      let _ = cache.get(key);
+    fn call(&mut self, key: &i32, cache: &Lhd<i32, V, Self>) {
+      // Can still peek value before removal or eviction
+      // 删除/淘汰前仍可用 peek 获取值
+      let _ = cache.peek(key);
       self.0.borrow_mut().push(*key);
     }
   }

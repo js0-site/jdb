@@ -8,19 +8,21 @@
 //!    在 gc 目录创建新 WAL，MaxSize 设为 u64::MAX 禁用自动轮转
 //! 2. Merge multiple old WALs, write live entries to new WAL
 //!    合并多个旧 WAL，将有效条目写入新 WAL
-//! 3. Call `Gcable::batch_update()` to update index
-//!    调用 `Gcable::batch_update()` 更新索引
+//! 3. Call `IndexUpdate::update()` to batch update index
+//!    调用 `IndexUpdate::update()` 批量更新索引
 //! 4. Move gc WAL to wal dir, delete old WAL files
 //!    将 gc WAL 移动到 wal 目录，删除旧 WAL 文件
 
-use std::{fs, future::Future, path::PathBuf, thread::JoinHandle, time::Duration};
+use std::{fs, future::Future, path::PathBuf};
 
 use hipstr::HipByt;
 use jdb_lock::gc::Lock as GcLock;
 
 use crate::{
-  Conf, Error, Flag, GcTrait, Pos, RecPos, Result, Wal, WalNoCache, id_path,
+  Error, Flag, Pos, Result,
+  fs::id_path,
   wal::{
+    Conf, Gc as GcTrait, Wal, WalNoCache,
     consts::{GC_SUBDIR, LOCK_SUBDIR, WAL_LOCK_TYPE, WAL_SUBDIR},
     lz4,
   },
@@ -53,25 +55,19 @@ const MAP_CAP: usize = 1024;
 #[derive(Debug, Clone)]
 pub struct PosMap {
   pub key: HipByt<'static>,
-  pub old: RecPos,
   pub new: Pos,
 }
 
-/// Position map trait for GC updates
-/// GC 更新的位置映射 trait
-pub trait PosMapUpdate: Send + Sync {
-  fn insert(&self, key: &[u8], pos: Pos);
-  fn remove(&self, key: &[u8]);
+/// Index batch update trait for GC
+/// GC 索引批量更新 trait
+pub trait IndexUpdate: Send + Sync {
+  fn update(&self, mapping: &[PosMap]);
 }
 
-/// GC trait
-/// GC 特征
+/// GC check trait
+/// GC 检查 trait
 pub trait Gcable {
   fn is_rm(&self, key: &[u8]) -> impl Future<Output = bool> + Send;
-  fn batch_update(
-    &self,
-    mapping: impl IntoIterator<Item = PosMap>,
-  ) -> impl Future<Output = bool> + Send;
 }
 
 /// GC state
@@ -134,12 +130,19 @@ impl GcState {
 impl Wal {
   /// GC and merge multiple WAL files
   /// GC 并合并多个 WAL 文件
-  pub async fn gc_merge<T: Gcable>(
+  pub async fn gc<T, G, M>(
     &mut self,
     ids: &[u64],
     checker: &T,
     state: &mut GcState,
-  ) -> Result<(usize, usize)> {
+    gc: &mut G,
+    index: &M,
+  ) -> Result<(usize, usize)>
+  where
+    T: Gcable,
+    G: GcTrait,
+    M: IndexUpdate,
+  {
     if ids.is_empty() {
       return Ok((0, 0));
     }
@@ -162,105 +165,6 @@ impl Wal {
     let mut mapping: Vec<PosMap> = Vec::with_capacity(MAP_CAP);
     let mut reclaimed = 0usize;
     let mut total = 0usize;
-    let mut stale_bins = Vec::new();
-
-    for &id in ids {
-      let mut iter = self.iter_entries(id).await?;
-
-      while let Some((pos, head, record)) = iter.next().await? {
-        total += 1;
-        let old_pos = RecPos::new(id, pos);
-        let key = head.key_data(record);
-
-        if checker.is_rm(key).await {
-          // Collect stale bin files
-          // 收集过期的 bin 文件
-          if !head.flag().is_tombstone() && head.flag().is_file() {
-            stale_bins.push(head.val_file_id);
-          }
-          reclaimed += 1;
-          continue;
-        }
-
-        let new_pos = if head.flag().is_tombstone() {
-          gc_wal.del(key).await?
-        } else if head.flag().is_file() {
-          gc_wal
-            .put_with_file(key, head.flag(), head.val_file_id, head.val_len)
-            .await?
-        } else {
-          let val = head.val_data(record);
-          gc_wal.put(key, val).await?
-        };
-
-        mapping.push(PosMap {
-          key: HipByt::from(key),
-          old: old_pos,
-          new: new_pos,
-        });
-      }
-    }
-
-    gc_wal.sync_all().await?;
-
-    if !mapping.is_empty() && !checker.batch_update(mapping).await {
-      return Err(Error::UpdateFailed);
-    }
-
-    let gc_wal_id = gc_wal.cur_id();
-    drop(gc_wal);
-    state.move_gc_wal(gc_wal_id)?;
-
-    stale_bins.sort_unstable();
-    stale_bins.dedup();
-    for id in stale_bins {
-      let _ = self.rm_bin(id).await;
-    }
-
-    for &id in ids {
-      self.rm(id).await?;
-    }
-
-    drop(locks);
-    Ok((reclaimed, total))
-  }
-
-  /// GC with compression and papaya update
-  /// 带压缩和 papaya 更新的 GC
-  pub async fn gc_merge_compress<T, G, M>(
-    &mut self,
-    ids: &[u64],
-    checker: &T,
-    state: &mut GcState,
-    gc: &mut G,
-    pos_map: &M,
-  ) -> Result<(usize, usize)>
-  where
-    T: Gcable,
-    G: GcTrait,
-    M: PosMapUpdate,
-  {
-    if ids.is_empty() {
-      return Ok((0, 0));
-    }
-
-    let mut locks = Vec::with_capacity(ids.len());
-    for &id in ids {
-      if id >= self.cur_id() {
-        return Err(Error::CannotRemoveCurrent);
-      }
-      locks.push(state.try_lock(id)?);
-    }
-
-    let gc_id = state.find_gc_id(self.cur_id());
-
-    fs::create_dir_all(&state.gc_dir)?;
-    let mut gc_wal = WalNoCache::new(&state.gc_dir, &[Conf::MaxSize(u64::MAX)]);
-    gc_wal.ider.init(gc_id);
-    gc_wal.open().await?;
-
-    let mut reclaimed = 0usize;
-    let mut total = 0usize;
     let mut val_buf = Vec::new();
     let mut compress_buf = Vec::new();
     let mut stale_bins = Vec::new();
@@ -276,7 +180,6 @@ impl Wal {
           if !head.is_tombstone() && head.flag().is_file() {
             stale_bins.push(head.val_file_id);
           }
-          pos_map.remove(key);
           reclaimed += 1;
           continue;
         }
@@ -319,13 +222,20 @@ impl Wal {
           }
         };
 
-        pos_map.insert(key, new_pos);
+        mapping.push(PosMap {
+          key: HipByt::from(key),
+          new: new_pos,
+        });
       }
 
       self.rm(id).await?;
     }
 
     gc_wal.sync_all().await?;
+
+    // Batch update index
+    // 批量更新索引
+    index.update(&mapping);
 
     let gc_wal_id = gc_wal.cur_id();
     drop(gc_wal);
@@ -340,180 +250,4 @@ impl Wal {
     drop(locks);
     Ok((reclaimed, total))
   }
-}
-
-// ============================================================================
-// GC Thread Scheduling
-// GC 线程调度
-// ============================================================================
-
-// GC check interval for core switch
-// GC 核心切换检查间隔
-const GC_CHECK_INTERVAL: usize = 8;
-
-// CPU refresh interval (ms)
-// CPU 刷新间隔（毫秒）
-const CPU_REFRESH_MS: u64 = 100;
-
-/// Find least busy CPU core
-/// 找到最闲的 CPU 核心
-pub fn find_idle_core() -> Option<usize> {
-  use sysinfo::{CpuRefreshKind, RefreshKind, System};
-
-  let mut sys =
-    System::new_with_specifics(RefreshKind::nothing().with_cpu(CpuRefreshKind::everything()));
-  std::thread::sleep(Duration::from_millis(CPU_REFRESH_MS));
-  sys.refresh_cpu_all();
-
-  sys
-    .cpus()
-    .iter()
-    .enumerate()
-    .min_by(|(_, a), (_, b)| {
-      a.cpu_usage()
-        .partial_cmp(&b.cpu_usage())
-        .unwrap_or(std::cmp::Ordering::Equal)
-    })
-    .map(|(id, _)| id)
-}
-
-/// GC result
-/// GC 结果
-#[derive(Debug)]
-pub enum GcResult {
-  Done(usize, usize),
-  Restart {
-    remaining: Vec<u64>,
-    reclaimed: usize,
-    total: usize,
-  },
-}
-
-/// Spawn GC in separate thread
-/// 在独立线程中启动 GC
-pub fn spawn_gc<G, T, F>(ids: Vec<u64>, gc_fn: F) -> JoinHandle<Result<GcResult>>
-where
-  G: GcTrait,
-  T: Gcable + Send + 'static,
-  F: FnOnce(Vec<u64>, Option<usize>) -> Result<GcResult> + Send + 'static,
-{
-  let core_id = find_idle_core();
-
-  std::thread::Builder::new()
-    .name("gc".into())
-    .spawn(move || {
-      if let Some(id) = core_id {
-        let _ = core_affinity::set_for_current(core_affinity::CoreId { id });
-      }
-
-      #[cfg(unix)]
-      unsafe {
-        libc::nice(19);
-      }
-
-      gc_fn(ids, core_id)
-    })
-    .expect("spawn gc thread")
-}
-
-/// Check if should restart on different core
-/// 检查是否应在不同核心重启
-#[inline]
-pub fn should_restart(current_core: Option<usize>, processed: usize) -> bool {
-  if !processed.is_multiple_of(GC_CHECK_INTERVAL) {
-    return false;
-  }
-  let new_idle = find_idle_core();
-  new_idle != current_core
-}
-
-/// Run GC with auto-restart on core change
-/// 自动重启的 GC
-pub fn run_gc<F>(mut ids: Vec<u64>, mut gc_factory: F) -> Result<(usize, usize)>
-where
-  F: FnMut(Vec<u64>, Option<usize>) -> Result<GcResult>,
-{
-  let mut total_reclaimed = 0;
-  let mut total_count = 0;
-
-  while !ids.is_empty() {
-    let core_id = find_idle_core();
-
-    if let Some(id) = core_id {
-      let _ = core_affinity::set_for_current(core_affinity::CoreId { id });
-    }
-
-    #[cfg(unix)]
-    unsafe {
-      libc::nice(19);
-    }
-
-    let batch = std::mem::take(&mut ids);
-    match gc_factory(batch, core_id)? {
-      GcResult::Done(r, t) => {
-        total_reclaimed += r;
-        total_count += t;
-        break;
-      }
-      GcResult::Restart {
-        remaining,
-        reclaimed,
-        total,
-      } => {
-        total_reclaimed += reclaimed;
-        total_count += total;
-        ids = remaining;
-      }
-    }
-  }
-
-  Ok((total_reclaimed, total_count))
-}
-
-/// Run GC in separate thread with auto-restart
-/// 在独立线程中运行自动重启的 GC
-pub fn run_gc_threaded<F>(mut ids: Vec<u64>, gc_factory: F) -> JoinHandle<Result<(usize, usize)>>
-where
-  F: Fn(Vec<u64>, Option<usize>) -> Result<GcResult> + Send + Sync + 'static,
-{
-  std::thread::Builder::new()
-    .name("gc-main".into())
-    .spawn(move || {
-      let mut total_reclaimed = 0;
-      let mut total_count = 0;
-
-      while !ids.is_empty() {
-        let core_id = find_idle_core();
-
-        if let Some(id) = core_id {
-          let _ = core_affinity::set_for_current(core_affinity::CoreId { id });
-        }
-
-        #[cfg(unix)]
-        unsafe {
-          libc::nice(19);
-        }
-
-        let batch = std::mem::take(&mut ids);
-        match gc_factory(batch, core_id)? {
-          GcResult::Done(r, t) => {
-            total_reclaimed += r;
-            total_count += t;
-            break;
-          }
-          GcResult::Restart {
-            remaining,
-            reclaimed,
-            total,
-          } => {
-            total_reclaimed += reclaimed;
-            total_count += total;
-            ids = remaining;
-          }
-        }
-      }
-
-      Ok((total_reclaimed, total_count))
-    })
-    .expect("spawn gc-main thread")
 }

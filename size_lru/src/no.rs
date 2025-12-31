@@ -1,16 +1,14 @@
 //! `NoCache` - zero overhead no-op cache
-//!
 //! `NoCache` - 零开销空操作缓存
 
-use std::hash::Hash;
+use std::{borrow::Borrow, hash::Hash};
 
 use crate::SizeLru;
 
 /// No-op cache
+/// 空操作缓存
 pub struct NoCache;
 
-//
-/// 空操作缓存
 impl<K, V> SizeLru<K, V> for NoCache {
   type WithRm<Rm> = NoCache;
 
@@ -21,7 +19,7 @@ impl<K, V> SizeLru<K, V> for NoCache {
   #[inline]
   fn get<Q>(&mut self, _: &Q) -> Option<&V>
   where
-    K: std::borrow::Borrow<Q>,
+    K: Borrow<Q>,
     Q: Hash + Eq + ?Sized,
   {
     None
@@ -30,7 +28,7 @@ impl<K, V> SizeLru<K, V> for NoCache {
   #[inline]
   fn peek<Q>(&self, _: &Q) -> Option<&V>
   where
-    K: std::borrow::Borrow<Q>,
+    K: Borrow<Q>,
     Q: Hash + Eq + ?Sized,
   {
     None
@@ -42,7 +40,7 @@ impl<K, V> SizeLru<K, V> for NoCache {
   #[inline(always)]
   fn rm<Q>(&mut self, _: &Q)
   where
-    K: std::borrow::Borrow<Q>,
+    K: Borrow<Q>,
     Q: Hash + Eq + ?Sized,
   {
   }

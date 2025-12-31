@@ -28,14 +28,14 @@ pub trait Gc: Send + 'static {
   fn process(&mut self, store: Flag, data: &[u8], buf: &mut Vec<u8>) -> (Flag, Option<usize>);
 }
 
-/// Cached data type
-/// 缓存数据类型
-pub type CachedData = Rc<[u8]>;
+/// Cached value type
+/// 缓存值类型
+pub type Val = Rc<[u8]>;
 
 /// WAL configuration trait
 /// WAL 配置 trait
 pub trait WalConf {
-  type ValCache: SizeLru<Pos, CachedData>;
+  type ValCache: SizeLru<Pos, Val>;
   type Lock: WalLock;
 
   /// Create cache and lock
@@ -48,7 +48,7 @@ pub trait WalConf {
 pub struct DefaultConf;
 
 impl WalConf for DefaultConf {
-  type ValCache = Lhd<Pos, CachedData>;
+  type ValCache = Lhd<Pos, Val>;
   type Lock = WLock;
 
   fn create(conf: &ParsedConf) -> (Self::ValCache, Self::Lock) {

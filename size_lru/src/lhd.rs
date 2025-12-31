@@ -296,8 +296,8 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
   {
     if let Some(&idx) = self.index.get(key) {
       let key_ptr = unsafe { &raw const self.payloads.get_unchecked(idx).key };
-      let ptr = self as *mut Self;
-      self.on_rm.call(unsafe { &*key_ptr }, unsafe { &mut *ptr });
+      let ptr = self as *const Self;
+      self.on_rm.call(unsafe { &*key_ptr }, unsafe { &*ptr });
       self.index.remove(key);
       self.rm_idx(idx);
     }
@@ -376,8 +376,8 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
 
     // Callback before removal or eviction
     let key_ptr = unsafe { &raw const self.payloads.get_unchecked(victim).key };
-    let ptr = self as *mut Self;
-    self.on_rm.call(unsafe { &*key_ptr }, unsafe { &mut *ptr });
+    let ptr = self as *const Self;
+    self.on_rm.call(unsafe { &*key_ptr }, unsafe { &*ptr });
 
     self.index.remove(unsafe { &*key_ptr });
     self.rm_idx(victim);
@@ -393,9 +393,7 @@ impl<K: Hash + Eq, V, F: OnRm<K, Self>> Lhd<K, V, F> {
   /// - metas/payloads 尚未修改
   /// - `self.total` 尚未减少
   ///
-  /// 在回调中调用 rm/set 会导致：
-  /// - set：可能触发递归 evict，破坏 victim 选择
-  /// - rm：swap_remove 可能移动 victim 到不同索引，导致双重释放或泄漏
+  /// 回调只能用 `peek` 获取值，`get/rm/set` 需要 `&mut self` 无法调用
   //
   // 交叉乘法比较 density/size
   // 删除/淘汰前回调

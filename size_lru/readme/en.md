@@ -105,13 +105,18 @@ cache.set("key".into(), data, 1000);
 
 #### 2. OnRm Callback Notes
 
-Callback fires before removal or eviction. Use `cache.get(key)` to access the value being evicted.
+Callback fires before removal or eviction. Use `cache.peek(key)` to access the value being evicted.
 
 **Why callback only passes key, not value?**
 
 - Many use cases only need key (logging, counting, notifying external systems)
 - If value not needed, avoids one memory access overhead
-- When value needed, call `cache.get(key)` to retrieve it
+- When value needed, call `cache.peek(key)` to retrieve it
+
+**Why `&C` instead of `&mut C`?**
+
+- Prevents calling `get/rm/set` which would cause undefined behavior
+- Only `peek` is safe during callback (read-only, no state mutation)
 
 ```rust
 use size_lru::{Lhd, OnRm};
@@ -119,20 +124,11 @@ use size_lru::{Lhd, OnRm};
 struct EvictLogger;
 
 impl<V> OnRm<i32, Lhd<i32, V, Self>> for EvictLogger {
-  fn call(&mut self, key: &i32, cache: &mut Lhd<i32, V, Self>) {
-    // Safe: value accessible before removal
-    if let Some(_val) = cache.get(key) {
+  fn call(&mut self, key: &i32, cache: &Lhd<i32, V, Self>) {
+    // Safe: use peek to access value before removal
+    if let Some(_val) = cache.peek(key) {
       println!("Evicting key={key}");
     }
-    // ⚠️ WARNING: NEVER call rm/set in callback - causes undefined behavior!
-    // Reasons:
-    // 1. Reentrancy: callback runs inside evict/rm while cache is in intermediate state
-    //    - calling set may trigger new eviction, causing recursive eviction
-    // 2. Iterator invalidation: rm_idx uses swap_remove, moving last element to deleted position
-    //    - removing other entries in callback may corrupt ongoing swap operation
-    //    - leads to index pointing to wrong position or dangling references
-    // 3. Borrow conflict: callback holds &mut cache, internal ops also need &mut self
-    //    - Rust borrow checker bypassed via unsafe, but data race actually exists
   }
 }
 
@@ -187,9 +183,9 @@ let cache = Mutex::new(Lhd::<i32, String>::new(1024));
 
 ### `trait OnRm<K, C>`
 
-Removal callback interface. Called before actual removal or eviction, so `cache.get(key)` still works.
+Removal callback interface. Called before actual removal or eviction, use `cache.peek(key)` to get value.
 
-- `call(&mut self, key: &K, cache: &mut C)` — Called on entry removal/eviction
+- `call(&mut self, key: &K, cache: &C)` — Called on entry removal/eviction
 
 ### `struct NoOnRm`
 

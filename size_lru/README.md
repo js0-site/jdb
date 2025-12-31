@@ -112,13 +112,18 @@ cache.set("key".into(), data, 1000);
 
 #### 2. OnRm Callback Notes
 
-Callback fires before removal or eviction. Use `cache.get(key)` to access the value being evicted.
+Callback fires before removal or eviction. Use `cache.peek(key)` to access the value being evicted.
 
 **Why callback only passes key, not value?**
 
 - Many use cases only need key (logging, counting, notifying external systems)
 - If value not needed, avoids one memory access overhead
-- When value needed, call `cache.get(key)` to retrieve it
+- When value needed, call `cache.peek(key)` to retrieve it
+
+**Why `&C` instead of `&mut C`?**
+
+- Prevents calling `get/rm/set` which would cause undefined behavior
+- Only `peek` is safe during callback (read-only, no state mutation)
 
 ```rust
 use size_lru::{Lhd, OnRm};
@@ -126,20 +131,11 @@ use size_lru::{Lhd, OnRm};
 struct EvictLogger;
 
 impl<V> OnRm<i32, Lhd<i32, V, Self>> for EvictLogger {
-  fn call(&mut self, key: &i32, cache: &mut Lhd<i32, V, Self>) {
-    // Safe: value accessible before removal
-    if let Some(_val) = cache.get(key) {
+  fn call(&mut self, key: &i32, cache: &Lhd<i32, V, Self>) {
+    // Safe: use peek to access value before removal
+    if let Some(_val) = cache.peek(key) {
       println!("Evicting key={key}");
     }
-    // ⚠️ WARNING: NEVER call rm/set in callback - causes undefined behavior!
-    // Reasons:
-    // 1. Reentrancy: callback runs inside evict/rm while cache is in intermediate state
-    //    - calling set may trigger new eviction, causing recursive eviction
-    // 2. Iterator invalidation: rm_idx uses swap_remove, moving last element to deleted position
-    //    - removing other entries in callback may corrupt ongoing swap operation
-    //    - leads to index pointing to wrong position or dangling references
-    // 3. Borrow conflict: callback holds &mut cache, internal ops also need &mut self
-    //    - Rust borrow checker bypassed via unsafe, but data race actually exists
   }
 }
 
@@ -194,9 +190,9 @@ let cache = Mutex::new(Lhd::<i32, String>::new(1024));
 
 ### `trait OnRm<K, C>`
 
-Removal callback interface. Called before actual removal or eviction, so `cache.get(key)` still works.
+Removal callback interface. Called before actual removal or eviction, use `cache.peek(key)` to get value.
 
-- `call(&mut self, key: &K, cache: &mut C)` — Called on entry removal/eviction
+- `call(&mut self, key: &K, cache: &C)` — Called on entry removal/eviction
 
 ### `struct NoOnRm`
 
@@ -628,13 +624,18 @@ cache.set("key".into(), data, 1000);
 
 #### 2. OnRm 回调注意事项
 
-回调在被删除或淘汰前触发，此时可通过 `cache.get(key)` 获取即将被删除的值。
+回调在被删除或淘汰前触发，此时可通过 `cache.peek(key)` 获取即将被删除的值。
 
 **为什么回调只传 key 而不传 value？**
 
 - 很多场景只需要 key（如日志、计数、通知外部系统）
 - 若不需要 value，可避免一次内存访问开销
-- 需要 value 时，调用 `cache.get(key)` 即可获取
+- 需要 value 时，调用 `cache.peek(key)` 即可获取
+
+**为什么用 `&C` 而不是 `&mut C`？**
+
+- 防止调用 `get/rm/set`，这些会导致未定义行为
+- 回调期间只有 `peek` 是安全的（只读，无状态变更）
 
 ```rust
 use size_lru::{Lhd, OnRm};
@@ -642,21 +643,11 @@ use size_lru::{Lhd, OnRm};
 struct EvictLogger;
 
 impl<V> OnRm<i32, Lhd<i32, V, Self>> for EvictLogger {
-  fn call(&mut self, key: &i32, cache: &mut Lhd<i32, V, Self>) {
-    // 安全：删除/淘汰前可获取值
-    if let Some(_val) = cache.get(key) {
+  fn call(&mut self, key: &i32, cache: &Lhd<i32, V, Self>) {
+    // 安全：删除/淘汰前可用 peek 获取值
+    if let Some(_val) = cache.peek(key) {
       println!("淘汰 key={key}");
     }
-    // ⚠️ 警告：禁止在回调中调用 rm/set，会导致未定义行为！
-    // 原因：
-    // 1. 重入问题：回调在 evict/rm 内部执行，此时缓存正处于中间状态
-    //    - index 可能已删除 key，但 metas/payloads 尚未清理
-    //    - 调用 set 可能触发新的 evict，形成递归淘汰
-    // 2. 迭代器失效：rm_idx 使用 swap_remove，会移动最后一个元素到被删位置
-    //    - 若回调中删除其他条目，可能破坏正在进行的 swap 操作
-    //    - 导致 index 指向错误位置或悬垂引用
-    // 3. 借用冲突：回调持有 &mut cache，内部操作也需要 &mut self
-    //    - Rust 借用检查器被 unsafe 绕过，但实际存在数据竞争
   }
 }
 
@@ -711,9 +702,9 @@ let cache = Mutex::new(Lhd::<i32, String>::new(1024));
 
 ### `trait OnRm<K, C>`
 
-删除回调接口。在删除或淘汰前调用，此时 `cache.get(key)` 仍可用。
+删除回调接口。在删除或淘汰前调用，用 `cache.peek(key)` 获取值。
 
-- `call(&mut self, key: &K, cache: &mut C)` — 条目删除/淘汰时调用
+- `call(&mut self, key: &K, cache: &C)` — 条目删除/淘汰时调用
 
 ### `struct NoOnRm`
 

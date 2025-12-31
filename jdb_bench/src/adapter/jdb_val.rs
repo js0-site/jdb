@@ -60,7 +60,7 @@ impl Drop for JdbValAdapter {
 }
 
 impl BenchEngine for JdbValAdapter {
-  type Val = jdb_val::CachedData;
+  type Val = jdb_val::Val;
 
   fn name(&self) -> &str {
     NAME
