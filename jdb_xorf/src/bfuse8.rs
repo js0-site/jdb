@@ -25,7 +25,7 @@ use bitcode::{Decode, Encode};
 ///
 /// ```
 /// # extern crate alloc;
-/// use xorf::{Filter, BinaryFuse8};
+/// use jdb_xorf::{Filter, BinaryFuse8};
 /// use core::convert::TryFrom;
 /// # use alloc::vec::Vec;
 /// # use rand::Rng;

@@ -4,7 +4,7 @@ extern crate core;
 extern crate rand;
 extern crate jdb_xorf;
 
-use bincode::serde;
+use bitcode::serde;
 use core::convert::TryFrom;
 use criterion::{BenchmarkId, Criterion};
 use rand::Rng;
@@ -20,7 +20,7 @@ fn serialization(c: &mut Criterion) {
     let keys: Vec<u64> = (0..SAMPLE_SIZE).map(|_| rng.random()).collect();
 
     let filter = BinaryFuse8::try_from(keys).unwrap();
-    let config = bincode::config::standard();
+    let config = bitcode::config::standard();
 
     group.bench_with_input(
         BenchmarkId::new("serde-serialize", SAMPLE_SIZE),

@@ -18,9 +18,9 @@ use bitcode::{Decode, Encode};
 /// # extern crate alloc;
 /// # extern crate std;
 /// use std::collections::hash_map::DefaultHasher;
-/// use xorf::{Filter, HashProxy, Xor8};
+/// use jdb_xorf::{Filter, HashProxy, Xor8};
 /// # use alloc::vec::Vec;
-/// # use rand::distributions::Alphanumeric;
+/// # use rand::distr::Alphanumeric;
 /// # use rand::Rng;
 ///
 /// const SAMPLE_SIZE: usize = 1_000_000;
@@ -43,10 +43,10 @@ use bitcode::{Decode, Encode};
 /// # extern crate alloc;
 /// # extern crate std;
 /// # use std::collections::hash_map::DefaultHasher;
-/// # use xorf::{Filter, HashProxy, Xor8};
+/// # use jdb_xorf::{Filter, HashProxy, Xor8};
 /// # use alloc::vec::Vec;
-/// # use rand::distributions::Alphanumeric;
 /// # use rand::Rng;
+/// # use rand::distr::Alphanumeric;
 /// #
 /// # const SAMPLE_SIZE: usize = 1_000_000;
 /// # let passwords: Vec<String> = (0..SAMPLE_SIZE)

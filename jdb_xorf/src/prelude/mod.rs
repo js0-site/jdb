@@ -36,23 +36,18 @@ pub struct HSet {
 /// helps avoid high false-positive ratios (see Section 4 in the paper).
 #[inline]
 pub const fn mix(key: u64, seed: u64) -> u64 {
-    match () {
-        #[cfg(all(feature = "gxhash", feature = "murmur3"))]
-        () => {
-            // When both features are enabled, prefer gxhash for better performance
-            gxhash::mix64(key.overflowing_add(seed).0)
-        }
-        #[cfg(feature = "murmur3")]
-        () => murmur3::mix64(key.overflowing_add(seed).0),
-        #[cfg(all(feature = "gxhash", not(feature = "murmur3")))]
-        () => gxhash::mix64(key.overflowing_add(seed).0),
-        #[cfg(not(any(feature = "murmur3", feature = "gxhash")))]
-        () => {
-            // This should never happen because murmur3 is in default features
-            // but provide a fallback to ensure compilation succeeds
-            let k = key.overflowing_add(seed).0;
-            k ^ k >> 33
-        }
+    if cfg!(all(feature = "gxhash", feature = "murmur3")) {
+        // When both features are enabled, prefer gxhash for better performance
+        gxhash::mix64(key.overflowing_add(seed).0)
+    } else if cfg!(feature = "murmur3") {
+        murmur3::mix64(key.overflowing_add(seed).0)
+    } else if cfg!(feature = "gxhash") {
+        gxhash::mix64(key.overflowing_add(seed).0)
+    } else {
+        // This should never happen because murmur3 is in default features
+        // but provide a fallback to ensure compilation succeeds
+        let k = key.overflowing_add(seed).0;
+        k ^ k >> 33
     }
 }
 
