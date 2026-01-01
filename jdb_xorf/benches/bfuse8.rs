@@ -23,20 +23,20 @@ fn serialization(c: &mut Criterion) {
   let config = bitcode::config::standard();
 
   group.bench_with_input(
-    BenchmarkId::new("serde-serialize", SAMPLE_SIZE),
+    BenchmarkId::new("bitcode-serialize", SAMPLE_SIZE),
     &filter,
     |b, filter| {
-      b.iter(|| serde::encode_to_vec(filter, config).unwrap());
+      b.iter(|| bitcode::encode(filter, config).unwrap());
     },
   );
 
-  let serialized_filter = serde::encode_to_vec(&filter, config).unwrap();
+  let serialized_filter = bitcode::encode(&filter, config).unwrap();
 
   group.bench_with_input(
-    BenchmarkId::new("serde-deserialize", SAMPLE_SIZE),
+    BenchmarkId::new("bitcode-deserialize", SAMPLE_SIZE),
     &serialized_filter,
     |b, filter| {
-      b.iter(|| serde::decode_from_slice::<BinaryFuse8, _>(filter, config).unwrap());
+      b.iter(|| bitcode::decode::<BinaryFuse8>(filter, config).unwrap());
     },
   );
 }

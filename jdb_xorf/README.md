@@ -78,12 +78,12 @@ provide. At this time, a custom allocator is used globally.
 
 #### Serialization/Deserialization
 
-Serialization and deserialization with [serde](https://serde.rs/) cab be enabled
-with the `serde` feature.
+Serialization and deserialization with [bitcode](https://github.com/fef1612/bitcode) can be enabled
+with the `bitcode` feature.
 
 ```toml
 [dependencies]
-jdb_xorf = { version = "M.m.p", features = ["serde"] }
+jdb_xorf = { version = "M.m.p", features = ["bitcode"] }
 ```
 
 #### Default features
