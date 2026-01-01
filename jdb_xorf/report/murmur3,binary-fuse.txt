@@ -1,0 +1,96 @@
+   Compiling jdb_xorf v0.12.0 (/Users/z/js0/jdb/jdb_xorf)
+warning: constant `H3` is never used
+ --> jdb_xorf/src/prelude/fuse.rs:3:7
+  |
+3 | const H3: u64 = 0xBF58_476D_1CE4_E5B9;
+  |       ^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `ARITY` is never used
+ --> jdb_xorf/src/prelude/fuse.rs:4:7
+  |
+4 | const ARITY: usize = 3;
+  |       ^^^^^
+
+warning: constant `SEGMENT_COUNT` is never used
+ --> jdb_xorf/src/prelude/fuse.rs:5:7
+  |
+5 | const SEGMENT_COUNT: usize = 100;
+  |       ^^^^^^^^^^^^^
+
+warning: constant `SLOTS` is never used
+ --> jdb_xorf/src/prelude/fuse.rs:6:11
+  |
+6 | pub const SLOTS: usize = SEGMENT_COUNT + ARITY - 1;
+  |           ^^^^^
+
+warning: constant `FUSE_OVERHEAD` is never used
+ --> jdb_xorf/src/prelude/fuse.rs:7:11
+  |
+7 | pub const FUSE_OVERHEAD: f64 = 1.0 / 0.879;
+  |           ^^^^^^^^^^^^^
+
+warning: associated function `fuse_from` is never used
+  --> jdb_xorf/src/prelude/fuse.rs:10:18
+   |
+ 9 | impl HashSet {
+   | ------------ associated function in this implementation
+10 |     pub const fn fuse_from(key: u64, segment_length: usize, seed: ...
+   |                  ^^^^^^^^^
+
+warning: struct `H012` is never constructed
+  --> jdb_xorf/src/prelude/fuse.rs:19:12
+   |
+19 | pub struct H012 {
+   |            ^^^^
+
+warning: associated function `from` is never used
+  --> jdb_xorf/src/prelude/fuse.rs:24:18
+   |
+23 | impl H012 {
+   | --------- associated function in this implementation
+24 |     pub const fn from(hash: u64, segment_length: usize) -> Self {
+   |                  ^^^^
+
+warning: `jdb_xorf` (lib) generated 8 warnings
+warning: `jdb_xorf` (lib test) generated 8 warnings (8 duplicates)
+    Finished `bench` profile [optimized] target(s) in 14.48s
+     Running unittests src/lib.rs (/tmp/rust/release/deps/jdb_xorf-984863c492a4e38f)
+
+running 27 tests
+test bfuse16::test::test_bits_per_entry ... ignored
+test bfuse16::test::test_dma_roundtrip ... ignored
+test bfuse16::test::test_dma_unaligned_fingerprints - should panic ... ignored
+test bfuse16::test::test_dma_unaligned_fingerprints_len - should panic ... ignored
+test bfuse16::test::test_false_positives ... ignored
+test bfuse16::test::test_initialization ... ignored
+test bfuse32::test::test_bits_per_entry ... ignored
+test bfuse32::test::test_dma_roundtrip ... ignored
+test bfuse32::test::test_dma_unaligned_fingerprints - should panic ... ignored
+test bfuse32::test::test_dma_unaligned_fingerprints_len - should panic ... ignored
+test bfuse32::test::test_false_positives ... ignored
+test bfuse32::test::test_initialization ... ignored
+test bfuse8::test::test_bits_per_entry ... ignored
+test bfuse8::test::test_build_failure_with_subtraction_overflow ... ignored
+test bfuse8::test::test_dma_roundtrip ... ignored
+test bfuse8::test::test_false_positives ... ignored
+test bfuse8::test::test_initialization ... ignored
+test hash_proxy::test::test_initialization_from ... ignored
+test xor16::test::test_bits_per_entry ... ignored
+test xor16::test::test_false_positives ... ignored
+test xor16::test::test_initialization ... ignored
+test xor32::test::test_bits_per_entry ... ignored
+test xor32::test::test_false_positives ... ignored
+test xor32::test::test_initialization ... ignored
+test xor8::test::test_bits_per_entry ... ignored
+test xor8::test::test_false_positives ... ignored
+test xor8::test::test_initialization ... ignored
+
+test result: ok. 0 passed; 0 failed; 27 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running benches/bfuse16.rs (/tmp/rust/release/deps/bfuse16-1d88417c1b9a3792)
+Gnuplot not found, using plotters backend
+Benchmarking BinaryFuse16/from/500000
+Benchmarking BinaryFuse16/from/500000: Warming up for 3.0000 s
+Benchmarking BinaryFuse16/from/500000: Collecting 10 samples in estimated 5.0533 s (495 iterations)

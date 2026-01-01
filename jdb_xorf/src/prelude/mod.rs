@@ -7,6 +7,8 @@ pub mod xor;
 
 #[cfg(feature = "gxhash")]
 use crate::gxhash;
+#[cfg(feature = "murmur3")]
+use crate::murmur3;
 
 /// A set of hashes indexing three blocks.
 pub struct HashSet {

@@ -15,7 +15,7 @@ run() {
   echo ""
   echo "运行测试特性组合: $1"
   echo "----------------------------------------"
-  cargo bench --features "$1" --no-default-features -- --output-format bencher | tee "report/$1.txt"
+  cargo bench --features "$1" --no-default-features 2>&1 | tee "report/$1.txt"
   echo "----------------------------------------"
 }
 
