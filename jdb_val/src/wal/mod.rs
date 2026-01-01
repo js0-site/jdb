@@ -9,6 +9,7 @@ pub(crate) mod consts;
 mod header;
 mod open;
 mod read;
+pub(crate) mod record;
 mod replay;
 mod stream;
 mod write;
@@ -36,7 +37,7 @@ use size_lru::SizeLru;
 use write_buf::SharedState;
 
 use crate::{
-  Error,
+  Ckp, Error,
   block_cache::BlockLru,
   error::Result,
   fs::{decode_id, id_path, open_read},
@@ -72,6 +73,8 @@ pub struct WalInner<C: WalConf> {
   bin_cache: Lru<u64, File>,
   val_cache: C::ValCache,
   head_builder: HeadBuilder,
+  /// Checkpoint manager / 检查点管理器
+  ckp: Option<Ckp>,
   _marker: PhantomData<C>,
 }
 
@@ -147,6 +150,7 @@ impl<C: WalConf> WalInner<C> {
       bin_cache: Lru::new(c.bin_cap),
       val_cache,
       head_builder: HeadBuilder::new(),
+      ckp: None,
       _marker: PhantomData,
       wal_dir,
     }
@@ -291,21 +295,22 @@ impl<C: WalConf> WalInner<C> {
     self.wal_dir.parent().unwrap().to_path_buf()
   }
 
-  /// Create checkpoint at current position / 在当前位置创建检查点
-  #[inline]
-  pub fn checkpoint(&self) -> crate::Checkpoint {
-    crate::Checkpoint::new(self.cur_id(), self.cur_pos)
+  /// Save checkpoint (called by upper layer)
+  /// 保存检查点（上层调用）
+  pub async fn save_ckp(&mut self) -> Result<()> {
+    let id = self.cur_id();
+    let offset = self.cur_pos;
+    if let Some(ckp) = &mut self.ckp {
+      ckp.save(id, offset).await
+    } else {
+      Err(Error::NotOpen)
+    }
   }
 
-  /// Load checkpoint from file / 从文件加载检查点
+  /// Get last save id for GC boundary
+  /// 获取最后保存的 id 用于 GC 边界
   #[inline]
-  pub async fn load_checkpoint(path: &std::path::Path) -> Result<Option<crate::Checkpoint>> {
-    crate::Checkpoint::load(path).await
-  }
-
-  /// Save checkpoint to file / 保存检查点到文件
-  #[inline]
-  pub async fn save_checkpoint(&self, path: &std::path::Path) -> Result<()> {
-    self.checkpoint().save(path).await
+  pub fn last_save_id(&self) -> Option<u64> {
+    self.ckp.as_ref().and_then(|c| c.last_save_id())
   }
 }

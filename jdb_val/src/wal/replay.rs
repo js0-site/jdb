@@ -18,7 +18,7 @@ use super::{
   header::{HeaderState, check_header},
 };
 use crate::{
-  Checkpoint, Pos, Result,
+  Pos, Result, WalPtr,
   error::Error,
   fs::open_read,
   head::{HEAD_CRC, HEAD_TOTAL, Head, MAGIC},
@@ -28,18 +28,18 @@ use crate::{
 /// 回放项：(key, Pos)
 pub type ReplayItem = (Vec<u8>, Pos);
 
-/// WAL replay iterator
-/// WAL 回放迭代器
+/// WAL replay iterator (independent read stream)
+/// WAL 回放迭代器（独立读取流）
 pub struct ReplayIter {
   wal_dir: std::path::PathBuf,
-  /// Sorted WAL file IDs (ascending)
-  /// 排序后的 WAL 文件 ID（升序）
+  /// WAL file IDs to replay
+  /// 需要回放的 WAL 文件 ID
   file_ids: Vec<u64>,
   /// Current file index
   /// 当前文件索引
   file_idx: usize,
-  /// Current file
-  /// 当前文件
+  /// Current file (owned by iterator)
+  /// 当前文件（迭代器拥有）
   file: Option<File>,
   /// Current WAL ID
   /// 当前 WAL ID
@@ -59,9 +59,12 @@ pub struct ReplayIter {
   /// Valid data length in buffer
   /// 缓冲区中的有效数据长度
   buf_cap: usize,
-  /// Checkpoint position (wal_id, wal_pos)
-  /// 检查点位置
-  checkpoint: Option<(u64, u64)>,
+  /// Start offset for first file
+  /// 第一个文件的起始偏移
+  start_offset: u64,
+  /// End pointer (WAL open position)
+  /// 终点指针（WAL 打开位置）
+  end_ptr: WalPtr,
   /// Done flag
   /// 完成标志
   done: bool,
@@ -70,10 +73,15 @@ pub struct ReplayIter {
 impl ReplayIter {
   /// Create new replay iterator
   /// 创建新的回放迭代器
+  ///
+  /// - file_ids: files to replay [save.id, rotate1, ...]
+  /// - start_offset: offset in first file
+  /// - end_ptr: stop position (WAL open position)
   pub fn new(
     wal_dir: std::path::PathBuf,
     file_ids: Vec<u64>,
-    checkpoint: Option<&Checkpoint>,
+    start_offset: u64,
+    end_ptr: WalPtr,
   ) -> Self {
     Self {
       wal_dir,
@@ -86,7 +94,8 @@ impl ReplayIter {
       buf: Vec::with_capacity(SCAN_BUF_SIZE),
       buf_pos: 0,
       buf_cap: 0,
-      checkpoint: checkpoint.map(|c| (c.wal_id, c.wal_pos)),
+      start_offset,
+      end_ptr,
       done: false,
     }
   }
@@ -99,6 +108,17 @@ impl ReplayIter {
     }
 
     loop {
+      // Check if reached end point
+      // 检查是否到达终点
+      if self.cur_id == self.end_ptr.id && self.pos >= self.end_ptr.offset {
+        self.done = true;
+        return Ok(None);
+      }
+      if self.cur_id > self.end_ptr.id {
+        self.done = true;
+        return Ok(None);
+      }
+
       // Open next file if needed
       // 如果需要，打开下一个文件
       if self.file.is_none() && !self.open_next_file().await? {
@@ -137,22 +157,16 @@ impl ReplayIter {
   async fn open_next_file(&mut self) -> Result<bool> {
     while self.file_idx < self.file_ids.len() {
       let id = self.file_ids[self.file_idx];
+      let is_first = self.file_idx == 0;
       self.file_idx += 1;
 
-      // Skip files before checkpoint
-      // 跳过检查点之前的文件
-      if let Some((ckpt_id, ckpt_pos)) = self.checkpoint {
-        if id < ckpt_id {
-          continue;
-        }
-        if id == ckpt_id {
-          self.pos = ckpt_pos;
-        } else {
-          self.pos = HEADER_SIZE as u64;
-        }
+      // First file starts at start_offset, others at HEADER_SIZE
+      // 第一个文件从 start_offset 开始，其他从 HEADER_SIZE 开始
+      self.pos = if is_first {
+        self.start_offset
       } else {
-        self.pos = HEADER_SIZE as u64;
-      }
+        HEADER_SIZE as u64
+      };
 
       let path = crate::fs::id_path(&self.wal_dir, id);
       let file = match open_read(&path).await {
@@ -355,26 +369,39 @@ impl ReplayIter {
 }
 
 impl<C: WalConf> WalInner<C> {
-  /// Open WAL and return async iterator for replay
-  /// 打开 WAL 并返回异步迭代器用于回放
-  ///
-  /// Returns iterator of (key, Pos) after checkpoint position
-  /// 返回检查点位置之后的 (key, Pos) 迭代器
-  ///
-  /// Usage:
-  /// ```ignore
-  /// let mut iter = wal.open_replay(checkpoint.as_ref()).await?;
-  /// while let Some(item) = iter.next().await? {
-  ///     let (key, pos) = item;
-  ///     // rebuild index
-  /// }
-  /// ```
-  pub async fn open_replay(&mut self, checkpoint: Option<&Checkpoint>) -> Result<ReplayIter> {
-    // Collect and sort WAL file IDs
-    // 收集并排序 WAL 文件 ID
-    let mut file_ids: Vec<u64> = self.iter().collect();
-    file_ids.sort_unstable();
+  /// Internal: create replay iterator from loaded checkpoint info
+  /// 内部：从加载的检查点信息创建回放迭代器
+  pub(crate) fn create_replay_iter(&self, replay_info: Option<(WalPtr, Vec<u64>)>) -> ReplayIter {
+    let end_ptr = WalPtr::new(self.cur_id(), self.cur_pos);
 
-    Ok(ReplayIter::new(self.wal_dir.clone(), file_ids, checkpoint))
+    let (file_ids, start_offset) = match replay_info {
+      Some((ptr, ids)) => (ids, ptr.offset),
+      None => (Vec::new(), HEADER_SIZE as u64),
+    };
+
+    ReplayIter::new(self.wal_dir.clone(), file_ids, start_offset, end_ptr)
+  }
+
+  /// Open WAL and return async iterator for replay (standalone use)
+  /// 打开 WAL 并返回异步迭代器用于回放（独立使用）
+  pub fn replay(&self, start_ptr: Option<WalPtr>) -> ReplayIter {
+    let end_ptr = WalPtr::new(self.cur_id(), self.cur_pos);
+
+    let (file_ids, start_offset) = match start_ptr {
+      Some(ptr) => {
+        // Collect file ids >= ptr.id
+        // 收集 id >= ptr.id 的文件
+        let mut ids: Vec<u64> = self.iter().filter(|&id| id >= ptr.id).collect();
+        ids.sort_unstable();
+        (ids, ptr.offset)
+      }
+      None => {
+        let mut ids: Vec<u64> = self.iter().collect();
+        ids.sort_unstable();
+        (ids, HEADER_SIZE as u64)
+      }
+    };
+
+    ReplayIter::new(self.wal_dir.clone(), file_ids, start_offset, end_ptr)
   }
 }

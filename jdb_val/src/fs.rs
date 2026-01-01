@@ -3,7 +3,10 @@
 
 use std::path::{Path, PathBuf};
 
-use compio::io::AsyncWriteAtExt;
+use compio::{
+  buf::{IntoInner, IoBuf},
+  io::{AsyncReadAtExt, AsyncWriteAtExt},
+};
 use compio_fs::File;
 use fast32::base32::CROCKFORD_LOWER;
 
@@ -75,4 +78,17 @@ pub async fn open_write_create(path: impl AsRef<Path>) -> Result<File, std::io::
 pub async fn write_file(path: impl AsRef<Path>, data: &[u8]) -> Result<(), std::io::Error> {
   let mut file = open_write_create(&path).await?;
   file.write_all_at(data.to_vec(), 0).await.0
+}
+
+/// Read entire file into Vec / 读取整个文件到 Vec
+#[inline]
+pub async fn read_all(file: &File, len: u64) -> Result<Vec<u8>, std::io::Error> {
+  if len == 0 {
+    return Ok(Vec::new());
+  }
+  let buf = vec![0u8; len as usize];
+  let slice = buf.slice(0..len as usize);
+  let res = file.read_exact_at(slice, 0).await;
+  res.0?;
+  Ok(res.1.into_inner())
 }

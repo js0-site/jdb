@@ -13,13 +13,13 @@ use super::{
   Val, Wal, WalConf, WalInner,
   consts::{ITER_BUF_SIZE, SMALL_BUF_SIZE},
   header::{HeaderState, check_header},
+  record::Record,
 };
 use crate::{
   Pos,
   error::{Error, Result},
   fs::open_read,
   head::{HEAD_CRC, HEAD_TOTAL, Head, MAGIC},
-  record::Record,
   wal::consts::HEADER_SIZE,
 };
 

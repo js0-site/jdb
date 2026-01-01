@@ -2,7 +2,7 @@
 
 use std::sync::Once;
 
-use jdb_val::{Checkpoint, Conf, Wal};
+use jdb_val::{Conf, Wal, WalPtr};
 
 static INIT: Once = Once::new();
 
@@ -16,19 +16,13 @@ fn run<F: std::future::Future>(f: F) -> F::Output {
   compio_runtime::Runtime::new().unwrap().block_on(f)
 }
 
-fn ckpt_path(dir: &std::path::Path) -> std::path::PathBuf {
-  dir.join("checkpoint")
-}
-
 #[test]
 fn test_replay_empty() {
   init_log();
   run(async {
     let dir = tempfile::tempdir().unwrap();
     let mut wal = Wal::new(dir.path(), &[]);
-    wal.open().await.unwrap();
-
-    let mut iter = wal.open_replay(None).await.unwrap();
+    let mut iter = wal.open().await.unwrap();
     assert!(iter.next().await.unwrap().is_none());
   });
 }
@@ -39,15 +33,18 @@ fn test_replay_single_entry() {
   run(async {
     let dir = tempfile::tempdir().unwrap();
     let mut wal = Wal::new(dir.path(), &[]);
-    wal.open().await.unwrap();
+    let mut iter = wal.open().await.unwrap();
+
+    // No entries yet, replay should be empty
+    assert!(iter.next().await.unwrap().is_none());
 
     let key = b"test_key";
     let val = b"test_value";
     let pos = wal.put(key, val).await.unwrap();
     wal.flush().await.unwrap();
 
-    // Replay
-    let mut iter = wal.open_replay(None).await.unwrap();
+    // Replay from beginning
+    let mut iter = wal.replay(None);
     let (k, p) = iter.next().await.unwrap().unwrap();
     assert_eq!(k, key);
     assert_eq!(p.id(), pos.id());
@@ -66,7 +63,6 @@ fn test_replay_multiple_entries() {
     let mut wal = Wal::new(dir.path(), &[]);
     wal.open().await.unwrap();
 
-    // Write multiple entries
     let entries: Vec<_> = (0..10)
       .map(|i| (format!("key_{i}"), format!("value_{i}")))
       .collect();
@@ -76,8 +72,7 @@ fn test_replay_multiple_entries() {
     }
     wal.flush().await.unwrap();
 
-    // Replay and verify order
-    let mut iter = wal.open_replay(None).await.unwrap();
+    let mut iter = wal.replay(None);
     for (k, _v) in &entries {
       let (key, _pos) = iter.next().await.unwrap().unwrap();
       assert_eq!(key, k.as_bytes());
@@ -94,7 +89,6 @@ fn test_replay_with_checkpoint() {
     let mut wal = Wal::new(dir.path(), &[]);
     wal.open().await.unwrap();
 
-    // Write entries before checkpoint
     for i in 0..5 {
       wal
         .put(format!("before_{i}").as_bytes(), b"val")
@@ -104,10 +98,9 @@ fn test_replay_with_checkpoint() {
     wal.flush().await.unwrap();
 
     // Save checkpoint
-    let cp = wal.checkpoint();
-    wal.save_checkpoint(&ckpt_path(dir.path())).await.unwrap();
+    wal.save_ckp().await.unwrap();
+    let save_ptr = WalPtr::new(wal.cur_id(), wal.cur_pos());
 
-    // Write entries after checkpoint
     for i in 0..5 {
       wal
         .put(format!("after_{i}").as_bytes(), b"val")
@@ -116,8 +109,8 @@ fn test_replay_with_checkpoint() {
     }
     wal.flush().await.unwrap();
 
-    // Replay from checkpoint - should only get entries after checkpoint
-    let mut iter = wal.open_replay(Some(&cp)).await.unwrap();
+    // Replay from checkpoint should only get "after_*" entries
+    let mut iter = wal.replay(Some(save_ptr));
     for i in 0..5 {
       let (key, _pos) = iter.next().await.unwrap().unwrap();
       assert_eq!(key, format!("after_{i}").as_bytes());
@@ -139,15 +132,12 @@ fn test_replay_tombstone() {
     let del_pos = wal.del(key).await.unwrap();
     wal.flush().await.unwrap();
 
-    // Replay should include tombstone
-    let mut iter = wal.open_replay(None).await.unwrap();
+    let mut iter = wal.replay(None);
 
-    // First: put
     let (k, pos) = iter.next().await.unwrap().unwrap();
     assert_eq!(k, key);
     assert!(!pos.is_tombstone());
 
-    // Second: delete (tombstone)
     let (k, pos) = iter.next().await.unwrap().unwrap();
     assert_eq!(k, key);
     assert!(pos.is_tombstone());
@@ -162,11 +152,9 @@ fn test_replay_across_files() {
   init_log();
   run(async {
     let dir = tempfile::tempdir().unwrap();
-    // Small max size to force multiple files
     let mut wal = Wal::new(dir.path(), &[Conf::MaxSize(4096)]);
     wal.open().await.unwrap();
 
-    // Write enough data to span multiple files
     let mut keys = Vec::new();
     for i in 0..100 {
       let key = format!("key_{i:04}");
@@ -176,8 +164,7 @@ fn test_replay_across_files() {
     }
     wal.flush().await.unwrap();
 
-    // Replay all entries
-    let mut iter = wal.open_replay(None).await.unwrap();
+    let mut iter = wal.replay(None);
     for key in &keys {
       let (k, _pos) = iter.next().await.unwrap().unwrap();
       assert_eq!(k, key.as_bytes());
@@ -191,9 +178,7 @@ fn test_checkpoint_persistence() {
   init_log();
   run(async {
     let dir = tempfile::tempdir().unwrap();
-    let ckpt = ckpt_path(dir.path());
 
-    // First session: write and checkpoint
     {
       let mut wal = Wal::new(dir.path(), &[]);
       wal.open().await.unwrap();
@@ -206,19 +191,18 @@ fn test_checkpoint_persistence() {
       }
       wal.flush().await.unwrap();
 
-      wal.save_checkpoint(&ckpt).await.unwrap();
+      wal.save_ckp().await.unwrap();
     }
 
-    // Second session: load checkpoint and continue
     {
       let mut wal = Wal::new(dir.path(), &[]);
-      wal.open().await.unwrap();
+      // open() returns replay iter from last checkpoint to WAL open position
+      let mut iter = wal.open().await.unwrap();
 
-      let cp = Checkpoint::load(&ckpt).await.unwrap();
-      assert!(cp.is_some());
-      let cp = cp.unwrap();
+      // Should be empty since checkpoint was at end of data
+      assert!(iter.next().await.unwrap().is_none());
 
-      // Write more after checkpoint
+      // Write more data
       for i in 5..10 {
         wal
           .put(format!("key_{i}").as_bytes(), b"val")
@@ -227,13 +211,35 @@ fn test_checkpoint_persistence() {
       }
       wal.flush().await.unwrap();
 
-      // Replay from checkpoint
-      let mut iter = wal.open_replay(Some(&cp)).await.unwrap();
-      for i in 5..10 {
+      // replay(None) replays from beginning to current position
+      // Should get all 10 entries (key_0 to key_9)
+      let mut iter = wal.replay(None);
+      for i in 0..10 {
         let (key, _pos) = iter.next().await.unwrap().unwrap();
         assert_eq!(key, format!("key_{i}").as_bytes());
       }
       assert!(iter.next().await.unwrap().is_none());
     }
+  });
+}
+
+#[test]
+fn test_replay_same_start_end() {
+  init_log();
+  run(async {
+    let dir = tempfile::tempdir().unwrap();
+    let mut wal = Wal::new(dir.path(), &[]);
+    wal.open().await.unwrap();
+
+    // Write some data
+    wal.put(b"key", b"value").await.unwrap();
+    wal.flush().await.unwrap();
+
+    // Get current position
+    let ptr = WalPtr::new(wal.cur_id(), wal.cur_pos());
+
+    // Replay from current position should be empty
+    let mut iter = wal.replay(Some(ptr));
+    assert!(iter.next().await.unwrap().is_none());
   });
 }

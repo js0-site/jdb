@@ -13,18 +13,18 @@
 
 // Internal modules / 内部模块
 pub(crate) mod block_cache;
-pub mod checkpoint;
+pub mod ckp;
 pub mod error;
 pub(crate) mod flag;
 pub(crate) mod fs;
 pub(crate) mod gc;
 pub(crate) mod head;
+pub(crate) mod load;
 pub(crate) mod pos;
-pub(crate) mod record;
 pub mod wal;
 
 // Core types / 核心类型
-pub use checkpoint::Checkpoint;
+pub use ckp::{CKP_FILE, Ckp, CkpKind, WalPtr};
 pub use error::{Error, Result};
 pub use flag::Flag;
 // GC types / GC 类型
@@ -34,5 +34,6 @@ pub use head::{HEAD_CRC, HEAD_TOTAL, Head, HeadBuilder, MAGIC};
 // Limits / 限制常量
 pub use head::{INFILE_MAX, KEY_MAX};
 pub use pos::Pos;
-pub use record::Record;
-pub use wal::{Conf, DefaultGc, Gc as GcTrait, NoGc, Val, Wal, consts::HEADER_SIZE};
+pub use wal::{
+  Conf, DefaultGc, Gc as GcTrait, NoGc, Val, Wal, consts::HEADER_SIZE, record::Record,
+};

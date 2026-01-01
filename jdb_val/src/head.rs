@@ -46,6 +46,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 use crate::{
   Flag,
   error::{Error, Result},
+  load::Load,
 };
 
 /// Magic byte
@@ -75,6 +76,34 @@ pub const INFILE_MAX: usize = 4 * 1024 * 1024;
 /// Max key size (64KB)
 /// 最大 key 大小（64KB）
 pub const KEY_MAX: usize = 64 * 1024;
+
+/// WAL entry type for Load trait / WAL 条目类型用于 Load trait
+pub struct WalEntry;
+
+impl Load for WalEntry {
+  const MAGIC: u8 = MAGIC;
+  const HEAD_SIZE: usize = HEAD_TOTAL;
+
+  #[inline]
+  fn parse(buf: &[u8]) -> Option<usize> {
+    if buf.len() < HEAD_TOTAL || buf[0] != MAGIC {
+      return None;
+    }
+
+    // Verify CRC / 验证 CRC
+    let head_bytes = &buf[1..1 + HEAD_SIZE];
+    let crc_bytes = &buf[1 + HEAD_SIZE..HEAD_TOTAL];
+    let got = u32::from_le_bytes(unsafe { *crc_bytes.as_ptr().cast::<[u8; 4]>() });
+    let expected = crc32fast::hash(head_bytes);
+    if got != expected {
+      return None;
+    }
+
+    let head = Head::read_from_bytes(head_bytes).ok()?;
+    // Total size = magic(1) + record_size
+    Some(1 + head.record_size())
+  }
+}
 
 /// Fixed-size head (24 bytes)
 /// 定长头（24 字节）

@@ -17,8 +17,10 @@ default = [ ]
 
 [dev-dependencies]
 aok = "0.1.18"
+jdb_base = { path = "../jdb_base" }
 log = "0.4.29"
 log_init = "0.1.34"
+proptest = "1.9.0"
 static_init = "1.0.4"
 
 [dev-dependencies.compio]
@@ -28,6 +30,7 @@ features = [ "macros" ]
 [dependencies]
 autoscale_cuckoo_filter = { version = "0.5.9", path = "../autoscale_cuckoo_filter" }
 compio = { version = "0.17.0", features = ["runtime", "io", "macros"] }
+jdb_base = { version = "0.1.0", path = "../jdb_base" }
 jdb_val = { version = "0.1.0", path = "../jdb_val" }
 log = "0.4.29"
 thiserror = "2.0.17"
