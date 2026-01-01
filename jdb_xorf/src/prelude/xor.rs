@@ -1,18 +1,18 @@
 use crate::prelude::HashSet;
 
 impl HashSet {
-    pub const fn xor_from(key: u64, block_length: usize, seed: u64) -> Self {
-        let hash = crate::prelude::mix(key, seed);
+  pub const fn xor_from(key: u64, block_length: usize, seed: u64) -> Self {
+    let hash = crate::prelude::mix(key, seed);
 
-        Self {
-            hash,
-            hset: [
-                crate::xor_h!(index block 0, of length block_length, using hash),
-                crate::xor_h!(index block 1, of length block_length, using hash),
-                crate::xor_h!(index block 2, of length block_length, using hash),
-            ],
-        }
+    Self {
+      hash,
+      hset: [
+        crate::xor_h!(index block 0, of length block_length, using hash),
+        crate::xor_h!(index block 1, of length block_length, using hash),
+        crate::xor_h!(index block 2, of length block_length, using hash),
+      ],
     }
+  }
 }
 
 /// Computes a hash indexing the i'th filter block.

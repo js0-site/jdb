@@ -7,38 +7,38 @@ pub const SLOTS: usize = SEGMENT_COUNT + ARITY - 1;
 pub const FUSE_OVERHEAD: f64 = 1.0 / 0.879;
 
 impl HashSet {
-    pub const fn fuse_from(key: u64, segment_length: usize, seed: u64) -> Self {
-        let hash = crate::prelude::mix(key, seed);
-        let H012 { hset } = H012::from(hash, segment_length);
+  pub const fn fuse_from(key: u64, segment_length: usize, seed: u64) -> Self {
+    let hash = crate::prelude::mix(key, seed);
+    let H012 { hset } = H012::from(hash, segment_length);
 
-        Self { hash, hset }
-    }
+    Self { hash, hset }
+  }
 }
 
 /// Just the indexing hashes of a key.
 pub struct H012 {
-    pub hset: [usize; 3],
+  pub hset: [usize; 3],
 }
 
 impl H012 {
-    pub const fn from(hash: u64, segment_length: usize) -> Self {
-        use crate::{reduce, rotl64};
+  pub const fn from(hash: u64, segment_length: usize) -> Self {
+    use crate::{reduce, rotl64};
 
-        let r0 = hash as u32;
-        let r1 = rotl64!(hash, by 21) as u32;
-        let r2 = rotl64!(hash, by 42) as u32;
-        let r3 = ((H3.overflowing_mul(hash).0) >> 32) as u32;
+    let r0 = hash as u32;
+    let r1 = rotl64!(hash, by 21) as u32;
+    let r2 = rotl64!(hash, by 42) as u32;
+    let r3 = ((H3.overflowing_mul(hash).0) >> 32) as u32;
 
-        let seg = reduce!(r0 on interval SEGMENT_COUNT);
+    let seg = reduce!(r0 on interval SEGMENT_COUNT);
 
-        Self {
-            hset: [
-                seg * segment_length + reduce!(r1 on interval segment_length),
-                (seg + 1) * segment_length + reduce!(r2 on interval segment_length),
-                (seg + 2) * segment_length + reduce!(r3 on interval segment_length),
-            ],
-        }
+    Self {
+      hset: [
+        seg * segment_length + reduce!(r1 on interval segment_length),
+        (seg + 1) * segment_length + reduce!(r2 on interval segment_length),
+        (seg + 2) * segment_length + reduce!(r3 on interval segment_length),
+      ],
     }
+  }
 }
 
 /// Creates a `contains(u64)` implementation for a fuse xor filter of fingerprint type `$fpty`.

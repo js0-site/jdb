@@ -29,10 +29,10 @@
 /// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 /// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 pub const fn mix64(mut k: u64) -> u64 {
-    k ^= k >> 33;
-    k = k.overflowing_mul(0xff51_afd7_ed55_8ccd).0;
-    k ^= k >> 33;
-    k = k.overflowing_mul(0xc4ce_b9fe_1a85_ec53).0;
-    k ^= k >> 33;
-    k
+  k ^= k >> 33;
+  k = k.overflowing_mul(0xff51_afd7_ed55_8ccd).0;
+  k ^= k >> 33;
+  k = k.overflowing_mul(0xc4ce_b9fe_1a85_ec53).0;
+  k ^= k >> 33;
+  k
 }

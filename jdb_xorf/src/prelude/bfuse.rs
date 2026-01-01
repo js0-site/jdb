@@ -3,90 +3,85 @@
 
 use core::convert::TryInto;
 
-use libm::{floor, fmax, log};
-
 #[cfg(feature = "bitcode")]
 use bitcode::{Decode, Encode};
+use libm::{floor, fmax, log};
 
 #[inline]
 pub fn segment_length(arity: u32, size: u32) -> u32 {
-    if size == 0 {
-        return 4;
-    }
+  if size == 0 {
+    return 4;
+  }
 
-    match arity {
-        3 => 1 << (floor(log(size as f64) / log(3.33_f64) + 2.25) as u32),
-        4 => 1 << (floor(log(size as f64) / log(2.91_f64) - 0.5) as u32),
-        _ => 65536,
-    }
+  match arity {
+    3 => 1 << (floor(log(size as f64) / log(3.33_f64) + 2.25) as u32),
+    4 => 1 << (floor(log(size as f64) / log(2.91_f64) - 0.5) as u32),
+    _ => 65536,
+  }
 }
 
 #[inline]
 pub fn size_factor(arity: u32, size: u32) -> f64 {
-    match arity {
-        3 => fmax(
-            1.125_f64,
-            0.875 + 0.25 * log(1000000_f64) / log(size as f64),
-        ),
-        4 => fmax(1.075_f64, 0.77 + 0.305 * log(600000_f64) / log(size as f64)),
-        _ => 2.0,
-    }
+  match arity {
+    3 => fmax(
+      1.125_f64,
+      0.875 + 0.25 * log(1000000_f64) / log(size as f64),
+    ),
+    4 => fmax(1.075_f64, 0.77 + 0.305 * log(600000_f64) / log(size as f64)),
+    _ => 2.0,
+  }
 }
 
 #[inline]
 pub const fn hash_of_hash(
-    hash: u64,
-    segment_length: u32,
-    segment_length_mask: u32,
-    segment_count_length: u32,
+  hash: u64,
+  segment_length: u32,
+  segment_length_mask: u32,
+  segment_count_length: u32,
 ) -> (u32, u32, u32) {
-    let hi = ((hash as u128 * segment_count_length as u128) >> 64) as u64;
-    let h0 = hi as u32;
-    let mut h1 = h0 + segment_length;
-    let mut h2 = h1 + segment_length;
-    h1 ^= ((hash >> 18) as u32) & segment_length_mask;
-    h2 ^= (hash as u32) & segment_length_mask;
-    (h0, h1, h2)
+  let hi = ((hash as u128 * segment_count_length as u128) >> 64) as u64;
+  let h0 = hi as u32;
+  let mut h1 = h0 + segment_length;
+  let mut h2 = h1 + segment_length;
+  h1 ^= ((hash >> 18) as u32) & segment_length_mask;
+  h2 ^= (hash as u32) & segment_length_mask;
+  (h0, h1, h2)
 }
 
 #[inline]
 pub const fn mod3(x: u8) -> u8 {
-    if x > 2 {
-        x - 3
-    } else {
-        x
-    }
+  if x > 2 { x - 3 } else { x }
 }
 
 #[cfg_attr(feature = "bitcode", derive(Decode, Encode))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Descriptor {
-    pub seed: u64,
-    pub segment_length: u32,
-    pub segment_length_mask: u32,
-    pub segment_count_length: u32,
+  pub seed: u64,
+  pub segment_length: u32,
+  pub segment_length_mask: u32,
+  pub segment_count_length: u32,
 }
 
 impl Descriptor {
-    pub const DMA_LEN: usize = u64::BITS as usize / 8 + (u32::BITS as usize / 8) * 3;
+  pub const DMA_LEN: usize = u64::BITS as usize / 8 + (u32::BITS as usize / 8) * 3;
 }
 
 #[inline]
 pub fn parse_bfuse_descriptor(descriptor: &[u8]) -> Descriptor {
-    Descriptor {
-        seed: u64::from_le_bytes(descriptor[0..8].try_into().unwrap()),
-        segment_length: u32::from_le_bytes(descriptor[8..12].try_into().unwrap()),
-        segment_length_mask: u32::from_le_bytes(descriptor[12..16].try_into().unwrap()),
-        segment_count_length: u32::from_le_bytes(descriptor[16..20].try_into().unwrap()),
-    }
+  Descriptor {
+    seed: u64::from_le_bytes(descriptor[0..8].try_into().unwrap()),
+    segment_length: u32::from_le_bytes(descriptor[8..12].try_into().unwrap()),
+    segment_length_mask: u32::from_le_bytes(descriptor[12..16].try_into().unwrap()),
+    segment_count_length: u32::from_le_bytes(descriptor[16..20].try_into().unwrap()),
+  }
 }
 
 #[inline]
 pub fn serialize_bfuse_descriptor(descriptor: &Descriptor, out: &mut [u8]) {
-    out[0..8].copy_from_slice(&descriptor.seed.to_le_bytes());
-    out[8..12].copy_from_slice(&descriptor.segment_length.to_le_bytes());
-    out[12..16].copy_from_slice(&descriptor.segment_length_mask.to_le_bytes());
-    out[16..20].copy_from_slice(&descriptor.segment_count_length.to_le_bytes());
+  out[0..8].copy_from_slice(&descriptor.seed.to_le_bytes());
+  out[8..12].copy_from_slice(&descriptor.segment_length.to_le_bytes());
+  out[12..16].copy_from_slice(&descriptor.segment_length_mask.to_le_bytes());
+  out[16..20].copy_from_slice(&descriptor.segment_count_length.to_le_bytes());
 }
 
 /// Implements `try_from(&[u64])` for an binary fuse filter of fingerprint type `$fpty`.

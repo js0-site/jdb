@@ -1,11 +1,12 @@
 //! Implements a hashing proxy for xor filters.
 
-use crate::Filter;
 use alloc::vec::Vec;
 use core::hash::{Hash, Hasher};
 
 #[cfg(feature = "bitcode")]
 use bitcode::{Decode, Encode};
+
+use crate::Filter;
 
 /// Arbitrary key type proxy for xor filters.
 ///
@@ -85,63 +86,63 @@ use bitcode::{Decode, Encode};
 #[cfg_attr(feature = "bitcode", derive(Decode, Encode))]
 pub struct HashProxy<T, H, F>
 where
-    T: Hash,
-    H: Hasher + Default,
-    F: Filter<u64>,
+  T: Hash,
+  H: Hasher + Default,
+  F: Filter<u64>,
 {
-    filter: F,
-    _hasher: core::marker::PhantomData<H>,
-    _type: core::marker::PhantomData<T>,
+  filter: F,
+  _hasher: core::marker::PhantomData<H>,
+  _type: core::marker::PhantomData<T>,
 }
 
 #[inline]
 fn hash<T: Hash, H: Hasher + Default>(key: &T) -> u64 {
-    let mut hasher = H::default();
-    key.hash(&mut hasher);
-    hasher.finish()
+  let mut hasher = H::default();
+  key.hash(&mut hasher);
+  hasher.finish()
 }
 
 impl<T, H, F> Filter<T> for HashProxy<T, H, F>
 where
-    T: Hash,
-    H: Hasher + Default,
-    F: Filter<u64>,
+  T: Hash,
+  H: Hasher + Default,
+  F: Filter<u64>,
 {
-    /// Returns `true` if the underlying filter contains the specified key.
-    fn contains(&self, key: &T) -> bool {
-        self.filter.contains(&hash::<T, H>(key))
-    }
+  /// Returns `true` if the underlying filter contains the specified key.
+  fn contains(&self, key: &T) -> bool {
+    self.filter.contains(&hash::<T, H>(key))
+  }
 
-    fn len(&self) -> usize {
-        self.filter.len()
-    }
+  fn len(&self) -> usize {
+    self.filter.len()
+  }
 }
 
 impl<T, H, F> From<&[T]> for HashProxy<T, H, F>
 where
-    T: Hash,
-    H: Hasher + Default,
-    F: Filter<u64> + From<Vec<u64>>,
+  T: Hash,
+  H: Hasher + Default,
+  F: Filter<u64> + From<Vec<u64>>,
 {
-    fn from(keys: &[T]) -> Self {
-        let keys: Vec<u64> = keys.iter().map(hash::<T, H>).collect();
-        Self {
-            filter: F::from(keys),
-            _hasher: core::marker::PhantomData,
-            _type: core::marker::PhantomData,
-        }
+  fn from(keys: &[T]) -> Self {
+    let keys: Vec<u64> = keys.iter().map(hash::<T, H>).collect();
+    Self {
+      filter: F::from(keys),
+      _hasher: core::marker::PhantomData,
+      _type: core::marker::PhantomData,
     }
+  }
 }
 
 impl<T, H, F> From<&Vec<T>> for HashProxy<T, H, F>
 where
-    T: Hash,
-    H: Hasher + Default,
-    F: Filter<u64> + From<Vec<u64>>,
+  T: Hash,
+  H: Hasher + Default,
+  F: Filter<u64> + From<Vec<u64>>,
 {
-    fn from(v: &Vec<T>) -> Self {
-        Self::from(v.as_slice())
-    }
+  fn from(v: &Vec<T>) -> Self {
+    Self::from(v.as_slice())
+  }
 }
 
 // TODO(ayazhafiz): We should support a `TryFrom` trait as well. Today this is impossible due to
@@ -152,43 +153,41 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{xor16::Xor16, xor32::Xor32, xor8::Xor8};
-    use crate::{Filter, HashProxy};
+  use alloc::vec::Vec;
 
-    use alloc::vec::Vec;
-    use rand::distr::Alphanumeric;
-    use rand::Rng;
+  use rand::{Rng, distr::Alphanumeric};
 
-    extern crate std;
-    use std::collections::hash_map::DefaultHasher;
-    use std::string::String;
+  use crate::{Filter, HashProxy, xor8::Xor8, xor16::Xor16, xor32::Xor32};
 
-    #[test]
-    fn test_initialization_from() {
-        const SAMPLE_SIZE: usize = 1_000_000;
-        // Key generation is expensive. Do it once and make copies during tests.
-        let keys: Vec<String> = (0..SAMPLE_SIZE)
-            .map(|_| {
-                rand::rng()
-                    .sample_iter(&Alphanumeric)
-                    .take(15)
-                    .map(char::from)
-                    .collect()
-            })
-            .collect();
+  extern crate std;
+  use std::{collections::hash_map::DefaultHasher, string::String};
 
-        macro_rules! drive_test {
-            ($xorf:ident) => {{
-                let keys = keys.clone();
-                let filter: HashProxy<_, DefaultHasher, $xorf> = HashProxy::from(&keys);
-                for key in keys {
-                    assert!(filter.contains(&key));
-                }
-            }};
+  #[test]
+  fn test_initialization_from() {
+    const SAMPLE_SIZE: usize = 1_000_000;
+    // Key generation is expensive. Do it once and make copies during tests.
+    let keys: Vec<String> = (0..SAMPLE_SIZE)
+      .map(|_| {
+        rand::rng()
+          .sample_iter(&Alphanumeric)
+          .take(15)
+          .map(char::from)
+          .collect()
+      })
+      .collect();
+
+    macro_rules! drive_test {
+      ($xorf:ident) => {{
+        let keys = keys.clone();
+        let filter: HashProxy<_, DefaultHasher, $xorf> = HashProxy::from(&keys);
+        for key in keys {
+          assert!(filter.contains(&key));
         }
-
-        drive_test!(Xor8);
-        drive_test!(Xor16);
-        drive_test!(Xor32);
+      }};
     }
+
+    drive_test!(Xor8);
+    drive_test!(Xor16);
+    drive_test!(Xor32);
+  }
 }

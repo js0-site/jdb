@@ -8,29 +8,26 @@ pub mod xor;
 #[cfg(feature = "gxhash")]
 use crate::gxhash;
 
-#[cfg(feature = "murmur3")]
-use crate::murmur3;
-
 /// A set of hashes indexing three blocks.
 pub struct HashSet {
-    /// Key hash
-    pub hash: u64,
-    /// Indexing hashes h_0, h_1, h_2 created with `hash`.
-    pub hset: [usize; 3],
+  /// Key hash
+  pub hash: u64,
+  /// Indexing hashes h_0, h_1, h_2 created with `hash`.
+  pub hset: [usize; 3],
 }
 
 /// The hash of a key and the index of that key in the construction array H.
 #[derive(Default, Copy, Clone)]
 pub struct KeyIndex {
-    pub hash: u64,
-    pub index: usize,
+  pub hash: u64,
+  pub index: usize,
 }
 
 /// A set in the construction array H. Elements are encoded via xor with the mask.
 #[derive(Default, Clone)]
 pub struct HSet {
-    pub count: u32,
-    pub mask: u64,
+  pub count: u32,
+  pub mask: u64,
 }
 
 /// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
@@ -38,8 +35,8 @@ pub struct HSet {
 #[inline]
 #[cfg(all(feature = "gxhash", feature = "murmur3"))]
 pub const fn mix(key: u64, seed: u64) -> u64 {
-    // When both features are enabled, prefer gxhash for better performance
-    gxhash::mix64(key.overflowing_add(seed).0)
+  // When both features are enabled, prefer gxhash for better performance
+  gxhash::mix64(key.overflowing_add(seed).0)
 }
 
 /// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
@@ -47,7 +44,7 @@ pub const fn mix(key: u64, seed: u64) -> u64 {
 #[inline]
 #[cfg(all(feature = "murmur3", not(feature = "gxhash")))]
 pub const fn mix(key: u64, seed: u64) -> u64 {
-    murmur3::mix64(key.overflowing_add(seed).0)
+  murmur3::mix64(key.overflowing_add(seed).0)
 }
 
 /// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
@@ -55,7 +52,7 @@ pub const fn mix(key: u64, seed: u64) -> u64 {
 #[inline]
 #[cfg(all(feature = "gxhash", not(feature = "murmur3")))]
 pub const fn mix(key: u64, seed: u64) -> u64 {
-    gxhash::mix64(key.overflowing_add(seed).0)
+  gxhash::mix64(key.overflowing_add(seed).0)
 }
 
 /// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
@@ -63,9 +60,9 @@ pub const fn mix(key: u64, seed: u64) -> u64 {
 #[inline]
 #[cfg(not(any(feature = "murmur3", feature = "gxhash")))]
 pub const fn mix(key: u64, seed: u64) -> u64 {
-    // Fallback implementation - should never happen because murmur3 is in default features
-    let k = key.overflowing_add(seed).0;
-    k ^ k >> 33
+  // Fallback implementation - should never happen because murmur3 is in default features
+  let k = key.overflowing_add(seed).0;
+  k ^ k >> 33
 }
 
 /// Computes a fingerprint.
@@ -158,6 +155,6 @@ macro_rules! try_enqueue(
 /// Checks if a collection of keys has all distinct values.
 #[cfg(debug_assertions)]
 pub fn all_distinct(keys: impl IntoIterator<Item = u64>) -> bool {
-    let mut s = alloc::collections::BTreeSet::new();
-    keys.into_iter().all(move |x| s.insert(x))
+  let mut s = alloc::collections::BTreeSet::new();
+  keys.into_iter().all(move |x| s.insert(x))
 }

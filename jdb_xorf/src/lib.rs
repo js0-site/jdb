@@ -67,20 +67,20 @@
 #![warn(missing_docs)]
 #![deny(clippy::all, clippy::cargo, clippy::nursery)]
 #![allow(
-    clippy::len_without_is_empty,
-    clippy::useless_attribute,
-    clippy::multiple_crate_versions,
-    clippy::fallible_impl_from,
-    clippy::manual_rotate
+  clippy::len_without_is_empty,
+  clippy::useless_attribute,
+  clippy::multiple_crate_versions,
+  clippy::fallible_impl_from,
+  clippy::manual_rotate
 )]
 
 #[macro_use]
 extern crate alloc;
 
-#[cfg(feature = "murmur3")]
-mod murmur3;
 #[cfg(feature = "gxhash")]
 mod gxhash;
+#[cfg(feature = "murmur3")]
+mod murmur3;
 mod prelude;
 mod splitmix64;
 
@@ -96,38 +96,38 @@ mod xor32;
 mod xor8;
 
 #[cfg(feature = "binary-fuse")]
+pub use bfuse8::{BinaryFuse8, BinaryFuse8Ref};
+#[cfg(feature = "binary-fuse")]
 pub use bfuse16::{BinaryFuse16, BinaryFuse16Ref};
 #[cfg(feature = "binary-fuse")]
 pub use bfuse32::{BinaryFuse32, BinaryFuse32Ref};
-#[cfg(feature = "binary-fuse")]
-pub use bfuse8::{BinaryFuse8, BinaryFuse8Ref};
 pub use hash_proxy::HashProxy;
+pub use xor8::Xor8;
 pub use xor16::Xor16;
 pub use xor32::Xor32;
-pub use xor8::Xor8;
 
 /// Methods common to xor filters.
 pub trait Filter<Type> {
-    /// Returns `true` if the filter probably contains the specified key.
-    ///
-    /// There can never be a false negative, but there is a small possibility of false positives.
-    /// Refer to individual filters' documentation for false positive rates.
-    fn contains(&self, key: &Type) -> bool;
+  /// Returns `true` if the filter probably contains the specified key.
+  ///
+  /// There can never be a false negative, but there is a small possibility of false positives.
+  /// Refer to individual filters' documentation for false positive rates.
+  fn contains(&self, key: &Type) -> bool;
 
-    /// Returns the number of fingerprints in the filter.
-    fn len(&self) -> usize;
+  /// Returns the number of fingerprints in the filter.
+  fn len(&self) -> usize;
 }
 
 /// Equivalent to Filter except represents a reference to fingerprints stored elsewhere.
 pub trait FilterRef<'a, Type>: Filter<Type> {
-    /// The alignment required of the fingerprints slice.
-    const FINGERPRINT_ALIGNMENT: usize;
+  /// The alignment required of the fingerprints slice.
+  const FINGERPRINT_ALIGNMENT: usize;
 
-    /// Create a filter from memory slices. These slices can be mmap from a file. The descriptor
-    /// is eagerly destructured while the fingerprints reference is retained. If the fingerprints
-    /// slice provided doesn't have an alignment of `FINGERPRINT_ALIGNMENT`, this function will
-    /// panic.
-    fn from_dma(descriptor: &[u8], fingerprints: &'a [u8]) -> Self;
+  /// Create a filter from memory slices. These slices can be mmap from a file. The descriptor
+  /// is eagerly destructured while the fingerprints reference is retained. If the fingerprints
+  /// slice provided doesn't have an alignment of `FINGERPRINT_ALIGNMENT`, this function will
+  /// panic.
+  fn from_dma(descriptor: &[u8], fingerprints: &'a [u8]) -> Self;
 }
 
 /// DMA serializable filters are ones who can be essentially directly accessed into/out of DMA buffers.
@@ -137,12 +137,12 @@ pub trait FilterRef<'a, Type>: Filter<Type> {
 /// The fixed descriptor is small (a few words at most) and is copied into / out of the serialized form.
 /// The variable length fingerprints however are referenced directly.
 pub trait DmaSerializable {
-    /// The serialized length of the descriptor. Very small and safe to allocate on-stack if needed.
-    const DESCRIPTOR_LEN: usize;
+  /// The serialized length of the descriptor. Very small and safe to allocate on-stack if needed.
+  const DESCRIPTOR_LEN: usize;
 
-    /// Copies the small fixed-length descriptor part of the filter to an output buffer.
-    fn dma_copy_descriptor_to(&self, out: &mut [u8]);
+  /// Copies the small fixed-length descriptor part of the filter to an output buffer.
+  fn dma_copy_descriptor_to(&self, out: &mut [u8]);
 
-    /// Obtains the raw byte slice of the fingerprints to serialize to disk.
-    fn dma_fingerprints(&self) -> &[u8];
+  /// Obtains the raw byte slice of the fingerprints to serialize to disk.
+  fn dma_fingerprints(&self) -> &[u8];
 }
