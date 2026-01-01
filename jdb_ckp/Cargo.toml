@@ -1,0 +1,35 @@
+[package]
+name = "jdb_ckp"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0/jdb.git"
+homepage = "https://github.com/js0/jdb/tree/main/jdb_ckp"
+description = "jdb_ckp"
+keywords = []
+categories = []
+readme = "README.md"
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+jdb_base = { path = "../jdb_base", version = "0.1.0" }
+compio-fs = "0.10.0"
+crc32fast = "1.5.0"
+thiserror = "2.0.17"
+zerocopy = { version = "0.8.31", features = ["derive", "simd"] }
+compio = { version = "0.17.0", features = ["io", "runtime"] }
+bitcode = { version = "0.6", features = ["derive"] }
+
+[dev-dependencies]
+aok = "0.1.18"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
+compio-runtime = "0.10.1"
+tempfile = "3.24.0"

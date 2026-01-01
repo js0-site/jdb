@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+  "autoscale_cuckoo_filter",
+  "jdb_val",
+  "jdb_bench",
+  "jdb_lru",
+  "zbin",
+  "jdb_lock",
+  "autopin",
+  "cpu_load",
+  "size_lru",
+  "jdb_bench_data",
+  "jdb",
+  "wlog",
+  "jdb_gc",
+  "jdb_base",
+  "jdb_xorf",
+  "jdb_pgm_index",
+  "jdb_ckp", "jdb_fs",
+]
+exclude = ["sh/_tmpl"]
+
+[profile.release]
+lto = true
+opt-level = 3
+incremental = true
+codegen-units = 1
+overflow-checks = false
+debug-assertions = false
+# panic = 'abort'
+# strip = false
+
+[profile.dev]
+split-debuginfo = "unpacked"
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

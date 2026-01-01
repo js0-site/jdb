@@ -1,0 +1,62 @@
+[package]
+name = "jdb_pgm_index"
+version = "0.3.3"
+edition = "2024"
+description = "Ultra-fast learned PGM-Index for efficient sorted key lookup with bounded error"
+license = "MIT"
+repository = "https://github.com/js0-site/jdb.git"
+keywords = ["pgm-index", "learned-index", "index", "search", "data-structures"]
+categories = ["data-structures", "algorithms", "science"]
+authors = ["jssite@googlegroups.com", "Andrei Riaskov <code@riaskov.com>"]
+readme = "README.md"
+homepage = "https://github.com/js0-site/jdb"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+num-traits = "0.2"
+bitcode = { version = "0.6.9", optional = true }
+
+[dev-dependencies]
+aok = "0.1.18"
+criterion = { version = "0.8", features = ["html_reports"] }
+log = "0.4.29"
+log_init = "0.1.34"
+rand = "0.9"
+static_init = "1.0.4"
+
+[features]
+default = []
+bitcode = ["dep:bitcode"]
+
+[[example]]
+name = "simple_benchmark"
+path = "examples/simple_benchmark.rs"
+
+[[bench]]
+name = "pgm_vs_binary"
+harness = false
+
+[profile.release]
+opt-level = 3
+debug = false
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
+overflow-checks = false
+
+[profile.bench]
+inherits = "release"
+debug = true
+strip = false
+
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+
+[profile.dev.package."*"]
+opt-level = 2
