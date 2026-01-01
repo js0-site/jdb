@@ -94,3 +94,59 @@ Gnuplot not found, using plotters backend
 Benchmarking BinaryFuse16/from/500000
 Benchmarking BinaryFuse16/from/500000: Warming up for 3.0000 s
 Benchmarking BinaryFuse16/from/500000: Collecting 10 samples in estimated 5.0533 s (495 iterations)
+Benchmarking BinaryFuse16/from/500000: Analyzing
+BinaryFuse16/from/500000
+                        time:   [10.287 ms 10.391 ms 10.511 ms]
+                        change: [+1.8693% +2.9112% +4.0698%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking BinaryFuse16/contains/500000
+Benchmarking BinaryFuse16/contains/500000: Warming up for 3.0000 s
+Benchmarking BinaryFuse16/contains/500000: Collecting 100 samples in estimated 5.0000 s (7.5B iterations)
+Benchmarking BinaryFuse16/contains/500000: Analyzing
+BinaryFuse16/contains/500000
+                        time:   [662.68 ps 666.49 ps 670.33 ps]
+                        change: [−1.5595% −0.0709% +1.4018%] (p = 0.93 > 0.05)
+                        No change in performance detected.
+Found 5 outliers among 100 measurements (5.00%)
+  2 (2.00%) low mild
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+
+     Running benches/bfuse32.rs (/tmp/rust/release/deps/bfuse32-4428901b8f081438)
+Gnuplot not found, using plotters backend
+Benchmarking BinaryFuse32/from/500000
+Benchmarking BinaryFuse32/from/500000: Warming up for 3.0000 s
+Benchmarking BinaryFuse32/from/500000: Collecting 10 samples in estimated 5.0982 s (495 iterations)
+Benchmarking BinaryFuse32/from/500000: Analyzing
+BinaryFuse32/from/500000
+                        time:   [10.252 ms 10.276 ms 10.306 ms]
+                        change: [−0.2306% +0.2837% +0.7658%] (p = 0.30 > 0.05)
+                        No change in performance detected.
+
+Benchmarking BinaryFuse32/contains/500000
+Benchmarking BinaryFuse32/contains/500000: Warming up for 3.0000 s
+Benchmarking BinaryFuse32/contains/500000: Collecting 100 samples in estimated 5.0000 s (7.5B iterations)
+Benchmarking BinaryFuse32/contains/500000: Analyzing
+BinaryFuse32/contains/500000
+                        time:   [659.03 ps 662.83 ps 666.65 ps]
+                        change: [−2.4954% −1.2571% +0.0382%] (p = 0.05 > 0.05)
+                        No change in performance detected.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) low mild
+  1 (1.00%) high mild
+
+     Running benches/xor16.rs (/tmp/rust/release/deps/xor16-c5f72b1fbea2a2cc)
+Gnuplot not found, using plotters backend
+Benchmarking Xor16/from/500000
+Benchmarking Xor16/from/500000: Warming up for 3.0000 s
+Benchmarking Xor16/from/500000: Collecting 10 samples in estimated 5.0492 s (440 iterations)
+Benchmarking Xor16/from/500000: Analyzing
+Xor16/from/500000       time:   [11.213 ms 11.390 ms 11.669 ms]
+                        change: [+5.4940% +9.9972% +15.568%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+
+Benchmarking Xor16/contains/500000
+Benchmarking Xor16/contains/500000: Warming up for 3.0000 s
