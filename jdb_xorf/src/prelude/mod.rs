@@ -5,8 +5,6 @@ pub mod bfuse;
 pub mod fuse;
 pub mod xor;
 
-#[cfg(feature = "murmur3")]
-use crate::murmur3;
 #[cfg(feature = "gxhash")]
 use crate::gxhash;
 
