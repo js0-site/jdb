@@ -236,7 +236,6 @@ impl HeadBuilder {
   }
 
   #[inline]
-
   fn build(&mut self, head: &Head, val: Option<&[u8]>, key: &[u8]) -> &[u8] {
     self.buf.clear();
 
