@@ -79,8 +79,6 @@ extern crate alloc;
 
 #[cfg(feature = "gxhash")]
 mod gxhash;
-#[cfg(feature = "murmur3")]
-mod murmur3;
 mod prelude;
 mod splitmix64;
 
