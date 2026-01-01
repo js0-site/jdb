@@ -2,13 +2,13 @@
 extern crate criterion;
 extern crate core;
 extern crate rand;
-extern crate xorf;
+extern crate jdb_xorf;
 
 use bincode::serde;
 use core::convert::TryFrom;
 use criterion::{BenchmarkId, Criterion};
 use rand::Rng;
-use xorf::{BinaryFuse8, Filter};
+use jdb_xorf::{BinaryFuse8, Filter};
 
 const SAMPLE_SIZE: u32 = 500_000;
 
@@ -16,8 +16,8 @@ fn serialization(c: &mut Criterion) {
     let mut group = c.benchmark_group("BinaryFuse8");
     let group = group.sample_size(10);
 
-    let mut rng = rand::thread_rng();
-    let keys: Vec<u64> = (0..SAMPLE_SIZE).map(|_| rng.gen()).collect();
+    let mut rng = rand::rng();
+    let keys: Vec<u64> = (0..SAMPLE_SIZE).map(|_| rng.random()).collect();
 
     let filter = BinaryFuse8::try_from(keys).unwrap();
     let config = bincode::config::standard();
@@ -45,8 +45,8 @@ fn from(c: &mut Criterion) {
     let mut group = c.benchmark_group("BinaryFuse8");
     let group = group.sample_size(10);
 
-    let mut rng = rand::thread_rng();
-    let keys: Vec<u64> = (0..SAMPLE_SIZE).map(|_| rng.gen()).collect();
+    let mut rng = rand::rng();
+    let keys: Vec<u64> = (0..SAMPLE_SIZE).map(|_| rng.random()).collect();
 
     group.bench_with_input(BenchmarkId::new("from", SAMPLE_SIZE), &keys, |b, keys| {
         b.iter(|| BinaryFuse8::try_from(keys).unwrap());
@@ -56,12 +56,12 @@ fn from(c: &mut Criterion) {
 fn contains(c: &mut Criterion) {
     let mut group = c.benchmark_group("BinaryFuse8");
 
-    let mut rng = rand::thread_rng();
-    let keys: Vec<u64> = (0..SAMPLE_SIZE).map(|_| rng.gen()).collect();
+    let mut rng = rand::rng();
+    let keys: Vec<u64> = (0..SAMPLE_SIZE).map(|_| rng.random()).collect();
     let filter = BinaryFuse8::try_from(&keys).unwrap();
 
     group.bench_function(BenchmarkId::new("contains", SAMPLE_SIZE), |b| {
-        let key = rng.gen();
+        let key = rng.random();
         b.iter(|| filter.contains(&key));
     });
 }

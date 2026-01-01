@@ -156,7 +156,7 @@ mod test {
     use crate::{Filter, HashProxy};
 
     use alloc::vec::Vec;
-    use rand::distributions::Alphanumeric;
+    use rand::distr::Alphanumeric;
     use rand::Rng;
 
     extern crate std;

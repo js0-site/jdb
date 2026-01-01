@@ -8,5 +8,5 @@ run() {
   cargo bench --features $1 --no-default-features -- --output-format bencher
 }
 
-run murmur3
-run gxhash
+run "murmur3,binary-fuse"
+run "gxhash,binary-fuse"
