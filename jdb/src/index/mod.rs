@@ -15,7 +15,7 @@ pub use compact::{
   needs_l0_compaction, needs_level_compaction,
 };
 pub use level::Level;
-pub use manifest::{LevelMeta, Manifest, TableEntry, load_manifest, save_manifest};
+pub use manifest::{LevelMeta, Manifest, TableEntry, load_manifest, manifest_path, save_manifest};
 pub use memtable::{Entry, Memtable};
 pub use merge::{MergeIter, MergedEntry};
 pub use tree::Index;

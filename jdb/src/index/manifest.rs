@@ -532,7 +532,6 @@ pub async fn save_manifest(dir: &Path, manifest: &Manifest) -> Result<()> {
 /// Get manifest file path
 /// 获取清单文件路径
 #[inline]
-#[allow(dead_code)]
 pub fn manifest_path(dir: &Path) -> PathBuf {
   dir.join(MANIFEST_FILE)
 }

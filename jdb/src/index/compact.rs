@@ -163,7 +163,7 @@ impl CompactMerger {
 /// Merges all L0 tables with overlapping L1 tables.
 /// 将所有 L0 表与重叠的 L1 表合并。
 pub async fn compact_l0_to_l1(
-  dir: &Path,
+  sst_dir: &Path,
   l0: &Level,
   l1: &Level,
   next_table_id: &mut u64,
@@ -243,7 +243,7 @@ pub async fn compact_l0_to_l1(
   let table_id = *next_table_id;
   *next_table_id += 1;
 
-  let path = sstable_path(dir, table_id);
+  let path = sstable_path(sst_dir, table_id);
   let mut writer = SSTableWriter::new(path, table_id, entries.len()).await?;
 
   for (key, entry) in &entries {
@@ -265,7 +265,7 @@ pub async fn compact_l0_to_l1(
 /// Picks tables that exceed the level size and merges with overlapping tables in next level.
 /// 选择超过层级大小的表并与下一层级的重叠表合并。
 pub async fn compact_level(
-  dir: &Path,
+  sst_dir: &Path,
   src_level: &Level,
   dst_level: &Level,
   next_table_id: &mut u64,
@@ -327,7 +327,7 @@ pub async fn compact_level(
   let table_id = *next_table_id;
   *next_table_id += 1;
 
-  let path = sstable_path(dir, table_id);
+  let path = sstable_path(sst_dir, table_id);
   let mut writer = SSTableWriter::new(path, table_id, entries.len()).await?;
 
   for (key, entry) in &entries {
@@ -343,12 +343,10 @@ pub async fn compact_level(
   })
 }
 
-/// Generate SSTable file path
-/// 生成 SSTable 文件路径
-fn sstable_path(dir: &Path, id: u64) -> PathBuf {
-  let mut path = id_path(dir, id);
-  path.set_extension("sst");
-  path
+/// Generate SSTable file path (dir should be sst_dir)
+/// 生成 SSTable 文件路径（dir 应为 sst 目录）
+fn sstable_path(sst_dir: &Path, id: u64) -> PathBuf {
+  id_path(sst_dir, id)
 }
 
 #[cfg(test)]

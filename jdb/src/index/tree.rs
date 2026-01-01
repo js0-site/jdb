@@ -189,6 +189,11 @@ impl Index {
       return Ok(None);
     }
 
+    // Ensure sst directory exists
+    // 确保 sst 目录存在
+    let sst_dir = self.sst_dir();
+    compio::fs::create_dir_all(&sst_dir).await?;
+
     // Create SSTable
     // 创建 SSTable
     let table_id = self.next_table_id;
@@ -225,9 +230,14 @@ impl Index {
   /// Generate SSTable file path
   /// 生成 SSTable 文件路径
   fn sstable_path(&self, id: u64) -> PathBuf {
-    let mut path = id_path(&self.dir, id);
-    path.set_extension("sst");
-    path
+    id_path(&self.sst_dir(), id)
+  }
+
+  /// Get SSTable directory
+  /// 获取 SSTable 目录
+  #[inline]
+  pub fn sst_dir(&self) -> PathBuf {
+    self.dir.join("sst")
   }
 
   /// Get directory
@@ -449,7 +459,7 @@ impl Index {
     }
 
     let result = compact_l0_to_l1(
-      &self.dir,
+      &self.sst_dir(),
       &self.levels[0],
       &self.levels[1],
       &mut self.next_table_id,
@@ -510,7 +520,7 @@ impl Index {
     let is_last_level = dst_level_idx >= self.levels.len() - 1;
 
     let result = compact_level(
-      &self.dir,
+      &self.sst_dir(),
       &self.levels[src_level_idx],
       &self.levels[dst_level_idx],
       &mut self.next_table_id,

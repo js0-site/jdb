@@ -34,6 +34,8 @@ features = [ "macros" ]
 [dependencies]
 bitcode = "0.6.9"
 crc32fast = "1.5.0"
+hashlink = "0.11.0"
+jdb_lru = { version = "0.1.4", path = "../jdb_lru" }
 log = "0.4.29"
 thiserror = "2.0.17"
 zerocopy = "0.8.31"
