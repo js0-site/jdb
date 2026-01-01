@@ -166,7 +166,9 @@ impl<'a> FilterRef<'a, u64> for BinaryFuse32Ref<'a> {
       "Invalid fingerprint pointer provided - must be u32 aligned"
     );
     assert!(
-      fingerprints.len() % core::mem::align_of::<u32>() == 0,
+      fingerprints
+        .len()
+        .is_multiple_of(core::mem::align_of::<u32>()),
       "Invalid fingerprint buffer provided - length must be a multiple of u32"
     );
 
