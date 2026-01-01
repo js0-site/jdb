@@ -158,16 +158,15 @@ impl<'a> FilterRef<'a, u64> for BinaryFuse32Ref<'a> {
   const FINGERPRINT_ALIGNMENT: usize = 4;
 
   fn from_dma(descriptor: &[u8], fingerprints: &'a [u8]) -> Self {
-    assert_eq!(
+    assert!(
       fingerprints
         .as_ptr()
-        .align_offset(core::mem::align_of::<u32>()),
-      0,
+        .align_offset(core::mem::align_of::<u32>())
+        == 0,
       "Invalid fingerprint pointer provided - must be u32 aligned"
     );
-    assert_eq!(
-      fingerprints.len() % core::mem::align_of::<u32>(),
-      0,
+    assert!(
+      fingerprints.len() % core::mem::align_of::<u32>() == 0,
       "Invalid fingerprint buffer provided - length must be a multiple of u32"
     );
 
