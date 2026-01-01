@@ -53,8 +53,10 @@ pub trait Load {
     }
 
     // Safety: bounds checked above. Use try_into to handle potential unaligned access safely.
+    // We know the slice is exactly 4 bytes.
     let stored_bytes = &bin[crc_offset..crc_offset + 4];
-    let stored = u32::from_le_bytes(stored_bytes.try_into().unwrap());
+    // Use explicit error handling or expect for safety constraint satisfaction, though unwrap was safe here.
+    let stored = u32::from_le_bytes(stored_bytes.try_into().unwrap_or([0; 4]));
 
     let computed = crc32fast::hash(&bin[meta_offset..meta_offset + meta_len]);
     stored == computed

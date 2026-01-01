@@ -242,8 +242,11 @@ impl HeadBuilder {
     let total_len = HEAD_TOTAL + val.map_or(0, |v| v.len()) + key.len();
     self.buf.reserve(total_len);
 
-    // Zero-initialize head part
-    self.buf.resize(HEAD_TOTAL, 0);
+    // Optimization: Avoid zero-initialization.
+    // head.write() guarantees full overwrite of the [0..HEAD_TOTAL] range.
+    // Safety: capacity reserved above.
+    unsafe { self.buf.set_len(HEAD_TOTAL) };
+
     head.write(&mut self.buf);
 
     if let Some(v) = val {

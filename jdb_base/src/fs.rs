@@ -64,7 +64,12 @@ pub async fn read_all(file: &File, len: u64) -> std::io::Result<Vec<u8>> {
   if len == 0 {
     return Ok(Vec::new());
   }
-  let buf = vec![0u8; len as usize];
+  let mut buf = Vec::with_capacity(len as usize);
+  // Safety:
+  // 1. We reserved capacity above.
+  // 2. read_exact_at will overwrite the buffer or return error if EOF.
+  // 3. We strictly rely on the IO result to trust the data.
+  unsafe { buf.set_len(len as usize) };
   let slice = buf.slice(0..len as usize);
   let res = file.read_exact_at(slice, 0).await;
   res.0?;
