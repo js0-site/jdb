@@ -20,12 +20,13 @@ use jdb_lock::gc::Lock as GcLock;
 
 use crate::{
   Error, Result,
-  fs::id_path,
   wal::{
     Conf, Gc, Wal, WalConf, WalInner, WalNoCache,
     consts::{GC_SUBDIR, LOCK_SUBDIR, WAL_LOCK_TYPE, WAL_SUBDIR},
   },
 };
+
+use jdb_base::id_path;
 
 // Mapping capacity / 映射容量
 const MAP_CAP: usize = 1024;

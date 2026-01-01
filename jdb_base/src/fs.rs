@@ -1,47 +1,25 @@
-//! Path utilities for WAL file naming and file operations
-//! WAL 文件命名的路径工具和文件操作
+//! File operations utilities
+//! 文件操作工具
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use compio::{
   buf::{IntoInner, IoBuf},
   io::{AsyncReadAtExt, AsyncWriteAtExt},
 };
 use compio_fs::File;
-use fast32::base32::CROCKFORD_LOWER;
-
-/// Encode id to base32 string
-/// 将 id 编码为 base32 字符串
-#[inline(always)]
-pub fn encode_id(id: u64) -> String {
-  CROCKFORD_LOWER.encode_u64(id)
-}
-
-/// Decode base32 string to id
-/// 将 base32 字符串解码为 id
-#[inline(always)]
-pub fn decode_id(name: &str) -> Option<u64> {
-  CROCKFORD_LOWER.decode_u64(name.as_bytes()).ok()
-}
-
-/// Join dir with encoded id
-/// 将目录与编码后的 id 拼接
-#[inline(always)]
-pub fn id_path(dir: &Path, id: u64) -> PathBuf {
-  dir.join(encode_id(id))
-}
 
 /// Open file for reading
 /// 打开文件用于读取
 #[inline]
-pub async fn open_read(path: impl AsRef<Path>) -> Result<File, std::io::Error> {
+pub async fn open_read(path: impl AsRef<Path>) -> std::io::Result<File> {
   compio_fs::OpenOptions::new().read(true).open(path).await
 }
 
 /// Open file for reading and writing
 /// 打开文件用于读写
 #[inline]
-pub async fn open_read_write(path: impl AsRef<Path>) -> Result<File, std::io::Error> {
+pub async fn open_read_write(path: impl AsRef<Path>) -> std::io::Result<File> {
   compio_fs::OpenOptions::new()
     .read(true)
     .write(true)
@@ -52,7 +30,7 @@ pub async fn open_read_write(path: impl AsRef<Path>) -> Result<File, std::io::Er
 /// Open file for reading and writing, create if not exists
 /// 打开文件用于读写，不存在则创建
 #[inline]
-pub async fn open_read_write_create(path: impl AsRef<Path>) -> Result<File, std::io::Error> {
+pub async fn open_read_write_create(path: impl AsRef<Path>) -> std::io::Result<File> {
   compio_fs::OpenOptions::new()
     .read(true)
     .write(true)
@@ -64,7 +42,7 @@ pub async fn open_read_write_create(path: impl AsRef<Path>) -> Result<File, std:
 /// Open file for writing, create if not exists
 /// 打开文件用于写入，不存在则创建
 #[inline]
-pub async fn open_write_create(path: impl AsRef<Path>) -> Result<File, std::io::Error> {
+pub async fn open_write_create(path: impl AsRef<Path>) -> std::io::Result<File> {
   compio_fs::OpenOptions::new()
     .write(true)
     .create(true)
@@ -75,14 +53,14 @@ pub async fn open_write_create(path: impl AsRef<Path>) -> Result<File, std::io::
 /// Write data to file at offset 0
 /// 将数据写入文件（偏移 0）
 #[inline]
-pub async fn write_file(path: impl AsRef<Path>, data: &[u8]) -> Result<(), std::io::Error> {
+pub async fn write_file(path: impl AsRef<Path>, data: &[u8]) -> std::io::Result<()> {
   let mut file = open_write_create(&path).await?;
   file.write_all_at(data.to_vec(), 0).await.0
 }
 
 /// Read entire file into Vec / 读取整个文件到 Vec
 #[inline]
-pub async fn read_all(file: &File, len: u64) -> Result<Vec<u8>, std::io::Error> {
+pub async fn read_all(file: &File, len: u64) -> std::io::Result<Vec<u8>> {
   if len == 0 {
     return Ok(Vec::new());
   }

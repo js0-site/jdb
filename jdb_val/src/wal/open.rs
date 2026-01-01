@@ -21,7 +21,10 @@ use super::{
 use crate::{
   Ckp,
   error::Result,
-  fs::{decode_id, open_read_write, open_read_write_create},
+};
+
+use jdb_base::{
+  decode_id, open_read_write, open_read_write_create,
 };
 
 impl<C: WalConf> WalInner<C> {

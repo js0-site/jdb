@@ -8,10 +8,7 @@ use compio_fs::File;
 use hashlink::lru_cache::Entry;
 use jdb_lru::Lru;
 
-use crate::{
-  Result,
-  fs::{id_path, open_read},
-};
+use crate::{id_path, open_read};
 
 // Min file cache capacity
 // 最小文件缓存容量
@@ -19,12 +16,12 @@ const MIN_FILE_CAP: usize = 4;
 
 /// WAL block cache with file handle cache
 /// WAL 块缓存（含文件句柄缓存）
-pub struct BlockLru {
+pub struct FileLru {
   dir: PathBuf,
   files: Lru<u64, File>,
 }
 
-impl BlockLru {
+impl FileLru {
   /// Create from dir, cache size and file capacity
   /// 从目录、缓存大小和文件容量创建
   #[inline]
@@ -43,16 +40,16 @@ impl BlockLru {
     file_id: u64,
     buf: B,
     offset: u64,
-  ) -> (Result<()>, B) {
+  ) -> (std::io::Result<()>, B) {
     let file = match self.open(file_id).await {
       Ok(f) => f,
       Err(e) => return (Err(e), buf),
     };
     let res = file.read_exact_at(buf, offset).await;
-    (res.0.map_err(Into::into).map(drop), res.1)
+    (res.0.map(drop), res.1)
   }
 
-  async fn open(&mut self, file_id: u64) -> Result<&File> {
+  async fn open(&mut self, file_id: u64) -> std::io::Result<&File> {
     let path = id_path(&self.dir, file_id);
     match self.files.0.entry(file_id) {
       Entry::Occupied(e) => Ok(e.into_mut()),

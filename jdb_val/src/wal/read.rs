@@ -18,8 +18,9 @@ use super::{
 };
 use crate::{
   error::{Error, Result},
-  fs::open_read,
 };
+
+use jdb_base::open_read;
 
 impl<C: WalConf> WalInner<C> {
   /// Read head at location
@@ -147,7 +148,7 @@ impl<C: WalConf> WalInner<C> {
 
     match self.block_cache.read_into(id, buf, pos).await {
       (Ok(()), buf) => (Ok(()), buf),
-      (Err(e), buf) => (Err(e), buf),
+      (Err(e), buf) => (Err(Error::Io(e)), buf),
     }
   }
 

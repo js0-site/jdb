@@ -12,7 +12,6 @@
 //! | FILE   | Val in separate file (>4MB)          |
 
 // Internal modules / 内部模块
-pub(crate) mod block_cache;
 pub mod ckp;
 pub mod error;
 pub(crate) mod fs;

@@ -17,7 +17,9 @@ use super::{
   consts::{HEADER_SIZE, MIN_FILE_SIZE, SCAN_BUF_SIZE},
   header::{HeaderState, check_header},
 };
-use crate::{Result, WalPtr, error::Error, fs::open_read};
+use crate::{Result, WalPtr, error::Error};
+
+use jdb_base::{id_path, open_read};
 
 /// Replay item: (key, Pos)
 /// 回放项：(key, Pos)
@@ -163,7 +165,7 @@ impl ReplayIter {
         HEADER_SIZE as u64
       };
 
-      let path = crate::fs::id_path(&self.wal_dir, id);
+      let path = id_path(&self.wal_dir, id);
       let file = match open_read(&path).await {
         Ok(f) => f,
         Err(_) => continue,

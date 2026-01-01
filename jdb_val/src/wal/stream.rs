@@ -12,10 +12,9 @@ use jdb_base::{Flag, Head, INFILE_MAX};
 use zbin::Bin;
 
 use super::{Wal, WalConf, WalInner};
-use crate::{
-  Result,
-  fs::{open_read, open_write_create},
-};
+use crate::Result;
+
+use jdb_base::{open_read, open_write_create};
 
 impl<C: WalConf> WalInner<C> {
   pub(super) const CHUNK_SIZE: usize = 64 * 1024;

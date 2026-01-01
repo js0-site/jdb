@@ -74,10 +74,10 @@ use write_buf::SharedState;
 
 use crate::{
   Ckp, Error,
-  block_cache::BlockLru,
   error::Result,
-  fs::{decode_id, id_path, open_read},
 };
+
+use jdb_base::{FileLru, decode_id, id_path, open_read};
 
 /// WAL manager with LRU cache
 /// 带 LRU 缓存的 WAL 管理器
@@ -103,7 +103,7 @@ pub struct WalInner<C: WalConf> {
   pub ider: Ider,
   cur_lock: C::Lock,
   read_buf: Vec<u8>,
-  block_cache: BlockLru,
+  block_cache: FileLru,
   bin_cache: Lru<u64, File>,
   val_cache: C::ValCache,
   head_builder: HeadBuilder,
@@ -180,7 +180,7 @@ impl<C: WalConf> WalInner<C> {
       ider: Ider::new(),
       cur_lock,
       read_buf: Vec::new(),
-      block_cache: BlockLru::new(&wal_dir, c.file_cap),
+      block_cache: FileLru::new(&wal_dir, c.file_cap),
       bin_cache: Lru::new(c.bin_cap),
       val_cache,
       head_builder: HeadBuilder::new(),

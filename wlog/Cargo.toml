@@ -24,6 +24,3 @@ static_init = "1.0.4"
 [dev-dependencies.compio]
 version = "0.17.0"
 features = [ "macros" ]
-
-[dependencies]
-zerocopy = "0.8.31"

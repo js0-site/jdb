@@ -8,7 +8,9 @@ use compio_fs::File;
 use jdb_base::Load;
 
 use super::entry::{self, CkpEntry, HEADER_SIZE};
-use crate::{Result, fs::read_all};
+use crate::Result;
+
+use jdb_base::read_all;
 
 /// Checkpoint log
 /// 检查点日志
