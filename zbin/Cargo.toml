@@ -8,6 +8,7 @@ homepage = "https://github.com/js0-site/jdb/tree/main/zbin"
 description = "Zero-copy binary trait for compio / compio 的零拷贝二进制 trait"
 keywords = ["io", "buffer", "async", "zero-copy"]
 categories = ["development-tools", "asynchronous", "filesystem"]
+readme = "README.md"
 
 [features]
 default = []

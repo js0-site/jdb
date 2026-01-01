@@ -6,9 +6,9 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/js0/jdb.git"
 homepage = "https://github.com/js0/jdb/tree/main/jdb_base"
 description = "jdb_base"
-readme = "README.mdt"
 keywords = ["database", "storage", "async", "embedded"]
 categories = ["database", "data-structures", "filesystem"]
+readme = "README.md"
 
 [features]
 default = []

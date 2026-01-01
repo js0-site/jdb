@@ -6,9 +6,9 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/js0-site/jdb.git"
 homepage = "https://github.com/js0-site/jdb/tree/main/jdb_val"
 description = "Fast, Async, Embedded Key-Value Storage / 高性能异步嵌入式键值存储"
-readme = "README.mdt"
 keywords = [ "database", "storage", "kv", "async", "embedded" ]
 categories = ["database", "asynchronous", "data-structures"]
+readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true

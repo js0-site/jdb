@@ -30,7 +30,7 @@ repository = "ayazhafiz/xorf"
 libm = { version = "0.2.15", optional = true }
 bitcode = { version = "0.6", optional = true }
 num-traits = { version = "0.2.19", optional = true }
-rand = { version = "0.9", optional = true }
+fastrand = { version = "2", optional = true }
 gxhash = { version = "3.5", optional = true }
 
 [dev-dependencies]
@@ -65,7 +65,7 @@ harness = false
 
 [features]
 default = ["uniform-random", "binary-fuse", "gxhash"]
-uniform-random = ["rand"]
+uniform-random = ["fastrand"]
 binary-fuse = ["libm"]
 bitcode = ["dep:bitcode"]
 gxhash = ["dep:gxhash"]

@@ -80,6 +80,7 @@ extern crate alloc;
 #[cfg(feature = "gxhash")]
 mod gxhash;
 mod prelude;
+mod rand;
 mod splitmix64;
 
 #[cfg(feature = "binary-fuse")]

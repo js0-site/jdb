@@ -60,22 +60,22 @@ use crate::Filter;
 /// Because of `HashProxy`s' key type parameter, the existence of a key can only be checked using
 /// types a `HashProxy` is constructed with.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0308
 /// # extern crate alloc;
 /// # extern crate std;
 /// use std::collections::hash_map::DefaultHasher;
-/// use std::hash::{Hash, Hasher};
 /// use jdb_xorf::{Filter, HashProxy, Xor8};
 /// # use alloc::vec::Vec;
 ///
 /// let fruits = vec!["apple", "banana", "tangerine", "watermelon"];
+/// // HashProxy<&str, ...> only accepts &str keys
+/// // HashProxy<&str, ...> 只接受 &str 类型的 key
 /// let fruits: HashProxy<_, DefaultHasher, Xor8> = HashProxy::from(&fruits);
 ///
-/// let mut hasher = DefaultHasher::default();
-/// "tangerine".hash(&mut hasher);
-/// let tangerine_hash = hasher.finish();
-///
-/// assert!(fruits.contains(&tangerine_hash)); // doesn't work!
+/// // Error: cannot use u64 to query a HashProxy<&str, ...>
+/// // 错误：不能用 u64 查询 HashProxy<&str, ...>
+/// let fake_hash: u64 = 12345;
+/// assert!(fruits.contains(&fake_hash));
 /// ```
 ///
 /// Serializing and deserializing `HashProxy`s can be enabled with the [`bitcode`] feature.

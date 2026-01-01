@@ -6,9 +6,9 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/js0-site/jdb_val.git"
 homepage = "https://github.com/js0-site/jdb_val/tree/main/jdb_val_bench"
 description = "jdb_val_bench"
-readme = "README.mdt"
 keywords = ["benchmark", "database", "performance", "testing"]
 categories = ["development-tools::testing", "database"]
+readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true

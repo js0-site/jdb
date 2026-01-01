@@ -29,21 +29,7 @@ pub struct HSet {
 
 /// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
 /// helps avoid high false-positive ratios (see Section 4 in the paper).
-#[inline]
-#[cfg(feature = "gxhash")]
-pub const fn mix(key: u64, seed: u64) -> u64 {
-  crate::gxhash::mix64(key.overflowing_add(seed).0)
-}
-
-/// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
-/// helps avoid high false-positive ratios (see Section 4 in the paper).
-#[inline]
-#[cfg(not(feature = "gxhash"))]
-pub const fn mix(key: u64, seed: u64) -> u64 {
-  // Fallback implementation when gxhash is not enabled
-  let k = key.overflowing_add(seed).0;
-  k ^ k >> 33
-}
+pub use crate::rand::mix;
 
 /// Computes a fingerprint.
 #[doc(hidden)]
@@ -99,14 +85,12 @@ macro_rules! make_block(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! make_fp_block(
-    ($size:ident) => {
+    ($size:ident, $ty:ident) => {
         {
             #[cfg(feature = "uniform-random")] {
-                use rand::Rng;
-                let mut rng = rand::rng();
                 let mut block = Vec::with_capacity($size);
                 for _ in 0..$size {
-                    block.push(rng.random());
+                    block.push(fastrand::$ty(..) );
                 }
                 block.into_boxed_slice()
             }

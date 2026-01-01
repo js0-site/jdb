@@ -8,6 +8,7 @@ homepage = "https://github.com/js0-site/jdb/tree/main/jdb_lock"
 description = "Cross-process file locking for database systems / 数据库系统跨进程文件锁"
 keywords = ["file-lock", "database", "wal", "flock", "concurrency"]
 categories = ["database", "filesystem", "concurrency"]
+readme = "README.md"
 
 [features]
 default = []
