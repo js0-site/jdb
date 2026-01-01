@@ -60,11 +60,8 @@ pub async fn write_file(path: impl AsRef<Path>, data: &[u8]) -> std::io::Result<
 #[inline]
 
 pub async fn read_all(file: &File, len: u64) -> std::io::Result<Vec<u8>> {
-
   if len == 0 {
-
     return Ok(Vec::new());
-
   }
 
   // Use MaybeUninit to safely handle uninitialized memory
@@ -73,11 +70,7 @@ pub async fn read_all(file: &File, len: u64) -> std::io::Result<Vec<u8>> {
 
   unsafe { buf.set_len(len as usize) };
 
-  let slice = unsafe {
-
-    std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u8, len as usize)
-
-  };
+  let slice = unsafe { std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u8, len as usize) };
 
   let res = file.read_exact_at(slice, 0).await;
 
@@ -86,5 +79,4 @@ pub async fn read_all(file: &File, len: u64) -> std::io::Result<Vec<u8>> {
   // Safety: read_exact_at has successfully initialized all bytes
 
   Ok(unsafe { std::mem::transmute::<Vec<std::mem::MaybeUninit<u8>>, Vec<u8>>(buf) })
-
 }
