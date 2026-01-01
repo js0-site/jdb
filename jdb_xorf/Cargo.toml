@@ -52,18 +52,6 @@ harness = false
 required-features = ["bitcode"]
 
 [[bench]]
-name = "fuse32"
-harness = false
-
-[[bench]]
-name = "fuse16"
-harness = false
-
-[[bench]]
-name = "fuse8"
-harness = false
-
-[[bench]]
 name = "xor32"
 harness = false
 
