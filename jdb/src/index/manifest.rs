@@ -11,13 +11,9 @@ use jdb_base::{open_read, read_all, write_file};
 
 use crate::Result;
 
-/// Manifest file magic number
-/// 清单文件魔数
-const MANIFEST_MAGIC: u32 = 0x4A44424D; // "JDBM"
-
 /// Manifest format version
 /// 清单格式版本
-const MANIFEST_VERSION: u8 = 1;
+const VERSION: u8 = 1;
 
 /// SSTable entry in manifest
 /// 清单中的 SSTable 条目
@@ -158,10 +154,9 @@ impl Manifest {
   pub fn encode(&self) -> Vec<u8> {
     let mut buf = Vec::new();
 
-    // Header: magic (4) + version (1) + reserved (3)
-    // 头部：魔数 (4) + 版本 (1) + 保留 (3)
-    buf.extend_from_slice(&MANIFEST_MAGIC.to_le_bytes());
-    buf.push(MANIFEST_VERSION);
+    // Header: version (1) + reserved (3)
+    // 头部：版本 (1) + 保留 (3)
+    buf.push(VERSION);
     buf.extend_from_slice(&[0u8; 3]); // Reserved
 
     // Manifest version (8)
@@ -227,8 +222,8 @@ impl Manifest {
   /// Decode manifest from bytes
   /// 从字节解码清单
   pub fn decode(data: &[u8]) -> Result<Self> {
-    if data.len() < 36 {
-      // Minimum: header(8) + version(8) + seqno(8) + next_id(8) + level_count(1) + checksum(4)
+    if data.len() < 32 {
+      // Minimum: header(4) + version(8) + seqno(8) + next_id(8) + level_count(1) + checksum(4)
       return Err(crate::Error::Corruption {
         msg: "Manifest too small".into(),
       });
@@ -258,21 +253,12 @@ impl Manifest {
 
     let mut pos = 0;
 
-    // Header
-    // 头部
-    let magic = u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]);
-    pos += 4;
-
-    if magic != MANIFEST_MAGIC {
-      return Err(crate::Error::Corruption {
-        msg: format!("Invalid manifest magic: {magic:#x}"),
-      });
-    }
-
+    // Header: version (1) + reserved (3)
+    // 头部：版本 (1) + 保留 (3)
     let format_version = data[pos];
     pos += 1;
 
-    if format_version != MANIFEST_VERSION {
+    if format_version != VERSION {
       return Err(crate::Error::Corruption {
         msg: format!("Unsupported manifest version: {format_version}"),
       });

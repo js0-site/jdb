@@ -4,7 +4,7 @@
 //! Manages SSTables at each level of the LSM-Tree.
 //! 管理 LSM-Tree 每一层的 SSTable。
 
-use crate::{SSTableReader, TableMeta};
+use crate::{TableInfo, TableMeta};
 
 /// Level in LSM-Tree
 /// LSM-Tree 中的层级
@@ -14,7 +14,7 @@ pub struct Level {
   pub level: usize,
   /// SSTables in this level
   /// 此层级的 SSTable
-  pub tables: Vec<SSTableReader>,
+  pub tables: Vec<TableInfo>,
 }
 
 impl Level {
@@ -36,7 +36,7 @@ impl Level {
   /// L0：追加到末尾（最新的在最后，反向搜索）
   /// L1+：按 min_key 排序插入以支持二分查找
   #[inline]
-  pub fn add(&mut self, table: SSTableReader) {
+  pub fn add(&mut self, table: TableInfo) {
     if self.level == 0 {
       // L0: just append, tables may overlap
       // L0：直接追加，表可能重叠

@@ -4,15 +4,18 @@
 //! Manages memtable, sealed memtables, and SSTable levels.
 //! 管理内存表、密封内存表和 SSTable 层级。
 
-use std::{ops::Bound, path::PathBuf};
+use std::ops::Bound;
+use std::path::PathBuf;
 
-use jdb_base::{Pos, id_path};
+use jdb_base::{FileLru, Pos, id_path};
 
-use super::{
-  Entry, Level, Memtable, MergeIter,
-  compact::{compact_l0_to_l1, compact_level, needs_l0_compaction, needs_level_compaction},
-};
-use crate::{Conf, Result, SSTableReader, SSTableWriter};
+use super::compact::{compact_l0_to_l1, compact_level, needs_l0_compaction, needs_level_compaction};
+use super::{Entry, Level, Memtable, MergeIter};
+use crate::{Conf, Result, SSTableWriter, TableInfo};
+
+/// Default file cache capacity
+/// 默认文件缓存容量
+const FILE_CACHE_CAP: usize = 64;
 
 /// LSM-Tree index
 /// LSM-Tree 索引
@@ -38,20 +41,25 @@ pub struct Index {
   /// Configuration
   /// 配置
   conf: Conf,
+  /// File handle cache
+  /// 文件句柄缓存
+  files: FileLru,
 }
 
 impl Index {
   /// Create new index
   /// 创建新索引
   pub fn new(dir: PathBuf, conf: Conf) -> Self {
+    let sst_dir = dir.join("sst");
     Self {
       dir,
       memtable: Memtable::new(0),
       sealed: Vec::new(),
-      levels: vec![Level::new(0)], // Start with L0
+      levels: vec![Level::new(0)],
       next_table_id: 1,
       next_memtable_id: 1,
       conf,
+      files: FileLru::new(sst_dir, FILE_CACHE_CAP),
     }
   }
 
@@ -60,7 +68,7 @@ impl Index {
   ///
   /// Search order: memtable -> sealed memtables -> L0 -> L1 -> ...
   /// 搜索顺序：内存表 -> 密封内存表 -> L0 -> L1 -> ...
-  pub async fn get(&self, key: &[u8]) -> Result<Option<Entry>> {
+  pub async fn get(&mut self, key: &[u8]) -> Result<Option<Entry>> {
     // 1. Search active memtable
     // 1. 搜索活跃内存表
     if let Some(entry) = self.memtable.get(key) {
@@ -78,39 +86,28 @@ impl Index {
     // 3. Search SSTable levels
     // 3. 搜索 SSTable 层级
     for level in &self.levels {
-      // L0: tables may overlap, search all (newest first)
-      // L0：表可能重叠，搜索所有（最新的优先）
       if level.level == 0 {
+        // L0: tables may overlap, search all (newest first)
+        // L0：表可能重叠，搜索所有（最新的优先）
         for table in level.tables.iter().rev() {
-          // Quick filter check
-          // 快速过滤器检查
-          if !table.is_key_in_range(key) {
+          if !table.is_key_in_range(key) || !table.may_contain(key) {
             continue;
           }
-          if !table.may_contain(key) {
-            continue;
-          }
-          if let Some(entry) = table.get(key).await? {
+          if let Some(entry) = table.get(key, &mut self.files).await? {
             return Ok(Some(entry));
           }
         }
       } else {
-        // L1+: tables are sorted by min_key and non-overlapping
-        // L1+：表按 min_key 排序且不重叠
-        // Binary search: find last table where min_key <= key
-        // 二分查找：找到最后一个 min_key <= key 的表
+        // L1+: binary search
+        // L1+：二分查找
         let idx = level
           .tables
           .partition_point(|t| t.meta().min_key.as_ref() <= key);
-        // partition_point returns first index where condition is false
-        // so we need idx - 1 (the last table where min_key <= key)
-        // partition_point 返回第一个条件为 false 的索引
-        // 所以我们需要 idx - 1（最后一个 min_key <= key 的表）
         if idx > 0 {
           let table = &level.tables[idx - 1];
           if table.is_key_in_range(key)
             && table.may_contain(key)
-            && let Some(entry) = table.get(key).await?
+            && let Some(entry) = table.get(key, &mut self.files).await?
           {
             return Ok(Some(entry));
           }
@@ -182,47 +179,35 @@ impl Index {
       return Ok(None);
     }
 
-    // Take oldest sealed memtable
-    // 取出最旧的密封内存表
     let memtable = self.sealed.remove(0);
     if memtable.is_empty() {
       return Ok(None);
     }
 
-    // Ensure sst directory exists
-    // 确保 sst 目录存在
     let sst_dir = self.sst_dir();
     compio::fs::create_dir_all(&sst_dir).await?;
 
-    // Create SSTable
-    // 创建 SSTable
     let table_id = self.next_table_id;
     self.next_table_id += 1;
 
     let path = self.sstable_path(table_id);
     let mut writer = SSTableWriter::new(path.clone(), table_id, memtable.len()).await?;
 
-    // Write all entries in sorted order
-    // 按排序顺序写入所有条目
     for (key, entry) in memtable.iter() {
       writer.add(key, entry).await?;
     }
 
     let meta = writer.finish().await?;
 
-    // Skip empty tables
-    // 跳过空表
     if meta.item_count == 0 {
       return Ok(None);
     }
 
-    // Load and add to L0
-    // 加载并添加到 L0
-    let reader = crate::SSTableReader::open(path, table_id).await?;
+    let info = TableInfo::load(&path, table_id).await?;
     if self.levels.is_empty() {
       self.levels.push(Level::new(0));
     }
-    self.levels[0].add(reader);
+    self.levels[0].add(info);
 
     Ok(Some(table_id))
   }
@@ -277,16 +262,11 @@ impl Index {
 
   /// Iterate all entries in range
   /// 迭代范围内的所有条目
-  ///
-  /// Merges results from memtable, sealed memtables, and SSTables.
-  /// Skips tombstones by default.
-  /// 合并来自内存表、密封内存表和 SSTable 的结果。
-  /// 默认跳过删除标记。
-  pub async fn range(&self, start: Bound<&[u8]>, end: Bound<&[u8]>) -> Result<MergeIter> {
+  pub async fn range(&mut self, start: Bound<&[u8]>, end: Bound<&[u8]>) -> Result<MergeIter> {
     let mut sources: Vec<Vec<(Box<[u8]>, Entry)>> = Vec::new();
 
-    // 1. Active memtable (highest priority)
-    // 1. 活跃内存表（最高优先级）
+    // 1. Active memtable
+    // 1. 活跃内存表
     let memtable_entries: Vec<_> = self
       .memtable
       .range(start, end)
@@ -308,8 +288,6 @@ impl Index {
     // 3. SSTable 层级
     for level in &self.levels {
       for table in level.tables.iter().rev() {
-        // Check if table overlaps with range
-        // 检查表是否与范围重叠
         let meta = table.meta();
         let overlaps = match (start, end) {
           (Bound::Unbounded, Bound::Unbounded) => true,
@@ -331,10 +309,8 @@ impl Index {
           continue;
         }
 
-        // Get range from SSTable
-        // 从 SSTable 获取范围
         let (start_key, end_key) = bounds_to_keys(start, end);
-        let iter = table.range(&start_key, &end_key).await?;
+        let iter = table.range(&start_key, &end_key, &mut self.files).await?;
         let entries: Vec<_> = iter.collect();
         sources.push(entries);
       }
@@ -345,18 +321,11 @@ impl Index {
 
   /// Iterate all entries with prefix
   /// 迭代所有带前缀的条目
-  ///
-  /// Returns all entries whose keys start with the given prefix.
-  /// 返回所有键以给定前缀开头的条目。
-  pub async fn prefix(&self, prefix: &[u8]) -> Result<MergeIter> {
-    // Calculate prefix range: [prefix, prefix_end)
-    // 计算前缀范围：[prefix, prefix_end)
+  pub async fn prefix(&mut self, prefix: &[u8]) -> Result<MergeIter> {
     let end_bound = prefix_end_bound(prefix);
 
     let mut sources: Vec<Vec<(Box<[u8]>, Entry)>> = Vec::new();
 
-    // 1. Active memtable (highest priority)
-    // 1. 活跃内存表（最高优先级）
     let start = Bound::Included(prefix);
     let end = end_bound
       .as_ref()
@@ -370,8 +339,6 @@ impl Index {
       .collect();
     sources.push(memtable_entries);
 
-    // 2. Sealed memtables (newest first)
-    // 2. 密封内存表（最新的优先）
     for sealed in self.sealed.iter().rev() {
       let entries: Vec<_> = sealed
         .range(start, end)
@@ -380,15 +347,11 @@ impl Index {
       sources.push(entries);
     }
 
-    // 3. SSTable levels
-    // 3. SSTable 层级
     let start_key = prefix.to_vec();
     let end_key = end_bound.clone().unwrap_or_else(|| vec![0xff; 256]);
 
     for level in &self.levels {
       for table in level.tables.iter().rev() {
-        // Check if table overlaps with prefix range
-        // 检查表是否与前缀范围重叠
         let meta = table.meta();
         if meta.max_key.as_ref() < prefix {
           continue;
@@ -399,7 +362,7 @@ impl Index {
           continue;
         }
 
-        let iter = table.range(&start_key, &end_key).await?;
+        let iter = table.range(&start_key, &end_key, &mut self.files).await?;
         let entries: Vec<_> = iter.collect();
         sources.push(entries);
       }
@@ -410,7 +373,7 @@ impl Index {
 
   /// Iterate all entries
   /// 迭代所有条目
-  pub async fn iter(&self) -> Result<MergeIter> {
+  pub async fn iter(&mut self) -> Result<MergeIter> {
     self.range(Bound::Unbounded, Bound::Unbounded).await
   }
 
@@ -424,14 +387,10 @@ impl Index {
   /// Check if any level needs compaction
   /// 检查是否有任何层级需要压缩
   pub fn needs_compaction(&self) -> Option<usize> {
-    // Check L0 first
-    // 先检查 L0
     if self.needs_l0_compaction() {
       return Some(0);
     }
 
-    // Check L1+ levels
-    // 检查 L1+ 层级
     let base_size = self.conf.memtable_size * self.conf.l0_threshold as u64;
     for (idx, level) in self.levels.iter().enumerate().skip(1) {
       if needs_level_compaction(level.size(), idx, base_size, self.conf.level_ratio) {
@@ -444,16 +403,11 @@ impl Index {
 
   /// Run L0 to L1 compaction
   /// 运行 L0 到 L1 压缩
-  ///
-  /// Merges all L0 tables with overlapping L1 tables.
-  /// 将所有 L0 表与重叠的 L1 表合并。
   pub async fn compact_l0(&mut self) -> Result<bool> {
     if self.levels.is_empty() || self.levels[0].is_empty() {
       return Ok(false);
     }
 
-    // Ensure L1 exists
-    // 确保 L1 存在
     while self.levels.len() < 2 {
       self.levels.push(Level::new(self.levels.len()));
     }
@@ -463,6 +417,7 @@ impl Index {
       &self.levels[0],
       &self.levels[1],
       &mut self.next_table_id,
+      &mut self.files,
     )
     .await?;
 
@@ -470,22 +425,17 @@ impl Index {
       return Ok(false);
     }
 
-    // Remove old tables from L0 and L1
-    // 从 L0 和 L1 移除旧表
     self.remove_tables(0, &result.old_tables);
     self.remove_tables(1, &result.old_tables);
 
-    // Load and add new tables to L1
-    // 加载并添加新表到 L1
     for table_id in result.new_tables {
       let path = self.sstable_path(table_id);
-      let reader = SSTableReader::open(path, table_id).await?;
-      self.levels[1].add(reader);
+      let info = TableInfo::load(&path, table_id).await?;
+      self.levels[1].add(info);
     }
 
-    // Delete old SSTable files
-    // 删除旧 SSTable 文件
     for table_id in result.old_tables {
+      self.files.rm(table_id);
       let path = self.sstable_path(table_id);
       let _ = compio::fs::remove_file(&path).await;
     }
@@ -495,9 +445,6 @@ impl Index {
 
   /// Run level compaction (L1+ to next level)
   /// 运行层级压缩（L1+ 到下一层级）
-  ///
-  /// Compacts tables from src_level to dst_level.
-  /// 将表从 src_level 压缩到 dst_level。
   pub async fn compact_level(&mut self, src_level_idx: usize) -> Result<bool> {
     if src_level_idx == 0 {
       return self.compact_l0().await;
@@ -509,14 +456,10 @@ impl Index {
 
     let dst_level_idx = src_level_idx + 1;
 
-    // Ensure destination level exists
-    // 确保目标层级存在
     while self.levels.len() <= dst_level_idx {
       self.levels.push(Level::new(self.levels.len()));
     }
 
-    // Check if this is the last level (skip tombstones)
-    // 检查是否是最后一层（跳过删除标记）
     let is_last_level = dst_level_idx >= self.levels.len() - 1;
 
     let result = compact_level(
@@ -525,6 +468,7 @@ impl Index {
       &self.levels[dst_level_idx],
       &mut self.next_table_id,
       is_last_level,
+      &mut self.files,
     )
     .await?;
 
@@ -532,22 +476,17 @@ impl Index {
       return Ok(false);
     }
 
-    // Remove old tables
-    // 移除旧表
     self.remove_tables(src_level_idx, &result.old_tables);
     self.remove_tables(dst_level_idx, &result.old_tables);
 
-    // Load and add new tables
-    // 加载并添加新表
     for table_id in result.new_tables {
       let path = self.sstable_path(table_id);
-      let reader = SSTableReader::open(path, table_id).await?;
-      self.levels[dst_level_idx].add(reader);
+      let info = TableInfo::load(&path, table_id).await?;
+      self.levels[dst_level_idx].add(info);
     }
 
-    // Delete old SSTable files
-    // 删除旧 SSTable 文件
     for table_id in result.old_tables {
+      self.files.rm(table_id);
       let path = self.sstable_path(table_id);
       let _ = compio::fs::remove_file(&path).await;
     }
@@ -557,9 +496,6 @@ impl Index {
 
   /// Run compaction if needed
   /// 如果需要则运行压缩
-  ///
-  /// Returns true if compaction was performed.
-  /// 如果执行了压缩则返回 true。
   pub async fn maybe_compact(&mut self) -> Result<bool> {
     if let Some(level_idx) = self.needs_compaction() {
       self.compact_level(level_idx).await
@@ -599,10 +535,17 @@ impl Index {
   pub fn levels_mut(&mut self) -> &mut Vec<Level> {
     &mut self.levels
   }
+
+  /// Get file cache reference
+  /// 获取文件缓存引用
+  #[inline]
+  pub fn files(&mut self) -> &mut FileLru {
+    &mut self.files
+  }
 }
 
-/// Convert bounds to concrete keys for SSTable range query
-/// 将边界转换为 SSTable 范围查询的具体键
+/// Convert bounds to concrete keys
+/// 将边界转换为具体键
 fn bounds_to_keys(start: Bound<&[u8]>, end: Bound<&[u8]>) -> (Vec<u8>, Vec<u8>) {
   let start_key = match start {
     Bound::Included(k) | Bound::Excluded(k) => k.to_vec(),
@@ -610,31 +553,22 @@ fn bounds_to_keys(start: Bound<&[u8]>, end: Bound<&[u8]>) -> (Vec<u8>, Vec<u8>) 
   };
   let end_key = match end {
     Bound::Included(k) | Bound::Excluded(k) => k.to_vec(),
-    Bound::Unbounded => vec![0xff; 256], // Max key
+    Bound::Unbounded => vec![0xff; 256],
   };
   (start_key, end_key)
 }
 
 /// Calculate the exclusive end bound for a prefix
 /// 计算前缀的排他结束边界
-///
-/// Returns None if prefix is all 0xff (no upper bound).
-/// 如果前缀全是 0xff 则返回 None（无上界）。
 fn prefix_end_bound(prefix: &[u8]) -> Option<Vec<u8>> {
   let mut end = prefix.to_vec();
 
-  // Increment the last byte, handling overflow
-  // 增加最后一个字节，处理溢出
   while let Some(last) = end.pop() {
     if last < 0xff {
       end.push(last + 1);
       return Some(end);
     }
-    // Overflow, continue to previous byte
-    // 溢出，继续到前一个字节
   }
 
-  // All bytes were 0xff, no upper bound
-  // 所有字节都是 0xff，无上界
   None
 }

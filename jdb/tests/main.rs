@@ -537,8 +537,8 @@ mod proptest_block {
 // SSTable 单元测试
 mod sstable_tests {
   use aok::{OK, Void};
-  use jdb::{Entry, SSTableReader, SSTableWriter};
-  use jdb_base::Pos;
+  use jdb::{Entry, SSTableWriter, TableInfo};
+  use jdb_base::{FileLru, Pos};
 
   #[test]
   fn test_sstable_write_read_roundtrip() -> Void {
@@ -570,26 +570,28 @@ mod sstable_tests {
 
       // Read SSTable
       // 读取 SSTable
-      let reader = SSTableReader::open(path.clone(), 1).await?;
+      let info = TableInfo::load(&path, 1).await?;
+      let sst_dir = path.parent().unwrap();
+      let mut files = FileLru::new(sst_dir, 16);
 
       // Test point lookups
       // 测试点查询
-      let entry = reader.get(b"aaa").await?.expect("should find aaa");
+      let entry = info.get(b"aaa", &mut files).await?.expect("should find aaa");
       assert_eq!(entry, Entry::Value(Pos::infile(1, 100, 10)));
 
       // Tombstones are not in filter, so get() returns None for them
       // 删除标记不在过滤器中，所以 get() 对它们返回 None
       // This is correct behavior - tombstones are only visible via iteration
       // 这是正确的行为 - 删除标记只能通过迭代可见
-      let entry = reader.get(b"ccc").await?;
+      let entry = info.get(b"ccc", &mut files).await?;
       assert!(entry.is_none(), "Tombstones should not be found via get()");
 
-      let entry = reader.get(b"zzz").await?;
+      let entry = info.get(b"zzz", &mut files).await?;
       assert!(entry.is_none());
 
       // Test iterator (skips tombstones)
       // 测试迭代器（跳过删除标记）
-      let items: Vec<_> = reader.iter().await?.collect();
+      let items: Vec<_> = info.iter(&mut files).await?.collect();
       assert_eq!(items.len(), 4); // ccc is tombstone, skipped
       assert_eq!(items[0].0.as_ref(), b"aaa");
       assert_eq!(items[1].0.as_ref(), b"bbb");
@@ -598,7 +600,7 @@ mod sstable_tests {
 
       // Test backward iteration
       // 测试反向迭代
-      let rev_items: Vec<_> = reader.iter().await?.rev().collect();
+      let rev_items: Vec<_> = info.iter(&mut files).await?.rev().collect();
       assert_eq!(rev_items.len(), 4);
       assert_eq!(rev_items[0].0.as_ref(), b"eee");
       assert_eq!(rev_items[1].0.as_ref(), b"ddd");
@@ -607,7 +609,7 @@ mod sstable_tests {
 
       // Test iterator with tombstones
       // 测试包含删除标记的迭代器
-      let all_items: Vec<_> = reader.iter_with_tombstones().await?.collect();
+      let all_items: Vec<_> = info.iter_with_tombstones(&mut files).await?.collect();
       assert_eq!(all_items.len(), 5);
       assert!(all_items[2].1.is_tombstone());
 
@@ -639,17 +641,19 @@ mod sstable_tests {
 
       // Read and test range
       // 读取并测试范围
-      let reader = SSTableReader::open(path.clone(), 1).await?;
+      let info = TableInfo::load(&path, 1).await?;
+      let sst_dir = path.parent().unwrap();
+      let mut files = FileLru::new(sst_dir, 16);
 
       // Range [key03, key07]
-      let range_items: Vec<_> = reader.range(b"key03", b"key07").await?.collect();
+      let range_items: Vec<_> = info.range(b"key03", b"key07", &mut files).await?.collect();
       assert_eq!(range_items.len(), 5);
       assert_eq!(range_items[0].0.as_ref(), b"key03");
       assert_eq!(range_items[4].0.as_ref(), b"key07");
 
       // Reverse range
       // 反向范围
-      let rev_range: Vec<_> = reader.range(b"key03", b"key07").await?.rev().collect();
+      let rev_range: Vec<_> = info.range(b"key03", b"key07", &mut files).await?.rev().collect();
       assert_eq!(rev_range.len(), 5);
       assert_eq!(rev_range[0].0.as_ref(), b"key07");
       assert_eq!(rev_range[4].0.as_ref(), b"key03");
@@ -682,21 +686,21 @@ mod sstable_tests {
 
       // Read and test filter
       // 读取并测试过滤器
-      let reader = SSTableReader::open(path.clone(), 1).await?;
+      let info = TableInfo::load(&path, 1).await?;
 
       // All written keys should pass filter (no false negatives)
       // 所有写入的键应该通过过滤器（无假阴性）
       for key in &keys {
-        assert!(reader.may_contain(key), "Filter should contain {key:?}");
+        assert!(info.may_contain(key), "Filter should contain {key:?}");
       }
 
       // Test key range check
       // 测试键范围检查
-      assert!(reader.is_key_in_range(b"banana"));
-      assert!(reader.is_key_in_range(b"apple"));
-      assert!(reader.is_key_in_range(b"elderberry"));
-      assert!(!reader.is_key_in_range(b"aaa")); // before min
-      assert!(!reader.is_key_in_range(b"zzz")); // after max
+      assert!(info.is_key_in_range(b"banana"));
+      assert!(info.is_key_in_range(b"apple"));
+      assert!(info.is_key_in_range(b"elderberry"));
+      assert!(!info.is_key_in_range(b"aaa")); // before min
+      assert!(!info.is_key_in_range(b"zzz")); // after max
 
       // Cleanup
       // 清理
@@ -731,8 +735,8 @@ mod sstable_tests {
 // Property-based tests for SSTable
 // SSTable 属性测试
 mod proptest_sstable {
-  use jdb::{Entry, SSTableReader, SSTableWriter};
-  use jdb_base::Pos;
+  use jdb::{Entry, SSTableWriter, TableInfo};
+  use jdb_base::{FileLru, Pos};
   use proptest::prelude::*;
 
   // Generate sorted unique keys
@@ -789,12 +793,12 @@ mod proptest_sstable {
 
         // Read SSTable and check filter
         // 读取 SSTable 并检查过滤器
-        let reader = SSTableReader::open(path.clone(), 1).await.unwrap();
+        let info = TableInfo::load(&path, 1).await.unwrap();
 
         // All written keys must be found by filter (no false negatives)
         // 所有写入的键必须被过滤器找到（无假阴性）
         for key in &written_keys {
-          let contains = reader.may_contain(key);
+          let contains = info.may_contain(key);
           assert!(
             contains,
             "Cuckoo filter false negative for key {:?}",
@@ -842,18 +846,20 @@ mod proptest_sstable {
 
         // Read and verify
         // 读取并验证
-        let reader = SSTableReader::open(path.clone(), 1).await.unwrap();
+        let info = TableInfo::load(&path, 1).await.unwrap();
+        let sst_dir = path.parent().unwrap();
+        let mut files = FileLru::new(sst_dir, 16);
 
         // Verify point lookups
         // 验证点查询
         for (key, entry) in &expected {
-          let got = reader.get(key).await.unwrap();
+          let got = info.get(key, &mut files).await.unwrap();
           assert_eq!(got, Some(*entry), "Point lookup mismatch for key {:?}", key);
         }
 
         // Verify iteration order
         // 验证迭代顺序
-        let items: Vec<_> = reader.iter().await.unwrap().collect();
+        let items: Vec<_> = info.iter(&mut files).await.unwrap().collect();
         assert_eq!(items.len(), expected.len());
 
         for (i, ((k1, e1), (k2, e2))) in items.iter().zip(expected.iter()).enumerate() {
@@ -897,18 +903,20 @@ mod proptest_sstable {
 
         // Read and verify ordering
         // 读取并验证顺序
-        let reader = SSTableReader::open(path.clone(), 1).await.unwrap();
+        let info = TableInfo::load(&path, 1).await.unwrap();
+        let sst_dir = path.parent().unwrap();
+        let mut files = FileLru::new(sst_dir, 16);
 
         // Forward should be ascending
         // 正向应该是升序
-        let forward: Vec<_> = reader.iter().await.unwrap().map(|(k, _)| k).collect();
+        let forward: Vec<_> = info.iter(&mut files).await.unwrap().map(|(k, _)| k).collect();
         let mut sorted = forward.clone();
         sorted.sort();
         assert_eq!(forward, sorted, "Forward iteration not sorted");
 
         // Backward should be descending
         // 反向应该是降序
-        let backward: Vec<_> = reader.iter().await.unwrap().rev().map(|(k, _)| k).collect();
+        let backward: Vec<_> = info.iter(&mut files).await.unwrap().rev().map(|(k, _)| k).collect();
         let mut sorted_desc = forward;
         sorted_desc.reverse();
         assert_eq!(backward, sorted_desc, "Backward iteration not descending");

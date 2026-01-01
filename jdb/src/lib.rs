@@ -20,6 +20,6 @@ pub use index::{
   needs_l0_compaction, needs_level_compaction, save_manifest,
 };
 pub use sstable::{
-  FOOTER_SIZE, Footer, MAGIC, Reader as SSTableReader, SSTableIter, SSTableIterWithTombstones,
-  TableMeta, Writer as SSTableWriter,
+  FOOTER_SIZE, Footer, SSTableIter, SSTableIterWithTombstones, TableInfo, TableMeta,
+  Writer as SSTableWriter,
 };

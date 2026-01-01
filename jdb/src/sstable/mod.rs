@@ -9,7 +9,7 @@ mod meta;
 mod reader;
 mod writer;
 
-pub use footer::{FOOTER_SIZE, Footer, MAGIC};
+pub use footer::{FOOTER_SIZE, Footer};
 pub use meta::TableMeta;
-pub use reader::{Reader, SSTableIter, SSTableIterWithTombstones};
+pub use reader::{SSTableIter, SSTableIterWithTombstones, TableInfo};
 pub use writer::Writer;

@@ -1,19 +1,13 @@
-//! SSTable reader
-//! SSTable 读取器
-//!
-//! Reads SSTable files with filter and index support.
-//! 读取带过滤器和索引支持的 SSTable 文件。
+//! SSTable reader with lazy file handle
+//! SSTable 懒加载文件句柄读取器
 
 use std::path::PathBuf;
 
 use autoscale_cuckoo_filter::CuckooFilter;
-use compio::{
-  buf::{IntoInner, IoBuf},
-  fs::File,
-  io::AsyncReadAtExt,
-};
+use compio::buf::{IoBuf, IntoInner};
+use compio::io::AsyncReadAtExt;
 use crc32fast::Hasher;
-use jdb_base::open_read;
+use jdb_base::{FileLru, open_read};
 use zerocopy::FromBytes;
 
 use super::{FOOTER_SIZE, Footer, TableMeta};
@@ -28,22 +22,19 @@ struct IndexEntry {
   size: u32,
 }
 
-/// SSTable reader
-/// SSTable 读取器
-pub struct Reader {
-  path: PathBuf,
-  file: File,
+/// SSTable info (metadata only, no file handle)
+/// SSTable 信息（仅元数据，无文件句柄）
+pub struct TableInfo {
   filter: CuckooFilter<[u8]>,
   index: Vec<IndexEntry>,
   meta: TableMeta,
-  footer: Footer,
 }
 
-impl Reader {
-  /// Open SSTable file
-  /// 打开 SSTable 文件
-  pub async fn open(path: PathBuf, id: u64) -> Result<Self> {
-    let file = open_read(&path).await?;
+impl TableInfo {
+  /// Load SSTable info from file
+  /// 从文件加载 SSTable 信息
+  pub async fn load(path: &PathBuf, id: u64) -> Result<Self> {
+    let file = open_read(path).await?;
 
     let file_meta = file.metadata().await?;
     let file_size = file_meta.len();
@@ -67,19 +58,11 @@ impl Reader {
       msg: "Invalid footer".into(),
     })?;
 
-    if !footer.is_valid() {
-      return Err(crate::Error::Corruption {
-        msg: "Invalid footer magic".into(),
-      });
-    }
-
     // Verify checksum
     // 验证校验和
     let data_size = footer.filter_offset() + footer.filter_size() + footer.index_size();
     let mut hasher = Hasher::new();
 
-    // Read and hash all data before footer
-    // 读取并哈希尾部之前的所有数据
     let buf = vec![0u8; data_size as usize];
     let slice = buf.slice(0..data_size as usize);
     let res = file.read_exact_at(slice, 0).await;
@@ -91,9 +74,8 @@ impl Reader {
     if computed_checksum != footer.checksum() {
       return Err(crate::Error::Corruption {
         msg: format!(
-          "Checksum mismatch: expected {}, got {}",
-          footer.checksum(),
-          computed_checksum
+          "Checksum mismatch: expected {}, got {computed_checksum}",
+          footer.checksum()
         ),
       });
     }
@@ -127,34 +109,33 @@ impl Reader {
     // 构建元数据
     let mut meta = TableMeta::new(id);
     meta.file_size = file_size;
-    meta.item_count = index.len() as u64; // Approximate, actual count in blocks
-    // 近似值，实际数量在块中
+    meta.item_count = index.len() as u64;
 
-    // max_key is the last key in the last block
-    // max_key 是最后一个块的最后一个键
     if let Some(last) = index.last() {
       meta.max_key = last.last_key.clone();
     }
 
-    let mut reader = Self {
-      path,
-      file,
-      filter,
-      index,
-      meta,
-      footer,
-    };
-
     // Read first block to get min_key
     // 读取第一个块以获取 min_key
-    if !reader.index.is_empty() {
-      let first_block = reader.read_block(0).await?;
-      if let Some((key, _)) = first_block.iter().next() {
-        reader.meta.min_key = key.into_boxed_slice();
+    if let Some(first) = index.first() {
+      let buf = vec![0u8; first.size as usize];
+      let slice = buf.slice(0..first.size as usize);
+      let res = file.read_exact_at(slice, first.offset).await;
+      res.0?;
+      let buf = res.1.into_inner();
+
+      if let Some(block) = DataBlock::from_bytes(buf) {
+        if let Some((key, _)) = block.iter().next() {
+          meta.min_key = key.into_boxed_slice();
+        }
       }
     }
 
-    Ok(reader)
+    Ok(Self {
+      filter,
+      index,
+      meta,
+    })
   }
 
   /// Decode index block
@@ -228,25 +209,19 @@ impl Reader {
     self.meta.contains_key(key)
   }
 
-  /// Get entry by key
-  /// 通过键获取条目
-  pub async fn get(&self, key: &[u8]) -> Result<Option<Entry>> {
-    // Check filter first
-    // 先检查过滤器
+  /// Get entry by key using FileLru
+  /// 通过 FileLru 按键获取条目
+  pub async fn get(&self, key: &[u8], files: &mut FileLru) -> Result<Option<Entry>> {
     if !self.may_contain(key) {
       return Ok(None);
     }
 
-    // Binary search for block
-    // 二分查找块
     let block_idx = self.find_block(key);
     if block_idx >= self.index.len() {
       return Ok(None);
     }
 
-    // Read and search block
-    // 读取并搜索块
-    let block = self.read_block(block_idx).await?;
+    let block = self.read_block(block_idx, files).await?;
     for (k, entry) in block.iter() {
       match k.as_slice().cmp(key) {
         std::cmp::Ordering::Equal => return Ok(Some(entry)),
@@ -258,25 +233,21 @@ impl Reader {
     Ok(None)
   }
 
-  /// Find block index for key using binary search
-  /// 使用二分查找找到键所在的块索引
+  /// Find block index for key
+  /// 查找键所在的块索引
   fn find_block(&self, key: &[u8]) -> usize {
-    // Find first block where last_key >= key
-    // 找到第一个 last_key >= key 的块
     self
       .index
       .partition_point(|entry| entry.last_key.as_ref() < key)
   }
 
-  /// Read block at index
-  /// 读取指定索引的块
-  async fn read_block(&self, idx: usize) -> Result<DataBlock> {
+  /// Read block at index using FileLru
+  /// 通过 FileLru 读取指定索引的块
+  async fn read_block(&self, idx: usize, files: &mut FileLru) -> Result<DataBlock> {
     let entry = &self.index[idx];
     let buf = vec![0u8; entry.size as usize];
-    let slice = buf.slice(0..entry.size as usize);
-    let res = self.file.read_exact_at(slice, entry.offset).await;
-    res.0?;
-    let buf = res.1.into_inner();
+    let (res, buf) = files.read_into(self.meta.id, buf, entry.offset).await;
+    res?;
 
     DataBlock::from_bytes(buf).ok_or_else(|| crate::Error::Corruption {
       msg: format!("Invalid block at offset {}", entry.offset),
@@ -297,33 +268,14 @@ impl Reader {
     self.index.len()
   }
 
-  /// Get file path
-  /// 获取文件路径
-  #[inline]
-  pub fn path(&self) -> &PathBuf {
-    &self.path
-  }
-
-  /// Get footer
-  /// 获取尾部
-  #[inline]
-  pub fn footer(&self) -> &Footer {
-    &self.footer
-  }
-
   /// Load all blocks and create iterator
   /// 加载所有块并创建迭代器
-  ///
-  /// Returns iterator that skips tombstones.
-  /// 返回跳过删除标记的迭代器。
-  pub async fn iter(&self) -> Result<SSTableIter> {
+  pub async fn iter(&self, files: &mut FileLru) -> Result<SSTableIter> {
     let mut entries = Vec::new();
 
     for idx in 0..self.index.len() {
-      let block = self.read_block(idx).await?;
+      let block = self.read_block(idx, files).await?;
       for (key, entry) in block.iter() {
-        // Skip tombstones
-        // 跳过删除标记
         if !entry.is_tombstone() {
           entries.push((key.into_boxed_slice(), entry));
         }
@@ -339,11 +291,11 @@ impl Reader {
 
   /// Load all blocks and create iterator (including tombstones)
   /// 加载所有块并创建迭代器（包含删除标记）
-  pub async fn iter_with_tombstones(&self) -> Result<SSTableIterWithTombstones> {
+  pub async fn iter_with_tombstones(&self, files: &mut FileLru) -> Result<SSTableIterWithTombstones> {
     let mut entries = Vec::new();
 
     for idx in 0..self.index.len() {
-      let block = self.read_block(idx).await?;
+      let block = self.read_block(idx, files).await?;
       for (key, entry) in block.iter() {
         entries.push((key.into_boxed_slice(), entry));
       }
@@ -358,11 +310,14 @@ impl Reader {
 
   /// Create range iterator
   /// 创建范围迭代器
-  pub async fn range(&self, start: &[u8], end: &[u8]) -> Result<SSTableIter> {
+  pub async fn range(
+    &self,
+    start: &[u8],
+    end: &[u8],
+    files: &mut FileLru,
+  ) -> Result<SSTableIter> {
     let mut entries = Vec::new();
 
-    // Find starting block
-    // 找到起始块
     let start_block = self.find_block(start);
     let end_block = self.find_block(end);
 
@@ -370,14 +325,10 @@ impl Reader {
       if idx >= self.index.len() {
         break;
       }
-      let block = self.read_block(idx).await?;
+      let block = self.read_block(idx, files).await?;
       for (key, entry) in block.iter() {
-        if key.as_slice() >= start && key.as_slice() <= end {
-          // Skip tombstones
-          // 跳过删除标记
-          if !entry.is_tombstone() {
-            entries.push((key.into_boxed_slice(), entry));
-          }
+        if key.as_slice() >= start && key.as_slice() <= end && !entry.is_tombstone() {
+          entries.push((key.into_boxed_slice(), entry));
         }
       }
     }
