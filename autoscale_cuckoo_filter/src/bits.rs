@@ -1,14 +1,10 @@
 //! Bit array for compact fingerprint storage.
 //! 用于紧凑指纹存储的位数组
 
-#[cfg(feature = "serde_support")]
-use serde::{Deserialize, Serialize};
-
 /// Bit array with fast u64 read/write operations.
 /// 支持快速 u64 读写操作的位数组
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
-pub struct Bits(#[cfg_attr(feature = "serde_support", serde(with = "serde_bytes"))] Vec<u8>);
+#[derive(Debug, Clone, bitcode::Encode, bitcode::Decode)]
+pub struct Bits(Vec<u8>);
 
 /// Padding bytes for safe u64 unaligned reads.
 /// 用于安全 u64 非对齐读取的填充字节数

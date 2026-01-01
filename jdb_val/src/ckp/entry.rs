@@ -6,6 +6,8 @@
 
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
+use crate::load::Load;
+
 /// Entry header size
 /// 条目头大小
 pub const HEADER_SIZE: usize = 8;
@@ -53,6 +55,46 @@ impl Header {
   }
 }
 
+const _: () = assert!(size_of::<Header>() == HEADER_SIZE);
+
+/// Checkpoint entry type for Load trait
+/// 检查点条目类型用于 Load trait
+pub struct CkpEntry;
+
+impl Load for CkpEntry {
+  const MAGIC: u8 = MAGIC;
+  const HEAD_SIZE: usize = HEADER_SIZE;
+
+  #[inline]
+  fn parse(buf: &[u8]) -> Option<usize> {
+    if buf.len() < HEADER_SIZE {
+      return None;
+    }
+
+    let header = Header::read_from_bytes(&buf[..HEADER_SIZE]).ok()?;
+    if !header.is_valid() || header.len < 4 {
+      return None;
+    }
+
+    let entry_size = header.entry_size();
+    if entry_size > buf.len() {
+      return None;
+    }
+
+    // Verify crc32
+    // 验证 crc32
+    let data_end = entry_size - 4;
+    let data = &buf[HEADER_SIZE..data_end];
+    let stored_crc = u32::from_le_bytes(unsafe { *(buf.as_ptr().add(data_end) as *const [u8; 4]) });
+
+    if crc32fast::hash(data) == stored_crc {
+      Some(entry_size)
+    } else {
+      None
+    }
+  }
+}
+
 /// Build entry bytes: header + data + crc32
 /// 构建条目字节：header + data + crc32
 #[inline]
@@ -72,33 +114,7 @@ pub fn build(data: &[u8]) -> Vec<u8> {
 #[inline]
 pub fn parse(buf: &[u8], pos: usize) -> Option<(&[u8], usize)> {
   let slice = buf.get(pos..)?;
-  if slice.len() < HEADER_SIZE {
-    return None;
-  }
-
-  let header = Header::read_from_bytes(&slice[..HEADER_SIZE]).ok()?;
-  if !header.is_valid() || header.len < 4 {
-    return None;
-  }
-
-  let entry_size = header.entry_size();
-  if entry_size > slice.len() {
-    return None;
-  }
-
-  // Verify crc32
-  // 验证 crc32
-  let data_end = entry_size - 4;
-  let data = &slice[HEADER_SIZE..data_end];
-  // Safety: entry_size - 4 bytes checked, slice[data_end..entry_size] is exactly 4 bytes
-  // 安全：已检查 entry_size，slice[data_end..entry_size] 正好 4 字节
-  let stored_crc = u32::from_le_bytes(unsafe { *(slice.as_ptr().add(data_end) as *const [u8; 4]) });
-
-  if crc32fast::hash(data) == stored_crc {
-    Some((data, pos + entry_size))
-  } else {
-    None
-  }
+  let entry_size = CkpEntry::parse(slice)?;
+  let data = &slice[HEADER_SIZE..entry_size - 4];
+  Some((data, pos + entry_size))
 }
-
-const _: () = assert!(size_of::<Header>() == HEADER_SIZE);

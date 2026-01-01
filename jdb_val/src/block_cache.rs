@@ -5,7 +5,8 @@ use std::path::PathBuf;
 
 use compio::{buf::IoBufMut, io::AsyncReadAtExt};
 use compio_fs::File;
-use jdb_lru::{Cache, Lru};
+use hashlink::lru_cache::Entry;
+use jdb_lru::Lru;
 
 use crate::{
   Result,
@@ -52,17 +53,19 @@ impl BlockLru {
   }
 
   async fn open(&mut self, file_id: u64) -> Result<&File> {
-    if self.files.get(&file_id).is_none() {
-      let path = id_path(&self.dir, file_id);
-      let file = open_read(&path).await?;
-      self.files.set(file_id, file);
+    let path = id_path(&self.dir, file_id);
+    match self.files.0.entry(file_id) {
+      Entry::Occupied(e) => Ok(e.into_mut()),
+      Entry::Vacant(e) => {
+        let file = open_read(&path).await?;
+        Ok(e.insert(file))
+      }
     }
-    Ok(self.files.get(&file_id).unwrap())
   }
 
   /// Remove file from cache
   /// 从缓存移除文件
   pub fn rm(&mut self, file_id: u64) {
-    self.files.rm(&file_id);
+    self.files.0.remove(&file_id);
   }
 }

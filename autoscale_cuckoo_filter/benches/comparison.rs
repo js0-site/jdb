@@ -9,7 +9,7 @@ use cuckoofilter::CuckooFilter as OriginalCuckooFilter;
 use farmhash::FarmHasher;
 use gxhash::GxHasher;
 use mimalloc::MiMalloc;
-use scalable_cuckoo_filter::ScalableCuckooFilter;
+use cuckoo_filter::ScalableCuckooFilter;
 use serde::Serialize;
 
 #[global_allocator]
@@ -189,12 +189,12 @@ pub fn run_bench_json() {
     });
   }
 
-  // scalable_cuckoo_filter
+  // cuckoo_filter
   {
     let mut f = ScalableCuckooFilter::<[u8]>::new(BENCH_CAP, FPP);
     let (add, contains, remove, mem, fpp) = bench_filter(&mut f, &keys, &remove_keys, &fpp_keys);
     results.push(BenchResult {
-      lib: "scalable_cuckoo_filter",
+      lib: "cuckoo_filter",
       add_mops: add,
       contains_mops: contains,
       remove_mops: remove,
@@ -251,7 +251,7 @@ fn bench_insert(c: &mut Criterion) {
     })
   });
 
-  g.bench_function("scalable_cuckoo_filter", |b| {
+  g.bench_function("cuckoo_filter", |b| {
     let mut f = ScalableCuckooFilter::<u64>::new(CAPACITY, FPP);
     let mut i = 0u64;
     b.iter(|| {
@@ -295,7 +295,7 @@ fn bench_contains(c: &mut Criterion) {
     })
   });
 
-  g.bench_function("scalable_cuckoo_filter", |b| {
+  g.bench_function("cuckoo_filter", |b| {
     let mut f = ScalableCuckooFilter::<u64>::new(CAPACITY, FPP);
     for i in 0..CAPACITY as u64 {
       f.insert_if_not_contained(&i);
@@ -352,7 +352,7 @@ fn bench_remove(c: &mut Criterion) {
     )
   });
 
-  g.bench_function("scalable_cuckoo_filter", |b| {
+  g.bench_function("cuckoo_filter", |b| {
     b.iter_batched(
       || {
         let mut f = ScalableCuckooFilter::<u64>::new(CAPACITY, FPP);

@@ -37,12 +37,12 @@
 //! [scalable bloom filters]: http://haslab.uminho.pt/cbm/files/dbloom.pdf
 #![warn(missing_docs)]
 
-pub use scalable_cuckoo_filter::{CuckooFilter, CuckooFilterBuilder, DefaultHasher};
+pub use cuckoo_filter::{CuckooFilter, CuckooFilterBuilder, DefaultHasher};
 
 mod bits;
 mod buckets;
+mod base;
 mod cuckoo_filter;
-mod scalable_cuckoo_filter;
 
 use std::hash::{Hash, Hasher};
 

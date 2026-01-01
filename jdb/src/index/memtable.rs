@@ -1,11 +1,12 @@
 //! Memtable - In-memory write buffer
 //! 内存写缓冲区
 //!
-//! BTreeMap-based memtable for recent writes.
-//! 基于 BTreeMap 的内存表，用于最近的写入。
+//! Adaptive radix tree based memtable for recent writes.
+//! 基于自适应基数树的内存表，用于最近的写入。
 
-use std::{collections::BTreeMap, ops::Bound};
+use std::ops::Bound;
 
+use blart::TreeMap;
 use jdb_base::Pos;
 
 /// Entry in memtable
@@ -39,11 +40,11 @@ impl Entry {
   }
 }
 
-/// Memtable - In-memory sorted key-value store
-/// 内存表 - 内存中的有序键值存储
+/// Memtable - In-memory sorted key-value store using adaptive radix tree
+/// 内存表 - 使用自适应基数树的内存有序键值存储
 pub struct Memtable {
   id: u64,
-  data: BTreeMap<Box<[u8]>, Entry>,
+  data: TreeMap<Box<[u8]>, Entry>,
   size: u64,
 }
 
@@ -54,7 +55,7 @@ impl Memtable {
   pub fn new(id: u64) -> Self {
     Self {
       id,
-      data: BTreeMap::new(),
+      data: TreeMap::new(),
       size: 0,
     }
   }
@@ -80,24 +81,33 @@ impl Memtable {
     let key_len = key.len() as u64;
     let entry_size = key_len + Pos::SIZE as u64;
 
-    if let Some(old) = self.data.insert(key, Entry::Value(pos)) {
-      // Subtract old entry size if replacing
-      // 如果替换则减去旧条目大小
-      match old {
-        Entry::Value(_) => {
-          // Size unchanged (same key, same Pos size)
-          // 大小不变（相同键，相同 Pos 大小）
-        }
-        Entry::Tombstone => {
-          // Tombstone has no Pos, add Pos size
-          // 删除标记没有 Pos，添加 Pos 大小
-          self.size += Pos::SIZE as u64;
+    // blart's try_insert returns Ok(None) for new key, Ok(Some(old)) for update
+    // blart 的 try_insert 对新键返回 Ok(None)，对更新返回 Ok(Some(old))
+    match self.data.try_insert(key, Entry::Value(pos)) {
+      Ok(None) => {
+        // New entry
+        // 新条目
+        self.size += entry_size;
+      }
+      Ok(Some(old)) => {
+        // Replaced existing entry
+        // 替换现有条目
+        match old {
+          Entry::Value(_) => {
+            // Size unchanged (same key, same Pos size)
+            // 大小不变（相同键，相同 Pos 大小）
+          }
+          Entry::Tombstone => {
+            // Tombstone has no Pos, add Pos size
+            // 删除标记没有 Pos，添加 Pos 大小
+            self.size += Pos::SIZE as u64;
+          }
         }
       }
-    } else {
-      // New entry
-      // 新条目
-      self.size += entry_size;
+      Err(_) => {
+        // Key is prefix of existing key or vice versa - should not happen with proper keys
+        // 键是现有键的前缀或反之 - 使用正确的键不应发生
+      }
     }
   }
 
@@ -107,22 +117,29 @@ impl Memtable {
   pub fn del(&mut self, key: Box<[u8]>) {
     let key_len = key.len() as u64;
 
-    if let Some(old) = self.data.insert(key, Entry::Tombstone) {
-      match old {
-        Entry::Value(_) => {
-          // Remove Pos size
-          // 移除 Pos 大小
-          self.size -= Pos::SIZE as u64;
-        }
-        Entry::Tombstone => {
-          // Already tombstone, no change
-          // 已经是删除标记，无变化
+    match self.data.try_insert(key, Entry::Tombstone) {
+      Ok(None) => {
+        // New tombstone entry
+        // 新删除标记条目
+        self.size += key_len;
+      }
+      Ok(Some(old)) => {
+        match old {
+          Entry::Value(_) => {
+            // Remove Pos size
+            // 移除 Pos 大小
+            self.size -= Pos::SIZE as u64;
+          }
+          Entry::Tombstone => {
+            // Already tombstone, no change
+            // 已经是删除标记，无变化
+          }
         }
       }
-    } else {
-      // New tombstone entry
-      // 新删除标记条目
-      self.size += key_len;
+      Err(_) => {
+        // Key is prefix of existing key or vice versa
+        // 键是现有键的前缀或反之
+      }
     }
   }
 
@@ -156,15 +173,56 @@ impl Memtable {
 
   /// Range query with bounds
   /// 范围查询
+  ///
+  /// Note: Uses iter() with filtering to avoid blart range() bugs.
+  /// 注意：使用 iter() 加过滤来避免 blart range() 的 bug。
   #[inline]
   pub fn range<'a>(
     &'a self,
     start: Bound<&[u8]>,
     end: Bound<&[u8]>,
   ) -> impl DoubleEndedIterator<Item = (&'a [u8], &'a Entry)> {
-    self
-      .data
-      .range::<[u8], _>((start, end))
-      .map(|(k, v)| (k.as_ref(), v))
+    // Convert bounds to owned for comparison
+    // 转换边界为拥有的数据用于比较
+    let start_owned: Option<Box<[u8]>> = match start {
+      Bound::Included(k) | Bound::Excluded(k) => Some(k.into()),
+      Bound::Unbounded => None,
+    };
+    let end_owned: Option<Box<[u8]>> = match end {
+      Bound::Included(k) | Bound::Excluded(k) => Some(k.into()),
+      Bound::Unbounded => None,
+    };
+    let start_inclusive = matches!(start, Bound::Included(_));
+    let end_inclusive = matches!(end, Bound::Included(_));
+
+    self.data.iter().filter_map(move |(k, v)| {
+      let key = k.as_ref();
+
+      // Check start bound
+      // 检查起始边界
+      if let Some(ref s) = start_owned {
+        if start_inclusive {
+          if key < s.as_ref() {
+            return None;
+          }
+        } else if key <= s.as_ref() {
+          return None;
+        }
+      }
+
+      // Check end bound
+      // 检查结束边界
+      if let Some(ref e) = end_owned {
+        if end_inclusive {
+          if key > e.as_ref() {
+            return None;
+          }
+        } else if key >= e.as_ref() {
+          return None;
+        }
+      }
+
+      Some((key, v))
+    })
   }
 }

@@ -2,7 +2,7 @@
 [package]
 name = "autoscale_cuckoo_filter"
 edition = "2024"
-version = "0.5.9"
+version = "0.5.11"
 authors = ["js0-site <jssite@googlegroups.com>"]
 description = "Fastest auto-scaling Cuckoo Filter in Rust / 最快的 Rust 自动扩容布谷鸟过滤器"
 homepage = "https://github.com/js0-site/jdb/tree/main/autoscale_cuckoo_filter"
@@ -12,17 +12,10 @@ keywords = ["cuckoo-filter", "bloom-filter", "probabilistic", "set", "filter"]
 categories = ["data-structures"]
 license = "MulanPSL-2.0"
 
-[features]
-serde_support = ["serde", "serde_bytes"]
-serde_bytes = ["dep:serde_bytes"]
-
 [dependencies]
-serde = { version = "1.0", default-features = false, optional = true, features = [
-  "derive",
-] }
 gxhash = "3"
-serde_bytes = { version = "0.11.19", optional = true }
 fastrand = "2.3.0"
+bitcode = { version = "0.6.9", features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.8"

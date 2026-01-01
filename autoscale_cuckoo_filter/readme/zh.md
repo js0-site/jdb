@@ -1,6 +1,6 @@
 # autoscale_cuckoo_filter : 最快的 Rust 自动扩容布谷鸟过滤器
 
-高性能布谷鸟过滤器变体，支持自动扩容。基于 [sile/scalable_cuckoo_filter](https://github.com/sile/scalable_cuckoo_filter) 深度优化。
+高性能布谷鸟过滤器变体，支持自动扩容。基于 [sile/cuckoo_filter](https://github.com/sile/cuckoo_filter) 深度优化。
 
 **查询速度提升 5.5 倍**。Rust 生态中最快的可扩展布谷鸟过滤器。
 
@@ -42,7 +42,7 @@ cargo add autoscale_cuckoo_filter
 启用 serde 支持：
 
 ```bash
-cargo add autoscale_cuckoo_filter -F serde_support
+cargo add autoscale_cuckoo_filter -F bitcode
 ```
 
 ## 快速开始
@@ -157,7 +157,7 @@ assert_eq!(filter.capacity(), 128);
 | 库 | FPP | 查询 (M/s) | 添加 (M/s) | 删除 (M/s) | 内存 (KB) |
 |---------|-----|----------------|-----------|--------------|-------------|
 | **autoscale_cuckoo_filter** | 0.17% | **99.97** (1.00) | 30.34 (1.00) | **49.55** (1.00) | 353 |
-| scalable_cuckoo_filter | 0.15% | 17.99 (0.18) | 18.95 (0.62) | 18.48 (0.37) | 353 |
+| cuckoo_filter | 0.15% | 17.99 (0.18) | 18.95 (0.62) | 18.48 (0.37) | 353 |
 | cuckoofilter | 0.27% | 21.51 (0.22) | 22.72 (0.75) | 13.02 (0.26) | 1024 |
 
 *测试：100,000 元素，容量=200,000，目标 FPP≈1%。括号内为相对性能比。*
@@ -323,7 +323,7 @@ graph TD
 autoscale_cuckoo_filter/
 ├── src/
 │   ├── lib.rs                    # 公开导出
-│   ├── scalable_cuckoo_filter.rs # 主过滤器实现
+│   ├── cuckoo_filter.rs # 主过滤器实现
 │   ├── cuckoo_filter.rs          # 核心布谷鸟过滤器
 │   ├── buckets.rs                # 桶存储
 │   └── bits.rs                   # 位数组操作
@@ -372,7 +372,7 @@ autoscale_cuckoo_filter/
 
 - [Cuckoo Filter: Practically Better Than Bloom](https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf)
 - [Scalable Bloom Filters](http://haslab.uminho.pt/cbm/files/dbloom.pdf)
-- [原版 scalable_cuckoo_filter](https://github.com/sile/scalable_cuckoo_filter)
+- [原版 cuckoo_filter](https://github.com/sile/cuckoo_filter)
 
 ## 许可证
 

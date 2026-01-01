@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use compio::io::AsyncWriteAtExt;
 use compio_fs::File;
 
-use super::entry::{self, HEADER_SIZE};
-use crate::{Result, fs::read_all};
+use super::entry::{self, CkpEntry, HEADER_SIZE};
+use crate::{Result, fs::read_all, load::recover};
 
 /// Checkpoint log
 /// 检查点日志
@@ -39,7 +39,10 @@ impl Log {
       .open(&self.path)
       .await?;
 
-    self.pos = file.metadata().await?.len();
+    let len = file.metadata().await?.len();
+    // Recover valid end position using Load trait
+    // 使用 Load trait 恢复有效结束位置
+    self.pos = recover::<CkpEntry>(&file, 0, len).await;
     self.file = Some(file);
     Ok(())
   }
@@ -51,8 +54,9 @@ impl Log {
     let start = self.pos;
 
     let buf = entry::build(data);
-    file.write_all_at(buf.clone(), start).await.0?;
-    self.pos = start + buf.len() as u64;
+    let len = buf.len();
+    file.write_all_at(buf, start).await.0?;
+    self.pos = start + len as u64;
 
     Ok(start)
   }

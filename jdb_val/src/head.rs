@@ -77,6 +77,13 @@ pub const INFILE_MAX: usize = 4 * 1024 * 1024;
 /// 最大 key 大小（64KB）
 pub const KEY_MAX: usize = 64 * 1024;
 
+/// Verify CRC of head bytes / 验证头字节的 CRC
+#[inline(always)]
+fn verify_crc(head_bytes: &[u8], crc_bytes: &[u8]) -> bool {
+  let got = u32::from_le_bytes(unsafe { *crc_bytes.as_ptr().cast::<[u8; 4]>() });
+  crc32fast::hash(head_bytes) == got
+}
+
 /// WAL entry type for Load trait / WAL 条目类型用于 Load trait
 pub struct WalEntry;
 
@@ -90,17 +97,13 @@ impl Load for WalEntry {
       return None;
     }
 
-    // Verify CRC / 验证 CRC
     let head_bytes = &buf[1..1 + HEAD_SIZE];
     let crc_bytes = &buf[1 + HEAD_SIZE..HEAD_TOTAL];
-    let got = u32::from_le_bytes(unsafe { *crc_bytes.as_ptr().cast::<[u8; 4]>() });
-    let expected = crc32fast::hash(head_bytes);
-    if got != expected {
+    if !verify_crc(head_bytes, crc_bytes) {
       return None;
     }
 
     let head = Head::read_from_bytes(head_bytes).ok()?;
-    // Total size = magic(1) + record_size
     Some(1 + head.record_size())
   }
 }
@@ -198,18 +201,12 @@ impl Head {
       return Err(Error::InvalidHead);
     }
 
-    // Verify CRC
-    // 验证 CRC
     let head_bytes = &buf[..HEAD_SIZE];
     let crc_bytes = &buf[HEAD_SIZE..HEAD_CRC];
-    let got = u32::from_le_bytes(unsafe { *crc_bytes.as_ptr().cast::<[u8; 4]>() });
-    let expected = crc32fast::hash(head_bytes);
-    if got != expected {
+    if !verify_crc(head_bytes, crc_bytes) {
       return Err(Error::CrcMismatch { file_id, pos });
     }
 
-    // Use read_from_bytes to avoid alignment issues
-    // 使用 read_from_bytes 避免对齐问题
     Ok(Self::read_from_bytes(head_bytes).unwrap())
   }
 

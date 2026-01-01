@@ -1,15 +1,11 @@
 //! Bucket storage for cuckoo filter fingerprints.
 //! 布谷鸟过滤器指纹的桶存储
 
-#[cfg(feature = "serde_support")]
-use serde::{Deserialize, Serialize};
-
 use crate::bits::Bits;
 
 /// Bucket array for storing fingerprints.
 /// 用于存储指纹的桶数组
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, bitcode::Encode, bitcode::Decode)]
 pub struct Buckets {
   fp_bits: usize,
   fp_mask: u64,
