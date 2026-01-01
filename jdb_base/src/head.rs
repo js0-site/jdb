@@ -237,51 +237,40 @@ impl HeadBuilder {
 
   #[inline]
 
-    fn build(&mut self, head: &Head, val: Option<&[u8]>, key: &[u8]) -> &[u8] {
+  fn build(&mut self, head: &Head, val: Option<&[u8]>, key: &[u8]) -> &[u8] {
+    self.buf.clear();
 
-      self.buf.clear();
+    // Pre-calculate total size to reserve once
 
-      // Pre-calculate total size to reserve once
+    let total_len = HEAD_TOTAL + val.map_or(0, |v| v.len()) + key.len();
 
-      let total_len = HEAD_TOTAL + val.map_or(0, |v| v.len()) + key.len();
+    self.buf.reserve(total_len);
 
-      self.buf.reserve(total_len);
+    // Use MaybeUninit to safely handle uninitialized memory
 
-  
+    // head.write() guarantees full overwrite of the [0..HEAD_TOTAL] range.
 
-      // Use MaybeUninit to safely handle uninitialized memory
+    let mut header_buf: Vec<std::mem::MaybeUninit<u8>> =
+      vec![std::mem::MaybeUninit::uninit(); HEAD_TOTAL];
 
-      // head.write() guarantees full overwrite of the [0..HEAD_TOTAL] range.
+    let header_slice =
+      unsafe { std::slice::from_raw_parts_mut(header_buf.as_mut_ptr() as *mut u8, HEAD_TOTAL) };
 
-      let mut header_buf: Vec<std::mem::MaybeUninit<u8>> = vec![std::mem::MaybeUninit::uninit(); HEAD_TOTAL];
+    head.write(header_slice);
 
-      let header_slice = unsafe {
+    // Safety: head.write() has initialized all HEAD_TOTAL bytes
 
-        std::slice::from_raw_parts_mut(header_buf.as_mut_ptr() as *mut u8, HEAD_TOTAL)
+    let initialized: Vec<u8> =
+      unsafe { std::mem::transmute::<Vec<std::mem::MaybeUninit<u8>>, Vec<u8>>(header_buf) };
 
-      };
+    self.buf.extend(initialized);
 
-      head.write(header_slice);
-
-      // Safety: head.write() has initialized all HEAD_TOTAL bytes
-
-      let initialized: Vec<u8> = unsafe { std::mem::transmute::<Vec<std::mem::MaybeUninit<u8>>, Vec<u8>>(header_buf) };
-
-      self.buf.extend(initialized);
-
-  
-
-      if let Some(v) = val {
-
-        self.buf.extend_from_slice(v);
-
-      }
-
-      self.buf.extend_from_slice(key);
-
-  
-
-      &self.buf
-
+    if let Some(v) = val {
+      self.buf.extend_from_slice(v);
     }
+
+    self.buf.extend_from_slice(key);
+
+    &self.buf
+  }
 }
