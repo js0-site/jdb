@@ -3,16 +3,8 @@
 //! A high-performance implementation of the Piecewise Geometric Model (PGM) Index
 //! with SIMD optimizations and parallel processing.
 
-#[cfg(feature = "jemalloc")]
-use jemallocator::Jemalloc;
-#[cfg(feature = "jemalloc")]
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
-
 use num_traits::ToPrimitive;
 use rayon::prelude::*;
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 type Idx = usize;
@@ -31,7 +23,7 @@ impl Key for usize {}
 impl Key for isize {}
 
 /// Linear segment: y = slope * x + intercept  (x — index, y — key)
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(64))]
 pub struct Segment<K: Key> {
@@ -44,7 +36,7 @@ pub struct Segment<K: Key> {
 }
 
 /// Lightweight stats for export
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
 #[derive(Clone, Debug, Default)]
 pub struct PGMStats {
     pub segments: usize,
@@ -52,7 +44,7 @@ pub struct PGMStats {
     pub memory_bytes: usize,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
 #[derive(Clone, Copy, Debug)]
 pub struct SegmentLookupConfig {
     pub bins: usize,
@@ -350,13 +342,12 @@ fn is_sorted<K: Ord>(data: &[K]) -> bool {
     data.windows(2).all(|w| w[0] <= w[1])
 }
 
-#[cfg(feature = "serde")]
-mod serde_impl {
+#[cfg(feature = "bitcode")]
+mod bitcode_impl {
     use super::*;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    #[derive(Serialize, Deserialize)]
-    struct PGMIndexSerde<K: Key> {
+    #[derive(bitcode::Encode, bitcode::Decode)]
+    struct PGMIndexBitcode<K: Key> {
         epsilon: usize,
         data: Vec<K>,
         segments: Vec<Segment<K>>,
@@ -365,9 +356,9 @@ mod serde_impl {
         min_key_f64: f64,
     }
 
-    impl<K: Key + Serialize> Serialize for PGMIndex<K> {
-        fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-            let tmp = PGMIndexSerde {
+    impl<K: Key + bitcode::Encode> bitcode::Encode for PGMIndex<K> {
+        fn encode<E: bitcode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), E::Error> {
+            let tmp = PGMIndexBitcode {
                 epsilon: self.epsilon,
                 data: (*self.data).clone(),
                 segments: self.segments.clone(),
@@ -375,13 +366,13 @@ mod serde_impl {
                 lookup_scale: self.lookup_scale,
                 min_key_f64: self.min_key_f64,
             };
-            tmp.serialize(serializer)
+            tmp.encode(encoder)
         }
     }
 
-    impl<'de, K: Key + Deserialize<'de>> Deserialize<'de> for PGMIndex<K> {
-        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            let tmp = PGMIndexSerde::<K>::deserialize(deserializer)?;
+    impl<K: Key> bitcode::Decode for PGMIndex<K> {
+        fn decode<D: bitcode::dec::Decoder>(decoder: &mut D) -> Result<Self, D::Error> {
+            let tmp = PGMIndexBitcode::<K>::decode(decoder)?;
             Ok(PGMIndex {
                 epsilon: tmp.epsilon,
                 data: Arc::new(tmp.data),
