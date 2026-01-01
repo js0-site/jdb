@@ -30,9 +30,26 @@ impl Level {
 
   /// Add SSTable to level
   /// 添加 SSTable 到层级
+  ///
+  /// For L0: append to end (newest last, searched in reverse)
+  /// For L1+: insert in sorted order by min_key for binary search
+  /// L0：追加到末尾（最新的在最后，反向搜索）
+  /// L1+：按 min_key 排序插入以支持二分查找
   #[inline]
   pub fn add(&mut self, table: SSTableReader) {
-    self.tables.push(table);
+    if self.level == 0 {
+      // L0: just append, tables may overlap
+      // L0：直接追加，表可能重叠
+      self.tables.push(table);
+    } else {
+      // L1+: insert in sorted order by min_key
+      // L1+：按 min_key 排序插入
+      let min_key = table.meta().min_key.clone();
+      let pos = self
+        .tables
+        .partition_point(|t| t.meta().min_key.as_ref() < min_key.as_ref());
+      self.tables.insert(pos, table);
+    }
   }
 
   /// Get table count

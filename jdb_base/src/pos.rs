@@ -31,6 +31,8 @@ pub struct Pos {
 impl Hash for Pos {
   #[inline(always)]
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    // Only hash ID and location, ignoring length and flag/padding
+    // 仅哈希 ID 和位置，忽略长度和标志/填充
     self.wal_id.hash(state);
     self.offset_or_file_id.hash(state);
   }

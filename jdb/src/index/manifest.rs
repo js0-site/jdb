@@ -6,12 +6,9 @@
 
 use std::path::{Path, PathBuf};
 
-use compio::{
-  buf::{IntoInner, IoBuf},
-  fs::File,
-  io::{AsyncReadAtExt, AsyncWriteAtExt},
-};
+use compio::{buf::IoBuf, io::AsyncWriteAtExt};
 use crc32fast::Hasher;
+use jdb_base::{open_read, read_all};
 
 use crate::Result;
 
@@ -491,15 +488,11 @@ pub async fn load_manifest(dir: &Path) -> Result<Option<Manifest>> {
 
   // Read file
   // 读取文件
-  let file = File::open(&path).await?;
+  let file = open_read(&path).await?;
   let meta = file.metadata().await?;
-  let size = meta.len() as usize;
+  let size = meta.len();
 
-  let buf = vec![0u8; size];
-  let slice = buf.slice(0..size);
-  let res = file.read_exact_at(slice, 0).await;
-  res.0?;
-  let data = res.1.into_inner();
+  let data = read_all(&file, size).await?;
 
   // Decode
   // 解码

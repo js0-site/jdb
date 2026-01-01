@@ -51,7 +51,11 @@ pub trait Load {
     if crc_offset + 4 > len || meta_offset + meta_len > len {
       return false;
     }
-    let stored = u32::from_le_bytes(unsafe { *(bin.as_ptr().add(crc_offset) as *const [u8; 4]) });
+
+    // Safety: bounds checked above. Use try_into to handle potential unaligned access safely.
+    let stored_bytes = &bin[crc_offset..crc_offset + 4];
+    let stored = u32::from_le_bytes(stored_bytes.try_into().unwrap());
+
     let computed = crc32fast::hash(&bin[meta_offset..meta_offset + meta_len]);
     stored == computed
   }
@@ -124,6 +128,10 @@ pub trait Load {
           break;
         }
 
+        // Reuse buffer capacity, reset length
+        buf.clear();
+        buf.reserve(read_len);
+        // Safety: We reserve enough capacity just above.
         unsafe { buf.set_len(read_len) };
         let slice = buf.slice(0..read_len);
         let res = file.read_exact_at(slice, pos).await;
@@ -161,9 +169,10 @@ pub trait Load {
         let read_start = pos.saturating_sub(SCAN_BUF as u64).max(start);
         let read_len = (pos - read_start) as usize;
 
-        if buf.capacity() < read_len {
-          buf.reserve(read_len - buf.capacity());
-        }
+        // Reuse buffer capacity, reset length
+        buf.clear();
+        buf.reserve(read_len);
+        // Safety: We reserve enough capacity just above.
         unsafe { buf.set_len(read_len) };
 
         let tmp = std::mem::take(&mut buf);

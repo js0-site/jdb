@@ -13,6 +13,7 @@ use compio::{
   io::AsyncReadAtExt,
 };
 use crc32fast::Hasher;
+use jdb_base::open_read;
 use zerocopy::FromBytes;
 
 use super::{FOOTER_SIZE, Footer, TableMeta};
@@ -42,10 +43,7 @@ impl Reader {
   /// Open SSTable file
   /// 打开 SSTable 文件
   pub async fn open(path: PathBuf, id: u64) -> Result<Self> {
-    let file = compio::fs::OpenOptions::new()
-      .read(true)
-      .open(&path)
-      .await?;
+    let file = open_read(&path).await?;
 
     let file_meta = file.metadata().await?;
     let file_size = file_meta.len();

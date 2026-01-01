@@ -41,19 +41,20 @@ impl FileLru {
     buf: B,
     offset: u64,
   ) -> (std::io::Result<()>, B) {
-    let file = match self.open(file_id).await {
-      Ok(f) => f,
-      Err(e) => return (Err(e), buf),
-    };
-    let res = file.read_exact_at(buf, offset).await;
-    (res.0.map(drop), res.1)
+    match self.open(file_id).await {
+      Ok(file) => {
+        let res = file.read_exact_at(buf, offset).await;
+        (res.0.map(drop), res.1)
+      }
+      Err(e) => (Err(e), buf),
+    }
   }
 
   async fn open(&mut self, file_id: u64) -> std::io::Result<&File> {
-    let path = id_path(&self.dir, file_id);
     match self.files.0.entry(file_id) {
       Entry::Occupied(e) => Ok(e.into_mut()),
       Entry::Vacant(e) => {
+        let path = id_path(&self.dir, file_id);
         let file = open_read(&path).await?;
         Ok(e.insert(file))
       }
@@ -62,6 +63,7 @@ impl FileLru {
 
   /// Remove file from cache
   /// 从缓存移除文件
+  #[inline]
   pub fn rm(&mut self, file_id: u64) {
     self.files.0.remove(&file_id);
   }

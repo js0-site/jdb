@@ -4,7 +4,9 @@
 //! Merges SSTables to reduce read amplification and reclaim space.
 //! 合并 SSTable 以减少读放大并回收空间。
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use jdb_base::id_path;
 
 use super::{Entry, Level};
 use crate::{Result, SSTableWriter};
@@ -241,7 +243,7 @@ pub async fn compact_l0_to_l1(
   let table_id = *next_table_id;
   *next_table_id += 1;
 
-  let path = dir.join(format!("{table_id:08}.sst"));
+  let path = sstable_path(dir, table_id);
   let mut writer = SSTableWriter::new(path, table_id, entries.len()).await?;
 
   for (key, entry) in &entries {
@@ -325,7 +327,7 @@ pub async fn compact_level(
   let table_id = *next_table_id;
   *next_table_id += 1;
 
-  let path = dir.join(format!("{table_id:08}.sst"));
+  let path = sstable_path(dir, table_id);
   let mut writer = SSTableWriter::new(path, table_id, entries.len()).await?;
 
   for (key, entry) in &entries {
@@ -339,6 +341,14 @@ pub async fn compact_level(
     old_tables: vec![src_id].into_iter().chain(dst_ids).collect(),
     dest_level: dst_level.level,
   })
+}
+
+/// Generate SSTable file path
+/// 生成 SSTable 文件路径
+fn sstable_path(dir: &Path, id: u64) -> PathBuf {
+  let mut path = id_path(dir, id);
+  path.set_extension("sst");
+  path
 }
 
 #[cfg(test)]

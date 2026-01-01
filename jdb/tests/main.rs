@@ -1200,6 +1200,7 @@ mod index_flush_tests {
   use aok::{OK, Void};
   use jdb::{Conf, ConfItem, Entry, Index};
   use jdb_base::Pos;
+  use log::info;
 
   #[test]
   fn test_index_should_flush_threshold() -> Void {
@@ -1349,6 +1350,334 @@ mod index_flush_tests {
       // 应该从 L0 获取更新的值（最新的优先搜索）
       let entry = index.get(b"key1").await?.expect("should find key1");
       assert_eq!(entry, Entry::Value(pos2));
+
+      // Cleanup
+      // 清理
+      let _ = std::fs::remove_dir_all(&tmp_dir);
+      OK
+    })
+  }
+
+  #[test]
+  fn test_index_compaction_get() -> Void {
+    compio::runtime::Runtime::new()?.block_on(async {
+      let tmp_dir =
+        std::env::temp_dir().join(format!("test_index_compaction_get_{}", fastrand::u64(..)));
+      std::fs::create_dir_all(&tmp_dir)?;
+
+      // Use small memtable and low L0 threshold to trigger compaction
+      // 使用小内存表和低 L0 阈值来触发压缩
+      let conf = Conf::from_items(&[ConfItem::MemtableSize(512), ConfItem::L0Threshold(2)]);
+      let mut index = Index::new(tmp_dir.clone(), conf);
+
+      // First batch - put some keys
+      // 第一批 - 插入一些键
+      let key1 = b"key_aaa".to_vec();
+      let key2 = b"key_bbb".to_vec();
+      let key3 = b"key_ccc".to_vec();
+      let pos1 = Pos::infile(1, 100, 10);
+      let pos2 = Pos::infile(1, 200, 20);
+      let pos3 = Pos::infile(1, 300, 30);
+
+      index.put(key1.clone().into_boxed_slice(), pos1);
+      index.put(key2.clone().into_boxed_slice(), pos2);
+      index.put(key3.clone().into_boxed_slice(), pos3);
+
+      // Seal and flush
+      // 密封并刷新
+      index.seal_memtable();
+      let _ = index.flush_sealed().await?;
+      info!("After flush 1: L0 count = {}", index.l0_count());
+
+      // Second batch - put more keys
+      // 第二批 - 插入更多键
+      let key4 = b"key_ddd".to_vec();
+      let key5 = b"key_eee".to_vec();
+      let pos4 = Pos::infile(2, 400, 40);
+      let pos5 = Pos::infile(2, 500, 50);
+
+      index.put(key4.clone().into_boxed_slice(), pos4);
+      index.put(key5.clone().into_boxed_slice(), pos5);
+
+      // Seal and flush again
+      // 再次密封并刷新
+      index.seal_memtable();
+      let _ = index.flush_sealed().await?;
+      info!("After flush 2: L0 count = {}", index.l0_count());
+
+      // Verify all keys before compaction
+      // 压缩前验证所有键
+      assert_eq!(
+        index.get(&key1).await?.expect("key1 before compaction"),
+        Entry::Value(pos1)
+      );
+      assert_eq!(
+        index.get(&key4).await?.expect("key4 before compaction"),
+        Entry::Value(pos4)
+      );
+
+      // Run compaction
+      // 运行压缩
+      let compacted = index.maybe_compact().await?;
+      info!(
+        "Compacted: {}, L0 count = {}, levels = {}",
+        compacted,
+        index.l0_count(),
+        index.levels().len()
+      );
+
+      // Print level info
+      // 打印层级信息
+      for (i, level) in index.levels().iter().enumerate() {
+        info!("Level {} has {} tables", i, level.len());
+        for table in &level.tables {
+          let meta = table.meta();
+          info!(
+            "  Table {}: min_key={:?}, max_key={:?}",
+            meta.id, meta.min_key, meta.max_key
+          );
+        }
+      }
+
+      // Verify all keys after compaction
+      // 压缩后验证所有键
+      let entry1 = index.get(&key1).await?;
+      info!("key1 after compaction: {:?}", entry1);
+      assert!(entry1.is_some(), "key1 not found after compaction");
+      assert_eq!(entry1.unwrap(), Entry::Value(pos1));
+
+      let entry2 = index.get(&key2).await?;
+      info!("key2 after compaction: {:?}", entry2);
+      assert!(entry2.is_some(), "key2 not found after compaction");
+      assert_eq!(entry2.unwrap(), Entry::Value(pos2));
+
+      let entry3 = index.get(&key3).await?;
+      info!("key3 after compaction: {:?}", entry3);
+      assert!(entry3.is_some(), "key3 not found after compaction");
+      assert_eq!(entry3.unwrap(), Entry::Value(pos3));
+
+      let entry4 = index.get(&key4).await?;
+      info!("key4 after compaction: {:?}", entry4);
+      assert!(entry4.is_some(), "key4 not found after compaction");
+      assert_eq!(entry4.unwrap(), Entry::Value(pos4));
+
+      let entry5 = index.get(&key5).await?;
+      info!("key5 after compaction: {:?}", entry5);
+      assert!(entry5.is_some(), "key5 not found after compaction");
+      assert_eq!(entry5.unwrap(), Entry::Value(pos5));
+
+      // Cleanup
+      // 清理
+      let _ = std::fs::remove_dir_all(&tmp_dir);
+      OK
+    })
+  }
+
+  /// Test compaction with overlapping keys
+  /// 测试有重叠键的压缩
+  #[test]
+  fn test_index_compaction_overlapping_keys() -> Void {
+    compio::runtime::Runtime::new()?.block_on(async {
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_compaction_overlapping_keys_{}",
+        fastrand::u64(..)
+      ));
+      std::fs::create_dir_all(&tmp_dir)?;
+
+      let conf = Conf::from_items(&[ConfItem::MemtableSize(512), ConfItem::L0Threshold(2)]);
+      let mut index = Index::new(tmp_dir.clone(), conf);
+
+      // First batch - put key [0] twice with different values
+      // 第一批 - 用不同的值插入键 [0] 两次
+      let key0 = vec![0u8];
+      let pos1 = Pos::infile(0, 0, 0);
+      let pos2 = Pos::infile(0, 145890, 3229080220);
+
+      index.put(key0.clone().into_boxed_slice(), pos1);
+      index.put(key0.clone().into_boxed_slice(), pos2);
+
+      // Add more keys
+      // 添加更多键
+      let key1 = vec![210u8, 204, 27, 244, 113];
+      let pos3 = Pos::infile(9747750559154161929, 5988402464810570988, 1715483508);
+      index.put(key1.clone().into_boxed_slice(), pos3);
+
+      // Seal and flush
+      // 密封并刷新
+      index.seal_memtable();
+      let _ = index.flush_sealed().await?;
+      info!("After flush 1: L0 count = {}", index.l0_count());
+
+      // Second batch
+      // 第二批
+      let key2 = vec![149u8, 236, 241, 8, 153, 69, 70, 105, 41];
+      let pos4 = Pos::infile(1173020921495281860, 4125700145580995233, 2401585032);
+      index.put(key2.clone().into_boxed_slice(), pos4);
+
+      let key3 = vec![35u8];
+      let pos5 = Pos::infile(1809101193593519238, 2426190062291300019, 245869206);
+      index.put(key3.clone().into_boxed_slice(), pos5);
+
+      // Seal and flush again
+      // 再次密封并刷新
+      index.seal_memtable();
+      let _ = index.flush_sealed().await?;
+      info!("After flush 2: L0 count = {}", index.l0_count());
+
+      // Verify before compaction
+      // 压缩前验证
+      let entry0 = index.get(&key0).await?;
+      info!("key0 before compaction: {:?}", entry0);
+      assert!(entry0.is_some(), "key0 not found before compaction");
+      assert_eq!(entry0.unwrap(), Entry::Value(pos2)); // Should be the latest value
+
+      // Run compaction
+      // 运行压缩
+      let compacted = index.maybe_compact().await?;
+      info!(
+        "Compacted: {}, L0 count = {}, levels = {}",
+        compacted,
+        index.l0_count(),
+        index.levels().len()
+      );
+
+      // Print level info
+      // 打印层级信息
+      for (i, level) in index.levels().iter().enumerate() {
+        info!("Level {} has {} tables", i, level.len());
+        for table in &level.tables {
+          let meta = table.meta();
+          info!(
+            "  Table {}: min_key={:?}, max_key={:?}",
+            meta.id, meta.min_key, meta.max_key
+          );
+        }
+      }
+
+      // Verify after compaction
+      // 压缩后验证
+      let entry0 = index.get(&key0).await?;
+      info!("key0 after compaction: {:?}", entry0);
+      assert!(entry0.is_some(), "key0 not found after compaction");
+      assert_eq!(entry0.unwrap(), Entry::Value(pos2)); // Should still be the latest value
+
+      let entry1 = index.get(&key1).await?;
+      info!("key1 after compaction: {:?}", entry1);
+      assert!(entry1.is_some(), "key1 not found after compaction");
+      assert_eq!(entry1.unwrap(), Entry::Value(pos3));
+
+      let entry2 = index.get(&key2).await?;
+      info!("key2 after compaction: {:?}", entry2);
+      assert!(entry2.is_some(), "key2 not found after compaction");
+      assert_eq!(entry2.unwrap(), Entry::Value(pos4));
+
+      let entry3 = index.get(&key3).await?;
+      info!("key3 after compaction: {:?}", entry3);
+      assert!(entry3.is_some(), "key3 not found after compaction");
+      assert_eq!(entry3.unwrap(), Entry::Value(pos5));
+
+      // Cleanup
+      // 清理
+      let _ = std::fs::remove_dir_all(&tmp_dir);
+      OK
+    })
+  }
+
+  /// Test compaction with key [202] - reproducing proptest failure
+  /// 测试键 [202] 的压缩 - 重现 proptest 失败
+  #[test]
+  fn test_index_compaction_key_202() -> Void {
+    compio::runtime::Runtime::new()?.block_on(async {
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_compaction_key_202_{}",
+        fastrand::u64(..)
+      ));
+      std::fs::create_dir_all(&tmp_dir)?;
+
+      let conf = Conf::from_items(&[ConfItem::MemtableSize(512), ConfItem::L0Threshold(2)]);
+      let mut index = Index::new(tmp_dir.clone(), conf);
+
+      // First batch - from proptest regression
+      // 第一批 - 来自 proptest regression
+      index.put(vec![0u8].into_boxed_slice(), Pos::infile(0, 0, 0));
+      index.put(vec![0u8].into_boxed_slice(), Pos::infile(0, 0, 87));
+      index.put(
+        vec![2u8, 196, 168, 247, 86, 9, 186, 115, 203, 75, 51, 125, 55].into_boxed_slice(),
+        Pos::infile(4035580412736968745, 12294285814533776696, 3282384014),
+      );
+      index.del(vec![8u8, 60, 178, 148, 57, 87, 109, 118].into_boxed_slice());
+      index.put(
+        vec![148u8, 115, 98, 233, 164, 87, 216, 191, 125, 90, 134, 199, 184, 166, 114]
+          .into_boxed_slice(),
+        Pos::infile(6164899580939608942, 15216035334959378983, 2808231117),
+      );
+
+      // Seal and flush
+      // 密封并刷新
+      index.seal_memtable();
+      let _ = index.flush_sealed().await?;
+      info!("After flush 1: L0 count = {}", index.l0_count());
+
+      // Second batch - includes key [202]
+      // 第二批 - 包含键 [202]
+      index.put(
+        vec![83u8, 166, 193, 67, 31, 181, 229, 7, 236].into_boxed_slice(),
+        Pos::infile(6392762991450751545, 11028467653528313416, 1333066465),
+      );
+      // Key [202]
+      let key_202 = vec![202u8];
+      let pos_202 = Pos::infile(6424140631229481194, 7902516027705068065, 2040550895);
+      index.put(key_202.clone().into_boxed_slice(), pos_202);
+
+      // Seal and flush again
+      // 再次密封并刷新
+      index.seal_memtable();
+      let _ = index.flush_sealed().await?;
+      info!("After flush 2: L0 count = {}", index.l0_count());
+
+      // Verify key [202] before compaction
+      // 压缩前验证键 [202]
+      let entry_202 = index.get(&key_202).await?;
+      info!("key [202] before compaction: {:?}", entry_202);
+      assert!(entry_202.is_some(), "key [202] not found before compaction");
+      assert_eq!(entry_202.unwrap(), Entry::Value(pos_202));
+
+      // Run compaction
+      // 运行压缩
+      let compacted = index.maybe_compact().await?;
+      info!(
+        "Compacted: {}, L0 count = {}, levels = {}",
+        compacted,
+        index.l0_count(),
+        index.levels().len()
+      );
+
+      // Print level info
+      // 打印层级信息
+      for (i, level) in index.levels().iter().enumerate() {
+        info!("Level {} has {} tables", i, level.len());
+        for table in &level.tables {
+          let meta = table.meta();
+          info!(
+            "  Table {}: min_key={:?}, max_key={:?}",
+            meta.id, meta.min_key, meta.max_key
+          );
+          // Check if key [202] is in range
+          // 检查键 [202] 是否在范围内
+          info!(
+            "  is_key_in_range([202]): {}",
+            table.is_key_in_range(&key_202)
+          );
+          info!("  may_contain([202]): {}", table.may_contain(&key_202));
+        }
+      }
+
+      // Verify key [202] after compaction
+      // 压缩后验证键 [202]
+      let entry_202 = index.get(&key_202).await?;
+      info!("key [202] after compaction: {:?}", entry_202);
+      assert!(entry_202.is_some(), "key [202] not found after compaction");
+      assert_eq!(entry_202.unwrap(), Entry::Value(pos_202));
 
       // Cleanup
       // 清理
@@ -2630,7 +2959,7 @@ mod proptest_compaction {
         // Seal and flush to create L0 SSTable
         // 密封并刷新以创建 L0 SSTable
         index.seal_memtable();
-        let _ = index.flush_sealed().await;
+        let flush1 = index.flush_sealed().await;
 
         // Second batch of operations
         // 第二批操作
@@ -2650,11 +2979,26 @@ mod proptest_compaction {
         // Seal and flush again
         // 再次密封并刷新
         index.seal_memtable();
-        let _ = index.flush_sealed().await;
+        let flush2 = index.flush_sealed().await;
+
+        // Debug: print flush results
+        // 调试：打印刷新结果
+        eprintln!("Flush 1: {:?}, Flush 2: {:?}", flush1, flush2);
+        eprintln!("L0 count before compaction: {}", index.l0_count());
 
         // Run compaction if needed
         // 如果需要则运行压缩
-        let _ = index.maybe_compact().await;
+        let compacted = index.maybe_compact().await;
+        eprintln!("Compacted: {:?}", compacted);
+        eprintln!("L0 count after compaction: {}", index.l0_count());
+        eprintln!("Levels: {}", index.levels().len());
+        for (i, level) in index.levels().iter().enumerate() {
+          eprintln!("Level {} has {} tables", i, level.len());
+          for table in &level.tables {
+            let meta = table.meta();
+            eprintln!("  Table {}: min_key={:?}, max_key={:?}", meta.id, meta.min_key, meta.max_key);
+          }
+        }
 
         // Verify all expected data is preserved
         // 验证所有预期数据都被保留
@@ -2680,6 +3024,8 @@ mod proptest_compaction {
                 None => {
                   // This shouldn't happen for non-deleted keys
                   // 对于未删除的键，这不应该发生
+                  eprintln!("ERROR: Key {:?} not found after compaction", key);
+                  eprintln!("Expected: {:?}", pos);
                   prop_assert!(false, "Key {:?} not found after compaction", key);
                 }
               }

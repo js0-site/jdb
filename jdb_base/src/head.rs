@@ -110,7 +110,9 @@ impl Head {
 
     let head_bytes = &buf[..HEAD_SIZE];
     let crc_bytes = &buf[HEAD_SIZE..HEAD_CRC];
-    let got = u32::from_le_bytes(unsafe { *crc_bytes.as_ptr().cast::<[u8; 4]>() });
+
+    // Safety: slice length is checked, try_into handles alignment safe copy
+    let got = u32::from_le_bytes(crc_bytes.try_into().unwrap());
     let expected = crc32fast::hash(head_bytes);
     if got != expected {
       return Err(HeadError { file_id, pos });
@@ -169,7 +171,7 @@ impl Head {
 
   /// Val data offset in record
   #[inline(always)]
-  pub fn val_off(&self) -> usize {
+  pub const fn val_offset() -> usize {
     HEAD_CRC
   }
 
@@ -211,7 +213,7 @@ impl Default for HeadBuilder {
 impl HeadBuilder {
   pub fn new() -> Self {
     Self {
-      buf: Vec::with_capacity(128),
+      buf: Vec::with_capacity(256), // Slightly larger initial capacity
     }
   }
 
@@ -236,6 +238,11 @@ impl HeadBuilder {
   #[inline]
   fn build(&mut self, head: &Head, val: Option<&[u8]>, key: &[u8]) -> &[u8] {
     self.buf.clear();
+    // Pre-calculate total size to reserve once
+    let total_len = HEAD_TOTAL + val.map_or(0, |v| v.len()) + key.len();
+    self.buf.reserve(total_len);
+
+    // Zero-initialize head part
     self.buf.resize(HEAD_TOTAL, 0);
     head.write(&mut self.buf);
 

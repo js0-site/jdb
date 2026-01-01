@@ -6,7 +6,7 @@
 
 use std::{ops::Bound, path::PathBuf};
 
-use jdb_base::Pos;
+use jdb_base::{Pos, id_path};
 
 use super::{
   Entry, Level, Memtable, MergeIter,
@@ -95,15 +95,19 @@ impl Index {
           }
         }
       } else {
-        // L1+: tables are sorted and non-overlapping
-        // L1+：表是有序且不重叠的
-        // Binary search for the right table
-        // 二分查找正确的表
+        // L1+: tables are sorted by min_key and non-overlapping
+        // L1+：表按 min_key 排序且不重叠
+        // Binary search: find last table where min_key <= key
+        // 二分查找：找到最后一个 min_key <= key 的表
         let idx = level
           .tables
-          .partition_point(|t| t.meta().max_key.as_ref() < key);
-        if idx < level.tables.len() {
-          let table = &level.tables[idx];
+          .partition_point(|t| t.meta().min_key.as_ref() <= key);
+        // partition_point returns first index where condition is false
+        // so we need idx - 1 (the last table where min_key <= key)
+        // partition_point 返回第一个条件为 false 的索引
+        // 所以我们需要 idx - 1（最后一个 min_key <= key 的表）
+        if idx > 0 {
+          let table = &level.tables[idx - 1];
           if table.is_key_in_range(key)
             && table.may_contain(key)
             && let Some(entry) = table.get(key).await?
@@ -221,7 +225,9 @@ impl Index {
   /// Generate SSTable file path
   /// 生成 SSTable 文件路径
   fn sstable_path(&self, id: u64) -> PathBuf {
-    self.dir.join(format!("{id:08}.sst"))
+    let mut path = id_path(&self.dir, id);
+    path.set_extension("sst");
+    path
   }
 
   /// Get directory
