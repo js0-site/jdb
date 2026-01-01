@@ -4,13 +4,14 @@
 //! Manages memtable, sealed memtables, and SSTable levels.
 //! 管理内存表、密封内存表和 SSTable 层级。
 
-use std::ops::Bound;
-use std::path::PathBuf;
+use std::{ops::Bound, path::PathBuf};
 
 use jdb_base::Pos;
 
-use super::compact::{compact_l0_to_l1, compact_level, needs_l0_compaction, needs_level_compaction};
-use super::{Entry, Level, Memtable, MergeIter};
+use super::{
+  Entry, Level, Memtable, MergeIter,
+  compact::{compact_l0_to_l1, compact_level, needs_l0_compaction, needs_level_compaction},
+};
 use crate::{Conf, Result, SSTableReader, SSTableWriter};
 
 /// LSM-Tree index
@@ -280,7 +281,10 @@ impl Index {
     // 2. Sealed memtables (newest first)
     // 2. 密封内存表（最新的优先）
     for sealed in self.sealed.iter().rev() {
-      let entries: Vec<_> = sealed.range(start, end).map(|(k, e)| (k.into(), *e)).collect();
+      let entries: Vec<_> = sealed
+        .range(start, end)
+        .map(|(k, e)| (k.into(), *e))
+        .collect();
       sources.push(entries);
     }
 
@@ -353,7 +357,10 @@ impl Index {
     // 2. Sealed memtables (newest first)
     // 2. 密封内存表（最新的优先）
     for sealed in self.sealed.iter().rev() {
-      let entries: Vec<_> = sealed.range(start, end).map(|(k, e)| (k.into(), *e)).collect();
+      let entries: Vec<_> = sealed
+        .range(start, end)
+        .map(|(k, e)| (k.into(), *e))
+        .collect();
       sources.push(entries);
     }
 
@@ -435,7 +442,13 @@ impl Index {
       self.levels.push(Level::new(self.levels.len()));
     }
 
-    let result = compact_l0_to_l1(&self.dir, &self.levels[0], &self.levels[1], &mut self.next_table_id).await?;
+    let result = compact_l0_to_l1(
+      &self.dir,
+      &self.levels[0],
+      &self.levels[1],
+      &mut self.next_table_id,
+    )
+    .await?;
 
     if result.new_tables.is_empty() && result.old_tables.is_empty() {
       return Ok(false);

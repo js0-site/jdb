@@ -3,6 +3,7 @@
 
 use std::rc::Rc;
 
+use jdb_base::{Flag, Pos};
 use jdb_lock::{NoLock, WalLock, w::Lock as WLock};
 use size_lru::{Lhd, NoCache as SzNoCache, SizeLru};
 
@@ -10,7 +11,6 @@ use super::consts::{
   BLOCK_CACHE_RATIO, DEFAULT_BIN_CAP, DEFAULT_CACHE_SIZE, DEFAULT_FILE_CAP, DEFAULT_MAX_SIZE,
   DEFAULT_SLOT_MAX, DEFAULT_WRITE_CHAN, MIN_BIN_CAP, MIN_CACHE_SIZE, MIN_FILE_CAP,
 };
-use crate::{Flag, Pos};
 
 /// GC trait for data processing during GC
 /// GC 数据处理 trait

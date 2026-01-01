@@ -2,15 +2,14 @@
 //! WAL 写入操作
 
 use compio::{buf::IoBuf, io::AsyncWriteAtExt};
+use jdb_base::{Flag, HEAD_CRC, INFILE_MAX, KEY_MAX, Pos};
 use size_lru::SizeLru;
 use zbin::Bin;
 
 use super::{Val, WalConf, WalInner};
 use crate::{
-  Flag, Pos,
   error::{Error, Result},
   fs::{open_write_create, write_file},
-  head::{HEAD_CRC, INFILE_MAX, KEY_MAX},
 };
 
 impl<C: WalConf> WalInner<C> {

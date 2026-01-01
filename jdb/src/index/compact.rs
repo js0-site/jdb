@@ -4,7 +4,7 @@
 //! Merges SSTables to reduce read amplification and reclaim space.
 //! 合并 SSTable 以减少读放大并回收空间。
 
-use std::path::PathBuf;
+use std::path::Path;
 
 use super::{Entry, Level};
 use crate::{Result, SSTableWriter};
@@ -35,7 +35,12 @@ pub fn needs_l0_compaction(l0_count: usize, threshold: usize) -> bool {
 ///
 /// Returns true if level size exceeds target size.
 /// 如果层级大小超过目标大小则返回 true。
-pub fn needs_level_compaction(level_size: u64, level_idx: usize, base_size: u64, ratio: usize) -> bool {
+pub fn needs_level_compaction(
+  level_size: u64,
+  level_idx: usize,
+  base_size: u64,
+  ratio: usize,
+) -> bool {
   if level_idx == 0 {
     return false; // L0 uses count-based threshold
   }
@@ -121,7 +126,10 @@ impl CompactMerger {
     let mut last_key: Option<Box<[u8]>> = None;
 
     for (key, entry, _) in all {
-      if last_key.as_ref().is_some_and(|k| k.as_ref() == key.as_ref()) {
+      if last_key
+        .as_ref()
+        .is_some_and(|k| k.as_ref() == key.as_ref())
+      {
         continue;
       }
       last_key = Some(key.clone());
@@ -153,7 +161,7 @@ impl CompactMerger {
 /// Merges all L0 tables with overlapping L1 tables.
 /// 将所有 L0 表与重叠的 L1 表合并。
 pub async fn compact_l0_to_l1(
-  dir: &PathBuf,
+  dir: &Path,
   l0: &Level,
   l1: &Level,
   next_table_id: &mut u64,
@@ -177,10 +185,14 @@ pub async fn compact_l0_to_l1(
 
   for table in &l0.tables {
     let meta = table.meta();
-    if min_key.is_none() || meta.min_key.as_ref() < min_key.as_ref().map(|k| k.as_ref()).unwrap_or(&[]) {
+    if min_key.is_none()
+      || meta.min_key.as_ref() < min_key.as_ref().map(|k| k.as_ref()).unwrap_or(&[])
+    {
       min_key = Some(meta.min_key.clone());
     }
-    if max_key.is_none() || meta.max_key.as_ref() > max_key.as_ref().map(|k| k.as_ref()).unwrap_or(&[]) {
+    if max_key.is_none()
+      || meta.max_key.as_ref() > max_key.as_ref().map(|k| k.as_ref()).unwrap_or(&[])
+    {
       max_key = Some(meta.max_key.clone());
     }
   }
@@ -251,7 +263,7 @@ pub async fn compact_l0_to_l1(
 /// Picks tables that exceed the level size and merges with overlapping tables in next level.
 /// 选择超过层级大小的表并与下一层级的重叠表合并。
 pub async fn compact_level(
-  dir: &PathBuf,
+  dir: &Path,
   src_level: &Level,
   dst_level: &Level,
   next_table_id: &mut u64,
@@ -274,7 +286,10 @@ pub async fn compact_level(
   // Find overlapping tables in destination level
   // 在目标层级中查找重叠表
   let dst_indices = find_overlapping_tables(dst_level, &src_meta.min_key, &src_meta.max_key);
-  let dst_ids: Vec<u64> = dst_indices.iter().map(|&i| dst_level.tables[i].meta().id).collect();
+  let dst_ids: Vec<u64> = dst_indices
+    .iter()
+    .map(|&i| dst_level.tables[i].meta().id)
+    .collect();
 
   // Collect entries
   // 收集条目

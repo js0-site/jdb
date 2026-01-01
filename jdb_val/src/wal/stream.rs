@@ -8,13 +8,13 @@ use compio::{
   io::{AsyncReadAtExt, AsyncWriteAtExt},
 };
 use compio_fs::File;
+use jdb_base::{Flag, Head, INFILE_MAX};
 use zbin::Bin;
 
 use super::{Wal, WalConf, WalInner};
 use crate::{
-  Flag, Result,
+  Result,
   fs::{open_read, open_write_create},
-  head::{Head, INFILE_MAX},
 };
 
 impl<C: WalConf> WalInner<C> {

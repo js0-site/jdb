@@ -6,21 +6,19 @@ use compio::{
   io::{AsyncReadAt, AsyncReadAtExt},
 };
 use compio_fs::File;
+use jdb_base::{HEAD_CRC, HEAD_TOTAL, Head, MAGIC, Pos};
 use log::warn;
 use size_lru::SizeLru;
 
 use super::{
   Val, Wal, WalConf, WalInner,
-  consts::{ITER_BUF_SIZE, SMALL_BUF_SIZE},
+  consts::{HEADER_SIZE, ITER_BUF_SIZE, SMALL_BUF_SIZE},
   header::{HeaderState, check_header},
   record::Record,
 };
 use crate::{
-  Pos,
   error::{Error, Result},
   fs::open_read,
-  head::{HEAD_CRC, HEAD_TOTAL, Head, MAGIC},
-  wal::consts::HEADER_SIZE,
 };
 
 impl<C: WalConf> WalInner<C> {
@@ -34,7 +32,7 @@ impl<C: WalConf> WalInner<C> {
     self.read_buf = slice.into_inner();
     res?;
 
-    Head::parse(&self.read_buf, loc.id(), loc.offset())
+    Ok(Head::parse(&self.read_buf, loc.id(), loc.offset())?)
   }
 
   /// Read full record at location

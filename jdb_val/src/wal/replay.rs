@@ -9,20 +9,15 @@ use compio::{
   io::{AsyncReadAt, AsyncReadAtExt},
 };
 use compio_fs::File;
+use jdb_base::{HEAD_CRC, HEAD_TOTAL, Head, Load, MAGIC, Pos};
 use log::warn;
-use memchr::memmem;
 
 use super::{
-  WalConf, WalInner,
+  WalConf, WalEntry, WalInner,
   consts::{HEADER_SIZE, MIN_FILE_SIZE, SCAN_BUF_SIZE},
   header::{HeaderState, check_header},
 };
-use crate::{
-  Pos, Result, WalPtr,
-  error::Error,
-  fs::open_read,
-  head::{HEAD_CRC, HEAD_TOTAL, Head, MAGIC},
-};
+use crate::{Result, WalPtr, error::Error, fs::open_read};
 
 /// Replay item: (key, Pos)
 /// 回放项：(key, Pos)
@@ -342,7 +337,7 @@ impl ReplayIter {
 
       // Find magic in buffer
       // 在缓冲区中查找 magic
-      if let Some(idx) = memmem::find(&self.buf, &[MAGIC]) {
+      if let Some(idx) = WalEntry::find_magic(&self.buf) {
         let magic_pos = search_pos + idx as u64;
 
         // Validate head at magic position

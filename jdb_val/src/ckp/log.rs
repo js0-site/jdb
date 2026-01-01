@@ -5,9 +5,10 @@ use std::path::PathBuf;
 
 use compio::io::AsyncWriteAtExt;
 use compio_fs::File;
+use jdb_base::Load;
 
 use super::entry::{self, CkpEntry, HEADER_SIZE};
-use crate::{Result, fs::read_all, load::recover};
+use crate::{Result, fs::read_all};
 
 /// Checkpoint log
 /// 检查点日志
@@ -42,7 +43,7 @@ impl Log {
     let len = file.metadata().await?.len();
     // Recover valid end position using Load trait
     // 使用 Load trait 恢复有效结束位置
-    self.pos = recover::<CkpEntry>(&file, 0, len).await;
+    self.pos = CkpEntry::recover(&file, 0, len).await;
     self.file = Some(file);
     Ok(())
   }
@@ -104,7 +105,7 @@ impl<'a> Iterator for Iter<'a> {
       // Skip to find next magic
       // 跳过找下一个 magic
       self.pos += 1;
-      if let Some(idx) = memchr::memchr(entry::MAGIC, &self.buf[self.pos..]) {
+      if let Some(idx) = CkpEntry::find_magic(&self.buf[self.pos..]) {
         self.pos += idx;
       } else {
         break;

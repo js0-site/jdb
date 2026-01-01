@@ -9,7 +9,7 @@ use cuckoofilter::CuckooFilter as OriginalCuckooFilter;
 use farmhash::FarmHasher;
 use gxhash::GxHasher;
 use mimalloc::MiMalloc;
-use cuckoo_filter::ScalableCuckooFilter;
+use scalable_cuckoo_filter::ScalableCuckooFilter;
 use serde::Serialize;
 
 #[global_allocator]
@@ -343,7 +343,7 @@ fn bench_remove(c: &mut Criterion) {
         }
         f
       },
-      |mut f| {
+      |mut f: autoscale_cuckoo_filter::CuckooFilter<u64, GxHasher>| {
         for i in 0..50u64 {
           f.remove(&i);
         }
@@ -361,7 +361,7 @@ fn bench_remove(c: &mut Criterion) {
         }
         f
       },
-      |mut f| {
+      |mut f: ScalableCuckooFilter<u64>| {
         for i in 0..50u64 {
           f.remove(&i);
         }
@@ -379,7 +379,7 @@ fn bench_remove(c: &mut Criterion) {
         }
         f
       },
-      |mut f| {
+      |mut f: OriginalCuckooFilter<FarmHasher>| {
         for i in 0..50u64 {
           f.delete(&i);
         }

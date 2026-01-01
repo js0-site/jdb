@@ -39,9 +39,9 @@
 
 pub use cuckoo_filter::{CuckooFilter, CuckooFilterBuilder, DefaultHasher};
 
+mod base;
 mod bits;
 mod buckets;
-mod base;
 mod cuckoo_filter;
 
 use std::hash::{Hash, Hasher};

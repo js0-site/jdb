@@ -4,6 +4,41 @@
 //! Single-threaded async with compio
 //! 基于 compio 的单线程异步
 
+use jdb_base::{HEAD_SIZE, HEAD_TOTAL, Head, Load, MAGIC};
+use zerocopy::FromBytes;
+
+/// WAL entry type for Load trait / WAL 条目类型用于 Load trait
+pub struct WalEntry;
+
+impl Load for WalEntry {
+  const MAGIC: u8 = MAGIC;
+  const HEAD_SIZE: usize = HEAD_TOTAL;
+  // Meta is the Head bytes (excludes magic)
+  // Meta 是 Head 字节（不含 magic）
+  const META_OFFSET: usize = 1;
+
+  #[inline]
+  fn len(buf: &[u8]) -> usize {
+    if buf.len() < HEAD_TOTAL || buf[0] != MAGIC {
+      return 0;
+    }
+    let Some(head) = Head::read_from_bytes(&buf[1..1 + HEAD_SIZE]).ok() else {
+      return 0;
+    };
+    1 + head.record_size()
+  }
+
+  #[inline]
+  fn crc_offset(_len: usize) -> usize {
+    1 + HEAD_SIZE
+  }
+
+  #[inline]
+  fn meta_len(_len: usize) -> usize {
+    HEAD_SIZE
+  }
+}
+
 mod conf;
 pub(crate) mod consts;
 mod header;
@@ -32,6 +67,7 @@ pub(crate) use conf::{DefaultConf, GcConf, ParsedConf, WalConf};
 use consts::{BIN_SUBDIR, WAL_SUBDIR};
 use hashlink::lru_cache::Entry;
 use ider::Ider;
+use jdb_base::{HeadBuilder, Pos};
 use jdb_lru::{Cache, Lru};
 use size_lru::SizeLru;
 use write_buf::SharedState;
@@ -41,8 +77,6 @@ use crate::{
   block_cache::BlockLru,
   error::Result,
   fs::{decode_id, id_path, open_read},
-  head::HeadBuilder,
-  pos::Pos,
 };
 
 /// WAL manager with LRU cache

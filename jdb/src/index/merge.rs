@@ -74,7 +74,10 @@ impl MergeIter {
     let mut last_key: Option<Box<[u8]>> = None;
 
     for (key, entry, _priority) in all_entries {
-      if last_key.as_ref().is_some_and(|k| k.as_ref() == key.as_ref()) {
+      if last_key
+        .as_ref()
+        .is_some_and(|k| k.as_ref() == key.as_ref())
+      {
         continue; // Skip duplicate
       }
       last_key = Some(key.clone());
@@ -173,12 +176,7 @@ mod tests {
 
     assert_eq!(
       keys,
-      vec![
-        b"a".to_vec(),
-        b"b".to_vec(),
-        b"c".to_vec(),
-        b"d".to_vec()
-      ]
+      vec![b"a".to_vec(), b"b".to_vec(), b"c".to_vec(), b"d".to_vec()]
     );
   }
 

@@ -8,11 +8,12 @@ use compio::{
   io::{AsyncReadAtExt, AsyncWriteAtExt},
 };
 use compio_fs::File;
+use jdb_base::Load;
 use jdb_lock::WalLock;
 use log::{info, warn};
 
 use super::{
-  WalConf, WalInner,
+  WalConf, WalEntry, WalInner,
   consts::{GC_SUBDIR, HEADER_SIZE, MIN_FILE_SIZE},
   header::{HeaderState, build_header, check_header},
   replay::ReplayIter,
@@ -21,8 +22,6 @@ use crate::{
   Ckp,
   error::Result,
   fs::{decode_id, open_read_write, open_read_write_create},
-  head::WalEntry,
-  load,
 };
 
 impl<C: WalConf> WalInner<C> {
@@ -130,7 +129,7 @@ impl<C: WalConf> WalInner<C> {
         continue;
       }
 
-      let valid_pos = load::recover::<WalEntry>(&file, HEADER_SIZE as u64, len).await;
+      let valid_pos = WalEntry::recover(&file, HEADER_SIZE as u64, len).await;
       log::info!("WAL recovered: {path:?}, pos={valid_pos}");
 
       return Some((id, file, valid_pos));

@@ -15,10 +15,11 @@ use std::{
 };
 
 use hipstr::HipByt;
+use jdb_base::Pos;
 use jdb_lock::gc::Lock as GcLock;
 
 use crate::{
-  Error, Pos, Result,
+  Error, Result,
   fs::id_path,
   wal::{
     Conf, Gc, Wal, WalConf, WalInner, WalNoCache,

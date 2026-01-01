@@ -43,4 +43,13 @@ pub enum Error {
   CheckpointCorrupt { path: PathBuf },
 }
 
+impl From<jdb_base::HeadError> for Error {
+  fn from(err: jdb_base::HeadError) -> Self {
+    Self::CrcMismatch {
+      file_id: err.file_id,
+      pos: err.pos,
+    }
+  }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;

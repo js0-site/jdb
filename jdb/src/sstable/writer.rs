@@ -11,9 +11,8 @@ use compio::{buf::IoBuf, fs::File, io::AsyncWriteAtExt};
 use crc32fast::Hasher;
 use zerocopy::IntoBytes;
 
-use crate::{BlockBuilder, Entry, Result};
-
 use super::{Footer, TableMeta};
+use crate::{BlockBuilder, Entry, Result};
 
 /// Default block size (4KB)
 /// 默认块大小（4KB）
@@ -183,7 +182,13 @@ impl Writer {
     // Write footer
     // 写入尾部
     let checksum = self.hasher.clone().finalize();
-    let footer = Footer::new(filter_offset, filter_size, index_offset, index_size, checksum);
+    let footer = Footer::new(
+      filter_offset,
+      filter_size,
+      index_offset,
+      index_size,
+      checksum,
+    );
     let footer_bytes = footer.as_bytes();
     self.write_all(footer_bytes).await?;
 

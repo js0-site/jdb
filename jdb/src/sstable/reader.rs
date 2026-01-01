@@ -15,9 +15,8 @@ use compio::{
 use crc32fast::Hasher;
 use zerocopy::FromBytes;
 
+use super::{FOOTER_SIZE, Footer, TableMeta};
 use crate::{DataBlock, Entry, Result};
-
-use super::{Footer, TableMeta, FOOTER_SIZE};
 
 /// Index entry for block lookup
 /// 块查找的索引条目
@@ -131,7 +130,7 @@ impl Reader {
     let mut meta = TableMeta::new(id);
     meta.file_size = file_size;
     meta.item_count = index.len() as u64; // Approximate, actual count in blocks
-                                          // 近似值，实际数量在块中
+    // 近似值，实际数量在块中
 
     // max_key is the last key in the last block
     // max_key 是最后一个块的最后一个键

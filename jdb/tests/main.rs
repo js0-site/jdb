@@ -492,7 +492,6 @@ mod proptest_block {
   }
 }
 
-
 // SSTable unit tests
 // SSTable 单元测试
 mod sstable_tests {
@@ -881,7 +880,6 @@ mod proptest_sstable {
   }
 }
 
-
 // Index unit tests
 // Index 单元测试
 mod index_tests {
@@ -988,14 +986,8 @@ mod index_tests {
 
     // Put some entries
     // 插入一些条目
-    index.put(
-      b"key1".to_vec().into_boxed_slice(),
-      Pos::infile(1, 100, 10),
-    );
-    index.put(
-      b"key2".to_vec().into_boxed_slice(),
-      Pos::infile(1, 200, 20),
-    );
+    index.put(b"key1".to_vec().into_boxed_slice(), Pos::infile(1, 100, 10));
+    index.put(b"key2".to_vec().into_boxed_slice(), Pos::infile(1, 200, 20));
 
     assert_eq!(index.sealed_count(), 0);
 
@@ -1101,8 +1093,10 @@ mod index_tests {
   #[test]
   fn test_index_overwrite_in_memtable() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_overwrite_in_memtable_{}", fastrand::u64(..)));
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_overwrite_in_memtable_{}",
+        fastrand::u64(..)
+      ));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1131,8 +1125,10 @@ mod index_tests {
   #[test]
   fn test_index_memtable_shadows_sstable() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_memtable_shadows_sstable_{}", fastrand::u64(..)));
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_memtable_shadows_sstable_{}",
+        fastrand::u64(..)
+      ));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1165,8 +1161,10 @@ mod index_tests {
   #[test]
   fn test_index_delete_shadows_sstable() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_delete_shadows_sstable_{}", fastrand::u64(..)));
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_delete_shadows_sstable_{}",
+        fastrand::u64(..)
+      ));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1196,7 +1194,6 @@ mod index_tests {
   }
 }
 
-
 // Index flush tests
 // Index 刷新测试
 mod index_flush_tests {
@@ -1206,8 +1203,10 @@ mod index_flush_tests {
 
   #[test]
   fn test_index_should_flush_threshold() -> Void {
-    let tmp_dir = std::env::temp_dir()
-      .join(format!("test_index_should_flush_threshold_{}", fastrand::u64(..)));
+    let tmp_dir = std::env::temp_dir().join(format!(
+      "test_index_should_flush_threshold_{}",
+      fastrand::u64(..)
+    ));
     std::fs::create_dir_all(&tmp_dir)?;
 
     // Set small memtable size for testing
@@ -1240,8 +1239,8 @@ mod index_flush_tests {
   #[test]
   fn test_index_multiple_flushes() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_multiple_flushes_{}", fastrand::u64(..)));
+      let tmp_dir =
+        std::env::temp_dir().join(format!("test_index_multiple_flushes_{}", fastrand::u64(..)));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1294,8 +1293,10 @@ mod index_flush_tests {
   #[test]
   fn test_index_flush_empty_sealed() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_flush_empty_sealed_{}", fastrand::u64(..)));
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_flush_empty_sealed_{}",
+        fastrand::u64(..)
+      ));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1321,8 +1322,8 @@ mod index_flush_tests {
   #[test]
   fn test_index_l0_search_order() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_l0_search_order_{}", fastrand::u64(..)));
+      let tmp_dir =
+        std::env::temp_dir().join(format!("test_index_l0_search_order_{}", fastrand::u64(..)));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1357,7 +1358,6 @@ mod index_flush_tests {
   }
 }
 
-
 // Index range and prefix iteration tests
 // Index 范围和前缀迭代测试
 mod index_iter_tests {
@@ -1370,8 +1370,10 @@ mod index_iter_tests {
   #[test]
   fn test_index_iter_memtable_only() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_iter_memtable_only_{}", fastrand::u64(..)));
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_iter_memtable_only_{}",
+        fastrand::u64(..)
+      ));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1379,36 +1381,18 @@ mod index_iter_tests {
 
       // Add entries
       // 添加条目
-      index.put(
-        b"c".to_vec().into_boxed_slice(),
-        Pos::infile(1, 300, 30),
-      );
-      index.put(
-        b"a".to_vec().into_boxed_slice(),
-        Pos::infile(1, 100, 10),
-      );
-      index.put(
-        b"b".to_vec().into_boxed_slice(),
-        Pos::infile(1, 200, 20),
-      );
+      index.put(b"c".to_vec().into_boxed_slice(), Pos::infile(1, 300, 30));
+      index.put(b"a".to_vec().into_boxed_slice(), Pos::infile(1, 100, 10));
+      index.put(b"b".to_vec().into_boxed_slice(), Pos::infile(1, 200, 20));
 
       // Iterate all
       // 迭代所有
-      let keys: Vec<_> = index
-        .iter()
-        .await?
-        .map(|e| e.key.to_vec())
-        .collect();
+      let keys: Vec<_> = index.iter().await?.map(|e| e.key.to_vec()).collect();
       assert_eq!(keys, vec![b"a".to_vec(), b"b".to_vec(), b"c".to_vec()]);
 
       // Backward iteration
       // 反向迭代
-      let keys: Vec<_> = index
-        .iter()
-        .await?
-        .rev()
-        .map(|e| e.key.to_vec())
-        .collect();
+      let keys: Vec<_> = index.iter().await?.rev().map(|e| e.key.to_vec()).collect();
       assert_eq!(keys, vec![b"c".to_vec(), b"b".to_vec(), b"a".to_vec()]);
 
       // Cleanup
@@ -1421,8 +1405,10 @@ mod index_iter_tests {
   #[test]
   fn test_index_range_memtable_only() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_range_memtable_only_{}", fastrand::u64(..)));
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_range_memtable_only_{}",
+        fastrand::u64(..)
+      ));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1481,8 +1467,10 @@ mod index_iter_tests {
   #[test]
   fn test_index_prefix_memtable_only() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_prefix_memtable_only_{}", fastrand::u64(..)));
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_prefix_memtable_only_{}",
+        fastrand::u64(..)
+      ));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1562,39 +1550,20 @@ mod index_iter_tests {
 
       // Add entries and flush to SSTable
       // 添加条目并刷新到 SSTable
-      index.put(
-        b"a".to_vec().into_boxed_slice(),
-        Pos::infile(1, 100, 10),
-      );
-      index.put(
-        b"c".to_vec().into_boxed_slice(),
-        Pos::infile(1, 300, 30),
-      );
-      index.put(
-        b"e".to_vec().into_boxed_slice(),
-        Pos::infile(1, 500, 50),
-      );
+      index.put(b"a".to_vec().into_boxed_slice(), Pos::infile(1, 100, 10));
+      index.put(b"c".to_vec().into_boxed_slice(), Pos::infile(1, 300, 30));
+      index.put(b"e".to_vec().into_boxed_slice(), Pos::infile(1, 500, 50));
       index.seal_memtable();
       index.flush_sealed().await?;
 
       // Add more entries to memtable
       // 在内存表中添加更多条目
-      index.put(
-        b"b".to_vec().into_boxed_slice(),
-        Pos::infile(2, 200, 20),
-      );
-      index.put(
-        b"d".to_vec().into_boxed_slice(),
-        Pos::infile(2, 400, 40),
-      );
+      index.put(b"b".to_vec().into_boxed_slice(), Pos::infile(2, 200, 20));
+      index.put(b"d".to_vec().into_boxed_slice(), Pos::infile(2, 400, 40));
 
       // Iterate all - should merge memtable and SSTable
       // 迭代所有 - 应该合并内存表和 SSTable
-      let keys: Vec<_> = index
-        .iter()
-        .await?
-        .map(|e| e.key.to_vec())
-        .collect();
+      let keys: Vec<_> = index.iter().await?.map(|e| e.key.to_vec()).collect();
       assert_eq!(
         keys,
         vec![
@@ -1654,8 +1623,10 @@ mod index_iter_tests {
   #[test]
   fn test_index_iter_skip_tombstones() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_iter_skip_tombstones_{}", fastrand::u64(..)));
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_iter_skip_tombstones_{}",
+        fastrand::u64(..)
+      ));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1663,18 +1634,9 @@ mod index_iter_tests {
 
       // Add entries
       // 添加条目
-      index.put(
-        b"a".to_vec().into_boxed_slice(),
-        Pos::infile(1, 100, 10),
-      );
-      index.put(
-        b"b".to_vec().into_boxed_slice(),
-        Pos::infile(1, 200, 20),
-      );
-      index.put(
-        b"c".to_vec().into_boxed_slice(),
-        Pos::infile(1, 300, 30),
-      );
+      index.put(b"a".to_vec().into_boxed_slice(), Pos::infile(1, 100, 10));
+      index.put(b"b".to_vec().into_boxed_slice(), Pos::infile(1, 200, 20));
+      index.put(b"c".to_vec().into_boxed_slice(), Pos::infile(1, 300, 30));
 
       // Delete b
       // 删除 b
@@ -1682,11 +1644,7 @@ mod index_iter_tests {
 
       // Iterate - should skip tombstone
       // 迭代 - 应该跳过删除标记
-      let keys: Vec<_> = index
-        .iter()
-        .await?
-        .map(|e| e.key.to_vec())
-        .collect();
+      let keys: Vec<_> = index.iter().await?.map(|e| e.key.to_vec()).collect();
       assert_eq!(keys, vec![b"a".to_vec(), b"c".to_vec()]);
 
       // Cleanup
@@ -1710,18 +1668,9 @@ mod index_iter_tests {
 
       // Add entries and flush to SSTable
       // 添加条目并刷新到 SSTable
-      index.put(
-        b"a".to_vec().into_boxed_slice(),
-        Pos::infile(1, 100, 10),
-      );
-      index.put(
-        b"b".to_vec().into_boxed_slice(),
-        Pos::infile(1, 200, 20),
-      );
-      index.put(
-        b"c".to_vec().into_boxed_slice(),
-        Pos::infile(1, 300, 30),
-      );
+      index.put(b"a".to_vec().into_boxed_slice(), Pos::infile(1, 100, 10));
+      index.put(b"b".to_vec().into_boxed_slice(), Pos::infile(1, 200, 20));
+      index.put(b"c".to_vec().into_boxed_slice(), Pos::infile(1, 300, 30));
       index.seal_memtable();
       index.flush_sealed().await?;
 
@@ -1731,11 +1680,7 @@ mod index_iter_tests {
 
       // Iterate - should skip deleted key
       // 迭代 - 应该跳过已删除的键
-      let keys: Vec<_> = index
-        .iter()
-        .await?
-        .map(|e| e.key.to_vec())
-        .collect();
+      let keys: Vec<_> = index.iter().await?.map(|e| e.key.to_vec()).collect();
       assert_eq!(keys, vec![b"a".to_vec(), b"c".to_vec()]);
 
       // Cleanup
@@ -1748,8 +1693,10 @@ mod index_iter_tests {
   #[test]
   fn test_index_range_across_sources() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
-      let tmp_dir = std::env::temp_dir()
-        .join(format!("test_index_range_across_sources_{}", fastrand::u64(..)));
+      let tmp_dir = std::env::temp_dir().join(format!(
+        "test_index_range_across_sources_{}",
+        fastrand::u64(..)
+      ));
       std::fs::create_dir_all(&tmp_dir)?;
 
       let conf = Conf::default();
@@ -1757,39 +1704,21 @@ mod index_iter_tests {
 
       // First batch to SSTable
       // 第一批到 SSTable
-      index.put(
-        b"aa".to_vec().into_boxed_slice(),
-        Pos::infile(1, 100, 10),
-      );
-      index.put(
-        b"cc".to_vec().into_boxed_slice(),
-        Pos::infile(1, 300, 30),
-      );
-      index.put(
-        b"ee".to_vec().into_boxed_slice(),
-        Pos::infile(1, 500, 50),
-      );
+      index.put(b"aa".to_vec().into_boxed_slice(), Pos::infile(1, 100, 10));
+      index.put(b"cc".to_vec().into_boxed_slice(), Pos::infile(1, 300, 30));
+      index.put(b"ee".to_vec().into_boxed_slice(), Pos::infile(1, 500, 50));
       index.seal_memtable();
       index.flush_sealed().await?;
 
       // Second batch to sealed memtable
       // 第二批到密封内存表
-      index.put(
-        b"bb".to_vec().into_boxed_slice(),
-        Pos::infile(2, 200, 20),
-      );
-      index.put(
-        b"dd".to_vec().into_boxed_slice(),
-        Pos::infile(2, 400, 40),
-      );
+      index.put(b"bb".to_vec().into_boxed_slice(), Pos::infile(2, 200, 20));
+      index.put(b"dd".to_vec().into_boxed_slice(), Pos::infile(2, 400, 40));
       index.seal_memtable();
 
       // Third batch to active memtable
       // 第三批到活跃内存表
-      index.put(
-        b"ff".to_vec().into_boxed_slice(),
-        Pos::infile(3, 600, 60),
-      );
+      index.put(b"ff".to_vec().into_boxed_slice(), Pos::infile(3, 600, 60));
 
       // Range [bb, ee] should include entries from all sources
       // 范围 [bb, ee] 应该包含所有源的条目
@@ -1815,7 +1744,6 @@ mod index_iter_tests {
     })
   }
 }
-
 
 // Property-based tests for Index iteration
 // Index 迭代属性测试
@@ -2170,7 +2098,7 @@ mod proptest_index {
 // Manifest 单元测试
 mod manifest_tests {
   use aok::{OK, Void};
-  use jdb::{load_manifest, save_manifest, Manifest, TableEntry};
+  use jdb::{Manifest, TableEntry, load_manifest, save_manifest};
 
   #[test]
   fn test_manifest_new() -> Void {
@@ -2229,7 +2157,13 @@ mod manifest_tests {
 
     // Verify remaining tables
     // 验证剩余的表
-    let ids: Vec<_> = manifest.level(0).unwrap().tables.iter().map(|t| t.id).collect();
+    let ids: Vec<_> = manifest
+      .level(0)
+      .unwrap()
+      .tables
+      .iter()
+      .map(|t| t.id)
+      .collect();
     assert_eq!(ids, vec![1, 3]);
 
     // Remove non-existent table
@@ -2418,7 +2352,9 @@ mod manifest_tests {
 
       // Load
       // 加载
-      let loaded = load_manifest(&tmp_dir).await?.expect("should load manifest");
+      let loaded = load_manifest(&tmp_dir)
+        .await?
+        .expect("should load manifest");
 
       assert_eq!(loaded.version, manifest.version);
       assert_eq!(loaded.seqno, manifest.seqno);
@@ -2609,14 +2545,14 @@ mod proptest_manifest {
   }
 }
 
-
 // Property-based tests for Compaction
 // Compaction 属性测试
 mod proptest_compaction {
+  use std::collections::HashMap;
+
   use jdb::{Conf, ConfItem, Entry, Index};
   use jdb_base::Pos;
   use proptest::prelude::*;
-  use std::collections::HashMap;
 
   // Generate random key
   // 生成随机键

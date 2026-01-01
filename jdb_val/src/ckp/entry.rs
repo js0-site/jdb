@@ -4,9 +4,8 @@
 //! Entry layout: Header(8) + data + crc32(4)
 //! 条目布局：Header(8) + data + crc32(4)
 
+use jdb_base::Load;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
-
-use crate::load::Load;
 
 /// Entry header size
 /// 条目头大小
@@ -64,34 +63,45 @@ pub struct CkpEntry;
 impl Load for CkpEntry {
   const MAGIC: u8 = MAGIC;
   const HEAD_SIZE: usize = HEADER_SIZE;
+  // Meta is the data between header and crc32
+  // Meta 是 header 和 crc32 之间的数据
+  const META_OFFSET: usize = HEADER_SIZE;
 
   #[inline]
-  fn parse(buf: &[u8]) -> Option<usize> {
+  fn len(buf: &[u8]) -> usize {
     if buf.len() < HEADER_SIZE {
-      return None;
+      return 0;
     }
-
-    let header = Header::read_from_bytes(&buf[..HEADER_SIZE]).ok()?;
+    let Some(header) = Header::read_from_bytes(&buf[..HEADER_SIZE]).ok() else {
+      return 0;
+    };
     if !header.is_valid() || header.len < 4 {
+      return 0;
+    }
+    header.entry_size()
+  }
+
+  #[inline]
+  fn crc_offset(len: usize) -> usize {
+    len - 4
+  }
+
+  #[inline]
+  fn meta_len(len: usize) -> usize {
+    len - HEADER_SIZE - 4
+  }
+}
+
+impl CkpEntry {
+  /// Get data slice from entry
+  /// 获取条目数据切片
+  #[inline]
+  pub fn data(bin: &[u8]) -> Option<&[u8]> {
+    let len = Self::parse(bin);
+    if len == 0 {
       return None;
     }
-
-    let entry_size = header.entry_size();
-    if entry_size > buf.len() {
-      return None;
-    }
-
-    // Verify crc32
-    // 验证 crc32
-    let data_end = entry_size - 4;
-    let data = &buf[HEADER_SIZE..data_end];
-    let stored_crc = u32::from_le_bytes(unsafe { *(buf.as_ptr().add(data_end) as *const [u8; 4]) });
-
-    if crc32fast::hash(data) == stored_crc {
-      Some(entry_size)
-    } else {
-      None
-    }
+    Some(&bin[HEADER_SIZE..len - 4])
   }
 }
 
@@ -114,7 +124,7 @@ pub fn build(data: &[u8]) -> Vec<u8> {
 #[inline]
 pub fn parse(buf: &[u8], pos: usize) -> Option<(&[u8], usize)> {
   let slice = buf.get(pos..)?;
-  let entry_size = CkpEntry::parse(slice)?;
-  let data = &slice[HEADER_SIZE..entry_size - 4];
+  let data = CkpEntry::data(slice)?;
+  let entry_size = CkpEntry::len(slice);
   Some((data, pos + entry_size))
 }
