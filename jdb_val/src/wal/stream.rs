@@ -8,13 +8,11 @@ use compio::{
   io::{AsyncReadAtExt, AsyncWriteAtExt},
 };
 use compio_fs::File;
-use jdb_base::{Flag, Head, INFILE_MAX};
+use jdb_base::{Flag, Head, INFILE_MAX, open_read, open_write_create};
 use zbin::Bin;
 
 use super::{Wal, WalConf, WalInner};
 use crate::Result;
-
-use jdb_base::{open_read, open_write_create};
 
 impl<C: WalConf> WalInner<C> {
   pub(super) const CHUNK_SIZE: usize = 64 * 1024;

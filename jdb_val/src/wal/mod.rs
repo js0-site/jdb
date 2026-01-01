@@ -67,17 +67,12 @@ pub(crate) use conf::{DefaultConf, GcConf, ParsedConf, WalConf};
 use consts::{BIN_SUBDIR, WAL_SUBDIR};
 use hashlink::lru_cache::Entry;
 use ider::Ider;
-use jdb_base::{HeadBuilder, Pos};
+use jdb_base::{FileLru, HeadBuilder, Pos, decode_id, id_path, open_read};
 use jdb_lru::{Cache, Lru};
 use size_lru::SizeLru;
 use write_buf::SharedState;
 
-use crate::{
-  Ckp, Error,
-  error::Result,
-};
-
-use jdb_base::{FileLru, decode_id, id_path, open_read};
+use crate::{Ckp, Error, error::Result};
 
 /// WAL manager with LRU cache
 /// 带 LRU 缓存的 WAL 管理器

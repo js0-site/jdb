@@ -15,7 +15,7 @@ use std::{
 };
 
 use hipstr::HipByt;
-use jdb_base::Pos;
+use jdb_base::{Pos, id_path};
 use jdb_lock::gc::Lock as GcLock;
 
 use crate::{
@@ -25,8 +25,6 @@ use crate::{
     consts::{GC_SUBDIR, LOCK_SUBDIR, WAL_LOCK_TYPE, WAL_SUBDIR},
   },
 };
-
-use jdb_base::id_path;
 
 // Mapping capacity / 映射容量
 const MAP_CAP: usize = 1024;

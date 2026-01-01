@@ -7,9 +7,7 @@ use size_lru::SizeLru;
 use zbin::Bin;
 
 use super::{Val, WalConf, WalInner};
-use crate::{
-  error::{Error, Result},
-};
+use crate::error::{Error, Result};
 
 impl<C: WalConf> WalInner<C> {
   async fn write_val_file(&mut self, data: &[u8]) -> Result<(u64, u32)> {

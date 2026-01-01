@@ -8,7 +8,7 @@ use compio::{
   io::{AsyncReadAtExt, AsyncWriteAtExt},
 };
 use compio_fs::File;
-use jdb_base::Load;
+use jdb_base::{Load, decode_id, open_read_write, open_read_write_create};
 use jdb_lock::WalLock;
 use log::{info, warn};
 
@@ -18,14 +18,7 @@ use super::{
   header::{HeaderState, build_header, check_header},
   replay::ReplayIter,
 };
-use crate::{
-  Ckp,
-  error::Result,
-};
-
-use jdb_base::{
-  decode_id, open_read_write, open_read_write_create,
-};
+use crate::{Ckp, error::Result};
 
 impl<C: WalConf> WalInner<C> {
   /// Open WAL and return replay iterator

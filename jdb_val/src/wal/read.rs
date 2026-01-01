@@ -6,7 +6,7 @@ use compio::{
   io::{AsyncReadAt, AsyncReadAtExt},
 };
 use compio_fs::File;
-use jdb_base::{HEAD_CRC, HEAD_TOTAL, Head, MAGIC, Pos};
+use jdb_base::{HEAD_CRC, HEAD_TOTAL, Head, MAGIC, Pos, open_read};
 use log::warn;
 use size_lru::SizeLru;
 
@@ -16,11 +16,7 @@ use super::{
   header::{HeaderState, check_header},
   record::Record,
 };
-use crate::{
-  error::{Error, Result},
-};
-
-use jdb_base::open_read;
+use crate::error::{Error, Result};
 
 impl<C: WalConf> WalInner<C> {
   /// Read head at location

@@ -9,7 +9,7 @@ use compio::{
   io::{AsyncReadAt, AsyncReadAtExt},
 };
 use compio_fs::File;
-use jdb_base::{HEAD_CRC, HEAD_TOTAL, Head, Load, MAGIC, Pos};
+use jdb_base::{HEAD_CRC, HEAD_TOTAL, Head, Load, MAGIC, Pos, id_path, open_read};
 use log::warn;
 
 use super::{
@@ -18,8 +18,6 @@ use super::{
   header::{HeaderState, check_header},
 };
 use crate::{Result, WalPtr, error::Error};
-
-use jdb_base::{id_path, open_read};
 
 /// Replay item: (key, Pos)
 /// 回放项：(key, Pos)

@@ -14,7 +14,6 @@
 // Internal modules / 内部模块
 pub mod ckp;
 pub mod error;
-pub(crate) mod fs;
 pub(crate) mod gc;
 pub mod wal;
 
