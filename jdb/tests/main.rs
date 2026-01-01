@@ -538,18 +538,21 @@ mod proptest_block {
 mod sstable_tests {
   use aok::{OK, Void};
   use jdb::{Entry, SSTableWriter, TableInfo};
-  use jdb_base::{FileLru, Pos};
+  use jdb_base::{FileLru, Pos, id_path};
 
   #[test]
   fn test_sstable_write_read_roundtrip() -> Void {
     compio::runtime::Runtime::new()?.block_on(async {
       let tmp_dir = std::env::temp_dir();
       let test_id = fastrand::u64(..);
-      let path = tmp_dir.join(format!("test_sstable_roundtrip_{test_id}.sst"));
+      let sst_dir = tmp_dir.join(format!("test_sst_{test_id}"));
+      std::fs::create_dir_all(&sst_dir)?;
+      let table_id = 1u64;
+      let path = id_path(&sst_dir, table_id);
 
       // Write SSTable with sorted keys
       // 写入有序键的 SSTable
-      let mut writer = SSTableWriter::new(path.clone(), 1, 10).await?;
+      let mut writer = SSTableWriter::new(path.clone(), table_id, 10).await?;
 
       let entries = [
         (b"aaa".to_vec(), Entry::Value(Pos::infile(1, 100, 10))),
@@ -570,13 +573,15 @@ mod sstable_tests {
 
       // Read SSTable
       // 读取 SSTable
-      let info = TableInfo::load(&path, 1).await?;
-      let sst_dir = path.parent().unwrap();
-      let mut files = FileLru::new(sst_dir, 16);
+      let info = TableInfo::load(&path, table_id).await?;
+      let mut files = FileLru::new(&sst_dir, 16);
 
       // Test point lookups
       // 测试点查询
-      let entry = info.get(b"aaa", &mut files).await?.expect("should find aaa");
+      let entry = info
+        .get(b"aaa", &mut files)
+        .await?
+        .expect("should find aaa");
       assert_eq!(entry, Entry::Value(Pos::infile(1, 100, 10)));
 
       // Tombstones are not in filter, so get() returns None for them
@@ -615,7 +620,7 @@ mod sstable_tests {
 
       // Cleanup
       // 清理
-      let _ = std::fs::remove_file(&path);
+      let _ = std::fs::remove_dir_all(&sst_dir);
       OK
     })
   }
@@ -625,11 +630,14 @@ mod sstable_tests {
     compio::runtime::Runtime::new()?.block_on(async {
       let tmp_dir = std::env::temp_dir();
       let test_id = fastrand::u64(..);
-      let path = tmp_dir.join(format!("test_sstable_range_{test_id}.sst"));
+      let sst_dir = tmp_dir.join(format!("test_sst_range_{test_id}"));
+      std::fs::create_dir_all(&sst_dir)?;
+      let table_id = 1u64;
+      let path = id_path(&sst_dir, table_id);
 
       // Write SSTable
       // 写入 SSTable
-      let mut writer = SSTableWriter::new(path.clone(), 1, 10).await?;
+      let mut writer = SSTableWriter::new(path.clone(), table_id, 10).await?;
 
       for i in 0..10u8 {
         let key = format!("key{i:02}").into_bytes();
@@ -641,9 +649,8 @@ mod sstable_tests {
 
       // Read and test range
       // 读取并测试范围
-      let info = TableInfo::load(&path, 1).await?;
-      let sst_dir = path.parent().unwrap();
-      let mut files = FileLru::new(sst_dir, 16);
+      let info = TableInfo::load(&path, table_id).await?;
+      let mut files = FileLru::new(&sst_dir, 16);
 
       // Range [key03, key07]
       let range_items: Vec<_> = info.range(b"key03", b"key07", &mut files).await?.collect();
@@ -653,14 +660,18 @@ mod sstable_tests {
 
       // Reverse range
       // 反向范围
-      let rev_range: Vec<_> = info.range(b"key03", b"key07", &mut files).await?.rev().collect();
+      let rev_range: Vec<_> = info
+        .range(b"key03", b"key07", &mut files)
+        .await?
+        .rev()
+        .collect();
       assert_eq!(rev_range.len(), 5);
       assert_eq!(rev_range[0].0.as_ref(), b"key07");
       assert_eq!(rev_range[4].0.as_ref(), b"key03");
 
       // Cleanup
       // 清理
-      let _ = std::fs::remove_file(&path);
+      let _ = std::fs::remove_dir_all(&sst_dir);
       OK
     })
   }
@@ -736,7 +747,7 @@ mod sstable_tests {
 // SSTable 属性测试
 mod proptest_sstable {
   use jdb::{Entry, SSTableWriter, TableInfo};
-  use jdb_base::{FileLru, Pos};
+  use jdb_base::{FileLru, Pos, id_path};
   use proptest::prelude::*;
 
   // Generate sorted unique keys
@@ -775,11 +786,14 @@ mod proptest_sstable {
       compio::runtime::Runtime::new().unwrap().block_on(async {
         let tmp_dir = std::env::temp_dir();
         let test_id = fastrand::u64(..);
-        let path = tmp_dir.join(format!("test_sstable_{test_id}.sst"));
+        let sst_dir = tmp_dir.join(format!("test_sst_filter_{test_id}"));
+        std::fs::create_dir_all(&sst_dir).unwrap();
+        let table_id = 1u64;
+        let path = id_path(&sst_dir, table_id);
 
         // Write SSTable
         // 写入 SSTable
-        let mut writer = SSTableWriter::new(path.clone(), 1, keys.len()).await.unwrap();
+        let mut writer = SSTableWriter::new(path.clone(), table_id, keys.len()).await.unwrap();
 
         let mut written_keys = Vec::new();
         for (i, key) in keys.iter().enumerate() {
@@ -793,7 +807,7 @@ mod proptest_sstable {
 
         // Read SSTable and check filter
         // 读取 SSTable 并检查过滤器
-        let info = TableInfo::load(&path, 1).await.unwrap();
+        let info = TableInfo::load(&path, table_id).await.unwrap();
 
         // All written keys must be found by filter (no false negatives)
         // 所有写入的键必须被过滤器找到（无假阴性）
@@ -808,7 +822,7 @@ mod proptest_sstable {
 
         // Cleanup
         // 清理
-        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir_all(&sst_dir);
       });
     }
 
@@ -828,11 +842,14 @@ mod proptest_sstable {
       compio::runtime::Runtime::new().unwrap().block_on(async {
         let tmp_dir = std::env::temp_dir();
         let test_id = fastrand::u64(..);
-        let path = tmp_dir.join(format!("test_sstable_rt_{test_id}.sst"));
+        let sst_dir = tmp_dir.join(format!("test_sst_rt_{test_id}"));
+        std::fs::create_dir_all(&sst_dir).unwrap();
+        let table_id = 1u64;
+        let path = id_path(&sst_dir, table_id);
 
         // Write SSTable
         // 写入 SSTable
-        let mut writer = SSTableWriter::new(path.clone(), 1, keys.len()).await.unwrap();
+        let mut writer = SSTableWriter::new(path.clone(), table_id, keys.len()).await.unwrap();
 
         let mut expected: Vec<(Vec<u8>, Entry)> = Vec::new();
         for (i, key) in keys.iter().enumerate() {
@@ -846,9 +863,8 @@ mod proptest_sstable {
 
         // Read and verify
         // 读取并验证
-        let info = TableInfo::load(&path, 1).await.unwrap();
-        let sst_dir = path.parent().unwrap();
-        let mut files = FileLru::new(sst_dir, 16);
+        let info = TableInfo::load(&path, table_id).await.unwrap();
+        let mut files = FileLru::new(&sst_dir, 16);
 
         // Verify point lookups
         // 验证点查询
@@ -869,7 +885,7 @@ mod proptest_sstable {
 
         // Cleanup
         // 清理
-        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir_all(&sst_dir);
       });
     }
 
@@ -888,11 +904,14 @@ mod proptest_sstable {
       compio::runtime::Runtime::new().unwrap().block_on(async {
         let tmp_dir = std::env::temp_dir();
         let test_id = fastrand::u64(..);
-        let path = tmp_dir.join(format!("test_sstable_order_{test_id}.sst"));
+        let sst_dir = tmp_dir.join(format!("test_sst_order_{test_id}"));
+        std::fs::create_dir_all(&sst_dir).unwrap();
+        let table_id = 1u64;
+        let path = id_path(&sst_dir, table_id);
 
         // Write SSTable
         // 写入 SSTable
-        let mut writer = SSTableWriter::new(path.clone(), 1, keys.len()).await.unwrap();
+        let mut writer = SSTableWriter::new(path.clone(), table_id, keys.len()).await.unwrap();
 
         for (i, key) in keys.iter().enumerate() {
           let pos = positions[i % positions.len()];
@@ -903,9 +922,8 @@ mod proptest_sstable {
 
         // Read and verify ordering
         // 读取并验证顺序
-        let info = TableInfo::load(&path, 1).await.unwrap();
-        let sst_dir = path.parent().unwrap();
-        let mut files = FileLru::new(sst_dir, 16);
+        let info = TableInfo::load(&path, table_id).await.unwrap();
+        let mut files = FileLru::new(&sst_dir, 16);
 
         // Forward should be ascending
         // 正向应该是升序
@@ -923,7 +941,7 @@ mod proptest_sstable {
 
         // Cleanup
         // 清理
-        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir_all(&sst_dir);
       });
     }
   }

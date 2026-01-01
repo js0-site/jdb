@@ -15,6 +15,7 @@ members = [
   "wlog",
   "jdb_gc",
   "jdb_base",
+  "jdb_xorf",
 ]
 exclude = ["sh/_tmpl"]
 

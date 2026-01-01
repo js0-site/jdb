@@ -4,13 +4,14 @@
 //! Manages memtable, sealed memtables, and SSTable levels.
 //! 管理内存表、密封内存表和 SSTable 层级。
 
-use std::ops::Bound;
-use std::path::PathBuf;
+use std::{ops::Bound, path::PathBuf};
 
 use jdb_base::{FileLru, Pos, id_path};
 
-use super::compact::{compact_l0_to_l1, compact_level, needs_l0_compaction, needs_level_compaction};
-use super::{Entry, Level, Memtable, MergeIter};
+use super::{
+  Entry, Level, Memtable, MergeIter,
+  compact::{compact_l0_to_l1, compact_level, needs_l0_compaction, needs_level_compaction},
+};
 use crate::{Conf, Result, SSTableWriter, TableInfo};
 
 /// Default file cache capacity

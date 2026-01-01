@@ -4,8 +4,10 @@
 use std::path::PathBuf;
 
 use autoscale_cuckoo_filter::CuckooFilter;
-use compio::buf::{IoBuf, IntoInner};
-use compio::io::AsyncReadAtExt;
+use compio::{
+  buf::{IntoInner, IoBuf},
+  io::AsyncReadAtExt,
+};
 use crc32fast::Hasher;
 use jdb_base::{FileLru, open_read};
 use zerocopy::FromBytes;
@@ -124,10 +126,10 @@ impl TableInfo {
       res.0?;
       let buf = res.1.into_inner();
 
-      if let Some(block) = DataBlock::from_bytes(buf) {
-        if let Some((key, _)) = block.iter().next() {
-          meta.min_key = key.into_boxed_slice();
-        }
+      if let Some(block) = DataBlock::from_bytes(buf)
+        && let Some((key, _)) = block.iter().next()
+      {
+        meta.min_key = key.into_boxed_slice();
       }
     }
 
@@ -291,7 +293,10 @@ impl TableInfo {
 
   /// Load all blocks and create iterator (including tombstones)
   /// 加载所有块并创建迭代器（包含删除标记）
-  pub async fn iter_with_tombstones(&self, files: &mut FileLru) -> Result<SSTableIterWithTombstones> {
+  pub async fn iter_with_tombstones(
+    &self,
+    files: &mut FileLru,
+  ) -> Result<SSTableIterWithTombstones> {
     let mut entries = Vec::new();
 
     for idx in 0..self.index.len() {
@@ -310,12 +315,7 @@ impl TableInfo {
 
   /// Create range iterator
   /// 创建范围迭代器
-  pub async fn range(
-    &self,
-    start: &[u8],
-    end: &[u8],
-    files: &mut FileLru,
-  ) -> Result<SSTableIter> {
+  pub async fn range(&self, start: &[u8], end: &[u8], files: &mut FileLru) -> Result<SSTableIter> {
     let mut entries = Vec::new();
 
     let start_block = self.find_block(start);

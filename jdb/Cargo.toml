@@ -6,14 +6,14 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/js0-site/jdb.git"
 homepage = "https://github.com/js0-site/jdb/tree/main/jdb"
 description = "jdb"
-keywords = [ ]
+keywords = []
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [ "--cfg", "docsrs" ]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = [ ]
+default = []
 
 [dev-dependencies]
 aok = "0.1.18"
@@ -29,13 +29,14 @@ version = "0.1.0"
 
 [dev-dependencies.compio]
 version = "0.17.0"
-features = [ "macros" ]
+features = ["macros"]
 
 [dependencies]
 bitcode = "0.6.9"
 crc32fast = "1.5.0"
 hashlink = "0.11.0"
 jdb_lru = { version = "0.1.4", path = "../jdb_lru" }
+jdb_xorf = { version = "0.12.0", path = "../jdb_xorf", features = ["bitcode"] }
 log = "0.4.29"
 thiserror = "2.0.17"
 zerocopy = "0.8.31"
@@ -46,7 +47,7 @@ path = "../autoscale_cuckoo_filter"
 
 [dependencies.compio]
 version = "0.17.0"
-features = [ "runtime", "io", "macros" ]
+features = ["runtime", "io", "macros"]
 
 [dependencies.jdb_base]
 version = "0.1.0"
