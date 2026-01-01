@@ -242,12 +242,16 @@ impl HeadBuilder {
     let total_len = HEAD_TOTAL + val.map_or(0, |v| v.len()) + key.len();
     self.buf.reserve(total_len);
 
-    // Optimization: Avoid zero-initialization.
+    // Use MaybeUninit to safely handle uninitialized memory
     // head.write() guarantees full overwrite of the [0..HEAD_TOTAL] range.
-    // Safety: capacity reserved above.
-    unsafe { self.buf.set_len(HEAD_TOTAL) };
-
-    head.write(&mut self.buf);
+    let mut header_buf: Vec<std::mem::MaybeUninit<u8>> = vec![std::mem::MaybeUninit::uninit(); HEAD_TOTAL];
+    let header_slice = unsafe {
+      std::slice::from_raw_parts_mut(header_buf.as_mut_ptr() as *mut u8, HEAD_TOTAL)
+    };
+    head.write(header_slice);
+    // Safety: head.write() has initialized all HEAD_TOTAL bytes
+    let initialized: Vec<u8> = unsafe { std::mem::transmute(header_buf) };
+    self.buf.extend(initialized);
 
     if let Some(v) = val {
       self.buf.extend_from_slice(v);

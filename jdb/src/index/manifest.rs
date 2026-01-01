@@ -6,9 +6,8 @@
 
 use std::path::{Path, PathBuf};
 
-use compio::{buf::IoBuf, io::AsyncWriteAtExt};
 use crc32fast::Hasher;
-use jdb_base::{open_read, read_all};
+use jdb_base::{open_read, read_all, write_file};
 
 use crate::Result;
 
@@ -509,26 +508,10 @@ pub async fn save_manifest(dir: &Path, manifest: &Manifest) -> Result<()> {
   let tmp_path = dir.join(MANIFEST_TMP);
   let final_path = dir.join(MANIFEST_FILE);
 
-  // Encode manifest
-  // 编码清单
+  // Encode and write to temporary file
+  // 编码并写入临时文件
   let data = manifest.encode();
-
-  // Write to temporary file
-  // 写入临时文件
-  let mut file = compio::fs::OpenOptions::new()
-    .write(true)
-    .create(true)
-    .truncate(true)
-    .open(&tmp_path)
-    .await?;
-
-  let slice = data.slice(..);
-  let res = file.write_all_at(slice, 0).await;
-  res.0?;
-
-  // Sync file
-  // 同步文件
-  file.sync_all().await?;
+  write_file(&tmp_path, &data).await?;
 
   // Atomic rename
   // 原子重命名

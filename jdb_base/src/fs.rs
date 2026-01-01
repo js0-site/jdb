@@ -3,10 +3,7 @@
 
 use std::path::Path;
 
-use compio::{
-  buf::{IntoInner, IoBuf},
-  io::{AsyncReadAtExt, AsyncWriteAtExt},
-};
+use compio::io::{AsyncReadAtExt, AsyncWriteAtExt};
 use compio_fs::File;
 
 /// Open file for reading
@@ -64,14 +61,14 @@ pub async fn read_all(file: &File, len: u64) -> std::io::Result<Vec<u8>> {
   if len == 0 {
     return Ok(Vec::new());
   }
-  let mut buf = Vec::with_capacity(len as usize);
-  // Safety:
-  // 1. We reserved capacity above.
-  // 2. read_exact_at will overwrite the buffer or return error if EOF.
-  // 3. We strictly rely on the IO result to trust the data.
+  // Use MaybeUninit to safely handle uninitialized memory
+  let mut buf: Vec<std::mem::MaybeUninit<u8>> = Vec::with_capacity(len as usize);
   unsafe { buf.set_len(len as usize) };
-  let slice = buf.slice(0..len as usize);
+  let slice = unsafe {
+    std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u8, len as usize)
+  };
   let res = file.read_exact_at(slice, 0).await;
   res.0?;
-  Ok(res.1.into_inner())
+  // Safety: read_exact_at has successfully initialized all bytes
+  Ok(unsafe { std::mem::transmute(buf) })
 }
