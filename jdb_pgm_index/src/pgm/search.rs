@@ -1,0 +1,52 @@
+//! Search operations for PGM-Index
+//! PGM 索引查找操作
+
+use crate::{Key, Segment, pgm::consts::ZERO_SLOPE_THRESHOLD};
+
+/// Predict index position using segment's linear model
+/// 使用段的线性模型预测索引位置
+pub fn predict_index<K: Key>(seg: &Segment<K>, key: K) -> usize {
+  let y = key.to_f64().unwrap();
+
+  if seg.slope.abs() < ZERO_SLOPE_THRESHOLD {
+    seg.start_idx
+  } else {
+    // local_x is the predicted local index within segment
+    // local_x 是段内的预测局部索引
+    let local_x = (y - seg.intercept) / seg.slope;
+    let global_x = local_x + seg.start_idx as f64;
+    (global_x.round() as isize).clamp(seg.start_idx as isize, (seg.end_idx - 1) as isize) as usize
+  }
+}
+
+/// Find segment containing the key using lookup table
+/// 使用查找表查找包含键的段
+pub fn find_segment<K: Key>(
+  key: K,
+  segments: &[Segment<K>],
+  segment_lookup: &[usize],
+  lookup_scale: f64,
+  min_key_f64: f64,
+) -> usize {
+  if segments.len() <= 1 {
+    return 0;
+  }
+
+  let y = key.to_f64().unwrap();
+  let bin = ((y - min_key_f64) * lookup_scale)
+    .floor()
+    .clamp(0.0, (segment_lookup.len() - 1) as f64) as usize;
+  let mut idx = segment_lookup[bin];
+
+  // Adjust forward
+  // 向前调整
+  while idx + 1 < segments.len() && key > segments[idx].max_key {
+    idx += 1;
+  }
+  // Adjust backward
+  // 向后调整
+  while idx > 0 && key < segments[idx].min_key {
+    idx -= 1;
+  }
+  idx
+}
