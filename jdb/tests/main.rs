@@ -148,6 +148,47 @@ fn test_memtable_size_tracking() -> Void {
   OK
 }
 
+/// Test memtable with prefix keys (blart prefix issue)
+/// 测试带前缀键的内存表（blart 前缀问题）
+#[test]
+fn test_memtable_prefix_keys() -> Void {
+  let mut mt = Memtable::new(1);
+
+  // Insert key [0]
+  // 插入键 [0]
+  let key0 = vec![0u8].into_boxed_slice();
+  let pos0 = Pos::infile(0, 0, 0);
+  mt.put(key0, pos0);
+  info!("After put [0]: len={}", mt.len());
+
+  // Insert key [0, 1] - this is NOT a prefix of [0], but [0] is a prefix of [0, 1]
+  // 插入键 [0, 1] - 这不是 [0] 的前缀，但 [0] 是 [0, 1] 的前缀
+  let key01 = vec![0u8, 1u8].into_boxed_slice();
+  let pos01 = Pos::infile(0, 100, 10);
+  mt.put(key01, pos01);
+  info!("After put [0, 1]: len={}", mt.len());
+
+  // Both keys should exist
+  // 两个键都应该存在
+  let entry0 = mt.get(&[0u8]);
+  let entry01 = mt.get(&[0u8, 1u8]);
+  info!("Get [0]: {:?}", entry0);
+  info!("Get [0, 1]: {:?}", entry01);
+
+  assert!(entry0.is_some(), "Key [0] should exist");
+  assert!(entry01.is_some(), "Key [0, 1] should exist");
+  assert_eq!(mt.len(), 2, "Should have 2 entries");
+
+  // Iterate and check
+  // 迭代并检查
+  let keys: Vec<_> = mt.iter().map(|(k, _)| k.to_vec()).collect();
+  info!("All keys: {:?}", keys);
+  assert!(keys.contains(&vec![0u8]), "Should contain [0]");
+  assert!(keys.contains(&vec![0u8, 1u8]), "Should contain [0, 1]");
+
+  OK
+}
+
 // Property-based tests
 // 属性测试
 mod proptest_memtable {

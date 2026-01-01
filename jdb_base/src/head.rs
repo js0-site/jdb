@@ -29,8 +29,8 @@ pub const HEAD_TOTAL: usize = 1 + HEAD_CRC;
 /// Max infile data size (4MB)
 pub const INFILE_MAX: usize = 4 * 1024 * 1024;
 
-/// Max key size (64KB)
-pub const KEY_MAX: usize = 64 * 1024;
+/// Max key size (u16::MAX)
+pub const KEY_MAX: usize = u16::MAX as usize;
 
 /// Fixed-size head (24 bytes)
 /// 定长头（24 字节）
