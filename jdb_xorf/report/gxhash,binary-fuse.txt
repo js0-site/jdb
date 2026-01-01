@@ -54,3 +54,4 @@ warning: associated function `from` is never used
    |                  ^^^^
 
 warning: `jdb_xorf` (lib) generated 8 warnings
+warning: `jdb_xorf` (lib test) generated 8 warnings (8 duplicates)
