@@ -90,9 +90,6 @@ mod bfuse16;
 mod bfuse32;
 #[cfg(feature = "binary-fuse")]
 mod bfuse8;
-mod fuse16;
-mod fuse32;
-mod fuse8;
 mod hash_proxy;
 mod xor16;
 mod xor32;
@@ -104,12 +101,6 @@ pub use bfuse16::{BinaryFuse16, BinaryFuse16Ref};
 pub use bfuse32::{BinaryFuse32, BinaryFuse32Ref};
 #[cfg(feature = "binary-fuse")]
 pub use bfuse8::{BinaryFuse8, BinaryFuse8Ref};
-#[allow(deprecated)]
-pub use fuse16::Fuse16;
-#[allow(deprecated)]
-pub use fuse32::Fuse32;
-#[allow(deprecated)]
-pub use fuse8::Fuse8;
 pub use hash_proxy::HashProxy;
 pub use xor16::Xor16;
 pub use xor32::Xor32;
