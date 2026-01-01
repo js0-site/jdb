@@ -244,10 +244,10 @@ impl HeadBuilder {
 
     // Use MaybeUninit to safely handle uninitialized memory
     // head.write() guarantees full overwrite of the [0..HEAD_TOTAL] range.
-    let mut header_buf: Vec<std::mem::MaybeUninit<u8>> = vec![std::mem::MaybeUninit::uninit(); HEAD_TOTAL];
-    let header_slice = unsafe {
-      std::slice::from_raw_parts_mut(header_buf.as_mut_ptr() as *mut u8, HEAD_TOTAL)
-    };
+    let mut header_buf: Vec<std::mem::MaybeUninit<u8>> =
+      vec![std::mem::MaybeUninit::uninit(); HEAD_TOTAL];
+    let header_slice =
+      unsafe { std::slice::from_raw_parts_mut(header_buf.as_mut_ptr() as *mut u8, HEAD_TOTAL) };
     head.write(header_slice);
     // Safety: head.write() has initialized all HEAD_TOTAL bytes
     let initialized: Vec<u8> = unsafe { std::mem::transmute(header_buf) };
