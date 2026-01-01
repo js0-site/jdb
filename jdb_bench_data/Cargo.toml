@@ -6,7 +6,9 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/js0-site/jdb.git"
 homepage = "https://github.com/js0-site/jdb/tree/main/jdb_bench_data"
 description = "jdb_bench_data"
-keywords = []
+readme = "README.md"
+keywords = ["benchmark", "testing", "database", "performance"]
+categories = ["development-tools::testing"]
 
 [features]
 default = []

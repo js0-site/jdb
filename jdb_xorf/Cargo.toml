@@ -64,9 +64,8 @@ name = "xor8"
 harness = false
 
 [features]
-default = ["uniform-random", "binary-fuse", "murmur3"]
+default = ["uniform-random", "binary-fuse", "gxhash"]
 uniform-random = ["rand"]
 binary-fuse = ["libm"]
 bitcode = ["dep:bitcode"]
-murmur3 = []
 gxhash = ["dep:gxhash"]

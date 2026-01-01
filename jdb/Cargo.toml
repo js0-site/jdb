@@ -6,7 +6,9 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/js0-site/jdb.git"
 homepage = "https://github.com/js0-site/jdb/tree/main/jdb"
 description = "jdb"
-keywords = []
+readme = "README.mdt"
+keywords = ["database", "storage", "kv", "async", "embedded"]
+categories = ["database", "asynchronous", "data-structures"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -7,6 +7,7 @@ repository = "https://github.com/js0-site/jdb.git"
 homepage = "https://github.com/js0-site/jdb/tree/main/size_lru"
 description = "Fastest size-aware LRU cache with highest hit rate via LHD algorithm / 最快的大小感知 LRU 缓存，基于 LHD 算法实现最高命中率"
 keywords = [ "cache", "lru", "lhd", "eviction", "size-aware" ]
+categories = ["caching", "algorithms", "data-structures"]
 autobenches = false
 
 [package.metadata.docs.rs]

@@ -177,3 +177,32 @@ Found 2 outliers among 10 measurements (20.00%)
 Benchmarking Xor32/contains/500000
 Benchmarking Xor32/contains/500000: Warming up for 3.0000 s
 Benchmarking Xor32/contains/500000: Collecting 100 samples in estimated 5.0000 s (7.1B iterations)
+Benchmarking Xor32/contains/500000: Analyzing
+Xor32/contains/500000   time:   [750.07 ps 789.82 ps 839.25 ps]
+                        change: [+7.0394% +10.929% +16.561%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 18 outliers among 100 measurements (18.00%)
+  2 (2.00%) low mild
+  8 (8.00%) high mild
+  8 (8.00%) high severe
+
+     Running benches/xor8.rs (/tmp/rust/release/deps/xor8-9b36e3c4ab7eac8c)
+Gnuplot not found, using plotters backend
+Benchmarking Xor8/from/500000
+Benchmarking Xor8/from/500000: Warming up for 3.0000 s
+Benchmarking Xor8/from/500000: Collecting 10 samples in estimated 5.5610 s (440 iterations)
+Benchmarking Xor8/from/500000: Analyzing
+Xor8/from/500000        time:   [14.100 ms 14.485 ms 14.749 ms]
+                        change: [+23.062% +27.757% +32.673%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+
+Benchmarking Xor8/contains/500000
+Benchmarking Xor8/contains/500000: Warming up for 3.0000 s
+Benchmarking Xor8/contains/500000: Collecting 100 samples in estimated 5.0000 s (5.2B iterations)
+Benchmarking Xor8/contains/500000: Analyzing
+Xor8/contains/500000    time:   [951.25 ps 990.43 ps 1.0302 ns]
+                        change: [+37.384% +43.012% +48.895%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+

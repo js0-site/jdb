@@ -65,7 +65,7 @@ use crate::Filter;
 /// # extern crate std;
 /// use std::collections::hash_map::DefaultHasher;
 /// use std::hash::{Hash, Hasher};
-/// use xorf::{Filter, HashProxy, Xor8};
+/// use jdb_xorf::{Filter, HashProxy, Xor8};
 /// # use alloc::vec::Vec;
 ///
 /// let fruits = vec!["apple", "banana", "tangerine", "watermelon"];

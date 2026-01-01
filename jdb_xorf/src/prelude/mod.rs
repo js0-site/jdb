@@ -5,9 +5,6 @@ pub mod bfuse;
 pub mod fuse;
 pub mod xor;
 
-#[cfg(feature = "gxhash")]
-use crate::gxhash;
-
 /// A set of hashes indexing three blocks.
 pub struct HashSet {
   /// Key hash
@@ -33,34 +30,17 @@ pub struct HSet {
 /// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
 /// helps avoid high false-positive ratios (see Section 4 in the paper).
 #[inline]
-#[cfg(all(feature = "gxhash", feature = "murmur3"))]
+#[cfg(feature = "gxhash")]
 pub const fn mix(key: u64, seed: u64) -> u64 {
-  // When both features are enabled, prefer gxhash for better performance
-  gxhash::mix64(key.overflowing_add(seed).0)
+  crate::gxhash::mix64(key.overflowing_add(seed).0)
 }
 
 /// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
 /// helps avoid high false-positive ratios (see Section 4 in the paper).
 #[inline]
-#[cfg(all(feature = "murmur3", not(feature = "gxhash")))]
+#[cfg(not(feature = "gxhash"))]
 pub const fn mix(key: u64, seed: u64) -> u64 {
-  murmur3::mix64(key.overflowing_add(seed).0)
-}
-
-/// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
-/// helps avoid high false-positive ratios (see Section 4 in the paper).
-#[inline]
-#[cfg(all(feature = "gxhash", not(feature = "murmur3")))]
-pub const fn mix(key: u64, seed: u64) -> u64 {
-  gxhash::mix64(key.overflowing_add(seed).0)
-}
-
-/// Applies a finalization mix to a randomly-seeded key, resulting in an avalanched hash. This
-/// helps avoid high false-positive ratios (see Section 4 in the paper).
-#[inline]
-#[cfg(not(any(feature = "murmur3", feature = "gxhash")))]
-pub const fn mix(key: u64, seed: u64) -> u64 {
-  // Fallback implementation - should never happen because murmur3 is in default features
+  // Fallback implementation when gxhash is not enabled
   let k = key.overflowing_add(seed).0;
   k ^ k >> 33
 }

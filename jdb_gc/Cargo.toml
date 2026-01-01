@@ -6,7 +6,9 @@ license = "MulanPSL-2.0"
 repository = "https://github.com/js0/jdb.git"
 homepage = "https://github.com/js0/jdb/tree/main/jdb_gc"
 description = "WAL garbage collection with LZ4 compression / WAL 垃圾回收与 LZ4 压缩"
+readme = "README.mdt"
 keywords = ["wal", "gc", "lz4", "compression", "database"]
+categories = ["database", "filesystem", "compression"]
 
 [features]
 default = []

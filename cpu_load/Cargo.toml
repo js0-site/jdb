@@ -7,6 +7,7 @@ repository = "https://github.com/js0-site/jdb.git"
 homepage = "https://github.com/js0-site/jdb/tree/main/cpu_load"
 description = "Real-time CPU load monitoring with intelligent core selection / 实时 CPU 负载监控与智能核心选择"
 keywords = ["cpu", "monitoring", "load-balancing", "async", "compio"]
+categories = ["development-tools", "hardware-support", "asynchronous"]
 
 [features]
 default = []
