@@ -1,0 +1,145 @@
+    Finished `bench` profile [optimized] target(s) in 0.05s
+     Running unittests src/lib.rs (/tmp/rust/release/deps/jdb_xorf-89751f2ddfa8169e)
+
+running 27 tests
+test bfuse16::test::test_bits_per_entry ... ignored
+test bfuse16::test::test_dma_roundtrip ... ignored
+test bfuse16::test::test_dma_unaligned_fingerprints - should panic ... ignored
+test bfuse16::test::test_dma_unaligned_fingerprints_len - should panic ... ignored
+test bfuse16::test::test_false_positives ... ignored
+test bfuse16::test::test_initialization ... ignored
+test bfuse32::test::test_bits_per_entry ... ignored
+test bfuse32::test::test_dma_roundtrip ... ignored
+test bfuse32::test::test_dma_unaligned_fingerprints - should panic ... ignored
+test bfuse32::test::test_dma_unaligned_fingerprints_len - should panic ... ignored
+test bfuse32::test::test_false_positives ... ignored
+test bfuse32::test::test_initialization ... ignored
+test bfuse8::test::test_bits_per_entry ... ignored
+test bfuse8::test::test_build_failure_with_subtraction_overflow ... ignored
+test bfuse8::test::test_dma_roundtrip ... ignored
+test bfuse8::test::test_false_positives ... ignored
+test bfuse8::test::test_initialization ... ignored
+test hash_proxy::test::test_initialization_from ... ignored
+test xor16::test::test_bits_per_entry ... ignored
+test xor16::test::test_false_positives ... ignored
+test xor16::test::test_initialization ... ignored
+test xor32::test::test_bits_per_entry ... ignored
+test xor32::test::test_false_positives ... ignored
+test xor32::test::test_initialization ... ignored
+test xor8::test::test_bits_per_entry ... ignored
+test xor8::test::test_false_positives ... ignored
+test xor8::test::test_initialization ... ignored
+
+test result: ok. 0 passed; 0 failed; 27 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running benches/bfuse16.rs (/tmp/rust/release/deps/bfuse16-94b20008e437e547)
+Gnuplot not found, using plotters backend
+Benchmarking BinaryFuse16/from/500000
+Benchmarking BinaryFuse16/from/500000: Warming up for 3.0000 s
+Benchmarking BinaryFuse16/from/500000: Collecting 10 samples in estimated 5.2671 s (495 iterations)
+Benchmarking BinaryFuse16/from/500000: Analyzing
+BinaryFuse16/from/500000
+                        time:   [10.526 ms 10.985 ms 11.393 ms]
+                        change: [−1.0889% +2.2711% +5.8176%] (p = 0.27 > 0.05)
+                        No change in performance detected.
+
+Benchmarking BinaryFuse16/contains/500000
+Benchmarking BinaryFuse16/contains/500000: Warming up for 3.0000 s
+Benchmarking BinaryFuse16/contains/500000: Collecting 100 samples in estimated 5.0000 s (7.1B iterations)
+Benchmarking BinaryFuse16/contains/500000: Analyzing
+BinaryFuse16/contains/500000
+                        time:   [696.06 ps 709.36 ps 723.19 ps]
+                        change: [+2.2819% +3.8243% +5.4474%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+
+     Running benches/bfuse32.rs (/tmp/rust/release/deps/bfuse32-60bdf5ad31a31cee)
+Gnuplot not found, using plotters backend
+Benchmarking BinaryFuse32/from/500000
+Benchmarking BinaryFuse32/from/500000: Warming up for 3.0000 s
+Benchmarking BinaryFuse32/from/500000: Collecting 10 samples in estimated 5.1821 s (495 iterations)
+Benchmarking BinaryFuse32/from/500000: Analyzing
+BinaryFuse32/from/500000
+                        time:   [10.325 ms 10.522 ms 10.992 ms]
+                        change: [+2.8496% +7.3483% +13.103%] (p = 0.01 < 0.05)
+                        Performance has regressed.
+
+Benchmarking BinaryFuse32/contains/500000
+Benchmarking BinaryFuse32/contains/500000: Warming up for 3.0000 s
+Benchmarking BinaryFuse32/contains/500000: Collecting 100 samples in estimated 5.0000 s (7.6B iterations)
+Benchmarking BinaryFuse32/contains/500000: Analyzing
+BinaryFuse32/contains/500000
+                        time:   [680.10 ps 688.17 ps 698.26 ps]
+                        change: [+3.8299% +6.2844% +8.7300%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 8 outliers among 100 measurements (8.00%)
+  6 (6.00%) high mild
+  2 (2.00%) high severe
+
+     Running benches/xor16.rs (/tmp/rust/release/deps/xor16-f1587daa73a684e1)
+Gnuplot not found, using plotters backend
+Benchmarking Xor16/from/500000
+Benchmarking Xor16/from/500000: Warming up for 3.0000 s
+Benchmarking Xor16/from/500000: Collecting 10 samples in estimated 5.4277 s (440 iterations)
+Benchmarking Xor16/from/500000: Analyzing
+Xor16/from/500000       time:   [11.003 ms 11.149 ms 11.557 ms]
+                        change: [+2.4316% +9.7923% +20.575%] (p = 0.05 > 0.05)
+                        No change in performance detected.
+
+Benchmarking Xor16/contains/500000
+Benchmarking Xor16/contains/500000: Warming up for 3.0000 s
+Benchmarking Xor16/contains/500000: Collecting 100 samples in estimated 5.0000 s (6.5B iterations)
+Benchmarking Xor16/contains/500000: Analyzing
+Xor16/contains/500000   time:   [694.70 ps 699.55 ps 705.90 ps]
+                        change: [+2.8805% +4.7561% +7.3704%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 10 outliers among 100 measurements (10.00%)
+  7 (7.00%) high mild
+  3 (3.00%) high severe
+
+     Running benches/xor32.rs (/tmp/rust/release/deps/xor32-dc7a43624c3d27bf)
+Gnuplot not found, using plotters backend
+Benchmarking Xor32/from/500000
+Benchmarking Xor32/from/500000: Warming up for 3.0000 s
+Benchmarking Xor32/from/500000: Collecting 10 samples in estimated 5.2603 s (440 iterations)
+Benchmarking Xor32/from/500000: Analyzing
+Xor32/from/500000       time:   [11.782 ms 11.973 ms 12.299 ms]
+                        change: [+8.2368% +11.128% +14.008%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+
+Benchmarking Xor32/contains/500000
+Benchmarking Xor32/contains/500000: Warming up for 3.0000 s
+Benchmarking Xor32/contains/500000: Collecting 100 samples in estimated 5.0000 s (7.2B iterations)
+Benchmarking Xor32/contains/500000: Analyzing
+Xor32/contains/500000   time:   [689.62 ps 692.56 ps 695.49 ps]
+                        change: [−0.9278% +0.4681% +1.7737%] (p = 0.51 > 0.05)
+                        No change in performance detected.
+Found 5 outliers among 100 measurements (5.00%)
+  2 (2.00%) low mild
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+
+     Running benches/xor8.rs (/tmp/rust/release/deps/xor8-9b36e3c4ab7eac8c)
+Gnuplot not found, using plotters backend
+Benchmarking Xor8/from/500000
+Benchmarking Xor8/from/500000: Warming up for 3.0000 s
+Benchmarking Xor8/from/500000: Collecting 10 samples in estimated 5.3493 s (440 iterations)
+Benchmarking Xor8/from/500000: Analyzing
+Xor8/from/500000        time:   [11.070 ms 11.917 ms 12.590 ms]
+                        change: [−2.6295% +1.1195% +5.4734%] (p = 0.65 > 0.05)
+                        No change in performance detected.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking Xor8/contains/500000
+Benchmarking Xor8/contains/500000: Warming up for 3.0000 s
+Benchmarking Xor8/contains/500000: Collecting 100 samples in estimated 5.0000 s (7.1B iterations)
+Benchmarking Xor8/contains/500000: Analyzing
+Xor8/contains/500000    time:   [709.40 ps 721.61 ps 736.08 ps]
+                        change: [−7.9102% −4.1287% −0.9166%] (p = 0.02 < 0.05)
+                        Change within noise threshold.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
