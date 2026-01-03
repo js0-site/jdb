@@ -14,9 +14,11 @@ pub type Kv = (HipByt<'static>, Pos);
 /// Query trait for index table (read-only)
 /// 索引表查询 trait（只读）
 pub trait Table {
-  /// Iterator type for range/iter queries (must support reverse iteration)
-  /// 范围/迭代查询的迭代器类型（必须支持反向迭代）
-  type Iter: Iterator<Item = Kv> + DoubleEndedIterator;
+  /// Iterator type for range/iter queries (GATs for zero-copy)
+  /// 范围/迭代查询的迭代器类型（GATs 实现零拷贝）
+  type Iter<'a>: Iterator<Item = Kv> + DoubleEndedIterator
+  where
+    Self: 'a;
 
   /// Get entry by key
   /// 按键获取条目
@@ -24,17 +26,17 @@ pub trait Table {
 
   /// Range query with bounds
   /// 范围查询
-  fn range(&self, start: Bound<&[u8]>, end: Bound<&[u8]>) -> Self::Iter;
+  fn range(&self, start: Bound<&[u8]>, end: Bound<&[u8]>) -> Self::Iter<'_>;
 
   /// Iterate all entries
   /// 迭代所有条目
-  fn iter(&self) -> Self::Iter {
+  fn iter(&self) -> Self::Iter<'_> {
     self.range(Bound::Unbounded, Bound::Unbounded)
   }
 
   /// Iterate entries with prefix
   /// 迭代带前缀的条目
-  fn prefix(&self, prefix: &[u8]) -> Self::Iter {
+  fn prefix(&self, prefix: &[u8]) -> Self::Iter<'_> {
     let start = Bound::Included(prefix);
     match prefix_end(prefix) {
       Some(end) => self.range(start, Bound::Excluded(end.as_ref())),

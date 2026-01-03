@@ -184,20 +184,76 @@ fn test_memtable_prefix_keys() -> Void {
   OK
 }
 
+/// Test keys containing null bytes with prefix relationships
+/// 测试包含空字节且有前缀关系的键
+#[test]
+fn test_null_byte_prefix_keys() -> Void {
+  let mut mt = Mem::new(1);
+
+  // Keys with null bytes and prefix relationships
+  // 包含空字节且有前缀关系的键
+  let k1 = vec![0u8].into_boxed_slice();
+  let k2 = vec![0u8, 0u8].into_boxed_slice();
+  let k3 = vec![0u8, 0u8, 0u8].into_boxed_slice();
+  let k4 = vec![0u8, 1u8].into_boxed_slice();
+  let k5 = vec![0u8, 0u8, 1u8].into_boxed_slice();
+
+  mt.put(k1.clone(), Pos::infile(1, 10, 1));
+  mt.put(k2.clone(), Pos::infile(1, 20, 2));
+  mt.put(k3.clone(), Pos::infile(1, 30, 3));
+  mt.put(k4.clone(), Pos::infile(1, 40, 4));
+  mt.put(k5.clone(), Pos::infile(1, 50, 5));
+
+  // All keys should exist
+  // 所有键都应该存在
+  assert_eq!(mt.len(), 5);
+  assert!(mt.get(&[0u8]).is_some(), "[0] should exist");
+  assert!(mt.get(&[0u8, 0u8]).is_some(), "[0,0] should exist");
+  assert!(mt.get(&[0u8, 0u8, 0u8]).is_some(), "[0,0,0] should exist");
+  assert!(mt.get(&[0u8, 1u8]).is_some(), "[0,1] should exist");
+  assert!(mt.get(&[0u8, 0u8, 1u8]).is_some(), "[0,0,1] should exist");
+
+  // Iteration should be sorted
+  // 迭代应该是有序的
+  let keys: Vec<Vec<u8>> = mt.iter().map(|(k, _)| k.to_vec()).collect();
+  trace!("Keys with nulls: {:?}", keys);
+
+  let mut sorted = keys.clone();
+  sorted.sort();
+  assert_eq!(keys, sorted, "Keys should be sorted");
+
+  // Range query with null byte keys
+  // 包含空字节键的范围查询
+  let range_keys: Vec<Vec<u8>> = mt
+    .range(
+      Bound::Included([0u8, 0u8].as_slice()),
+      Bound::Excluded([0u8, 1u8].as_slice()),
+    )
+    .map(|(k, _)| k.to_vec())
+    .collect();
+
+  assert!(range_keys.contains(&vec![0u8, 0u8]));
+  assert!(range_keys.contains(&vec![0u8, 0u8, 0u8]));
+  assert!(range_keys.contains(&vec![0u8, 0u8, 1u8]));
+  assert!(!range_keys.contains(&vec![0u8]));
+  assert!(!range_keys.contains(&vec![0u8, 1u8]));
+
+  OK
+}
+
 // Property-based tests
 // 属性测试
 mod proptest_memtable {
-  use jdb_mem::Mem;
   use jdb_base::{
     Pos,
     table::{Table, TableMut},
   };
+  use jdb_mem::Mem;
   use proptest::prelude::*;
 
   // Generate random key-value pairs
   // 生成随机键值对
   fn arb_key() -> impl Strategy<Value = Vec<u8>> {
-    use jdb_mem::Mem;
     prop::collection::vec(any::<u8>(), 1..64)
   }
 

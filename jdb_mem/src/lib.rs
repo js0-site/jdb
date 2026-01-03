@@ -4,7 +4,11 @@
 //! BTreeMap based memtable for recent writes.
 //! 基于 BTreeMap 的内存表，用于最近的写入。
 
-use std::{collections::BTreeMap, ops::Bound};
+use std::{
+  collections::{BTreeMap, btree_map},
+  iter::FusedIterator,
+  ops::Bound,
+};
 
 use hipstr::HipByt;
 use jdb_base::{
@@ -15,9 +19,9 @@ use jdb_base::{
 /// Memtable - In-memory sorted key-value store
 /// 内存表 - 内存有序键值存储
 ///
-/// Note: Uses BTreeMap because blart doesn't support
+/// Note: Uses BTreeMap because radix trees don't support
 /// keys where one is a prefix of another (e.g., [0] and [0, 1]).
-/// 注意：使用 BTreeMap，因为 blart 不支持
+/// 注意：使用 BTreeMap，因为基数树不支持
 /// 一个键是另一个键前缀的情况（如 [0] 和 [0, 1]）。
 pub struct Mem {
   id: u64,
@@ -28,8 +32,8 @@ pub struct Mem {
 impl Mem {
   /// Create new memtable with ID
   /// 创建新的内存表
-  #[inline]
-  pub fn new(id: u64) -> Self {
+  #[inline(always)]
+  pub const fn new(id: u64) -> Self {
     Self {
       id,
       data: BTreeMap::new(),
@@ -66,43 +70,41 @@ impl Mem {
   }
 }
 
-/// Iterator for Mem range queries
-/// Mem 范围查询迭代器
-pub struct MemIter {
-  data: Vec<Kv>,
-  idx: usize,
+/// Iterator for Mem range queries (zero-copy, lazy evaluation)
+/// Mem 范围查询迭代器（零拷贝，惰性求值）
+pub struct MemIter<'a> {
+  iter: btree_map::Range<'a, HipByt<'static>, Pos>,
 }
 
-impl Iterator for MemIter {
+impl<'a> Iterator for MemIter<'a> {
   type Item = Kv;
 
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
-    if self.idx < self.data.len() {
-      let item = self.data[self.idx].clone();
-      self.idx += 1;
-      Some(item)
-    } else {
-      None
-    }
+    // HipByt clone is cheap (ref-counted), Pos is Copy
+    // HipByt 克隆很廉价（引用计数），Pos 是 Copy 类型
+    self.iter.next().map(|(k, &v)| (k.clone(), v))
+  }
+
+  #[inline]
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    self.iter.size_hint()
   }
 }
 
-impl DoubleEndedIterator for MemIter {
+impl DoubleEndedIterator for MemIter<'_> {
   #[inline]
   fn next_back(&mut self) -> Option<Self::Item> {
-    if self.idx < self.data.len() {
-      let item = self.data[self.data.len() - 1].clone();
-      self.data.pop();
-      Some(item)
-    } else {
-      None
-    }
+    self.iter.next_back().map(|(k, &v)| (k.clone(), v))
   }
 }
 
+impl ExactSizeIterator for MemIter<'_> {}
+
+impl FusedIterator for MemIter<'_> {}
+
 impl Table for Mem {
-  type Iter = MemIter;
+  type Iter<'a> = MemIter<'a>;
 
   #[inline]
   fn get(&self, key: &[u8]) -> Option<Pos> {
@@ -110,15 +112,10 @@ impl Table for Mem {
   }
 
   #[inline]
-  fn range(&self, start: Bound<&[u8]>, end: Bound<&[u8]>) -> Self::Iter {
-    // Collect to Vec to avoid lifetime issues
-    // 收集到 Vec 以避免生命周期问题
-    let data: Vec<Kv> = self
-      .data
-      .range::<[u8], _>((start, end))
-      .map(|(k, &v)| (k.clone(), v))
-      .collect();
-    MemIter { data, idx: 0 }
+  fn range(&self, start: Bound<&[u8]>, end: Bound<&[u8]>) -> Self::Iter<'_> {
+    MemIter {
+      iter: self.data.range::<[u8], _>((start, end)),
+    }
   }
 }
 
