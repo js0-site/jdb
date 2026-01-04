@@ -1,0 +1,29 @@
+[package]
+name = "jdb_mem"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_mem"
+description = "High-performance in-memory table for LSM storage engine / LSM 存储引擎的高性能内存表"
+keywords = ["memtable", "lsm-tree", "kv-store", "database", "embedded"]
+categories = ["database-implementations", "data-structures", "caching"]
+readme = "README.md"
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+jdb_base = { version = "0.1.1", path = "../jdb_base" }
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = { version = "0.17.0", features = ["macros"] }
+log = "0.4.29"
+log_init = "0.1.34"
+proptest = "1.9.0"
+static_init = "1.0.4"

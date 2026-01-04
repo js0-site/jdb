@@ -1,0 +1,74 @@
+[package]
+name = "jdb_sstable"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_sstable"
+description = "jdb_sstable"
+keywords = [ ]
+categories = [ ]
+readme = "README.md"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
+
+[dependencies]
+bitcode = "0.6.9"
+crc32fast = "1.5.0"
+futures-core = "0.3.31"
+gxhash = "3.5.0"
+log = "0.4.29"
+thiserror = "2.0.17"
+zerocopy = "0.8.31"
+
+[dependencies.zbin]
+version = "0.1.4"
+path = "../zbin"
+
+[dependencies.compio]
+version = "0.17.0"
+features = [ "runtime", "io" ]
+
+[dependencies.jdb_base]
+version = "0.1.1"
+path = "../jdb_base"
+
+[dependencies.jdb_fs]
+version = "0.1.1"
+path = "../jdb_fs"
+
+[dependencies.jdb_pgm_index]
+version = "0.3.3"
+path = "../jdb_pgm_index"
+features = [ "bitcode" ]
+
+[dependencies.jdb_xorf]
+version = "0.12.0"
+path = "../jdb_xorf"
+features = [ "bitcode" ]
+
+[dependencies.shared_prefix_len]
+version = "0.1.1"
+path = "../shared_prefix_len"
+
+[dev-dependencies]
+aok = "0.1.18"
+fastrand = "2.3.0"
+futures-core = "0.3.31"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
+tempfile = "3.24.0"
+
+[dev-dependencies.compio]
+version = "0.17.0"
+features = [ "macros" ]
+
+[dev-dependencies.jdb_fs]
+path = "../jdb_fs"
+version = "0.1.1"
