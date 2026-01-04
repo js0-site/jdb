@@ -97,7 +97,7 @@ struct WriteState {
   task_running: bool,
 }
 
-/// Write slot info for writer task
+/// Writec slot info for writer task
 /// 写入槽信息（用于写入任务）
 pub(crate) struct WriteSlot {
   pub idx: u8,

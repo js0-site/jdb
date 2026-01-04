@@ -5,9 +5,9 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/js0/jdb.git"
 homepage = "https://github.com/js0/jdb/tree/main/jdb_mem"
-description = "jdb_mem"
-keywords = ["database", "memtable", "kv-store", "embedded"]
-categories = ["database", "data-structures"]
+description = "High-performance in-memory table for LSM storage engine / LSM 存储引擎的高性能内存表"
+keywords = ["memtable", "lsm-tree", "kv-store", "database", "embedded"]
+categories = ["database-implementations", "data-structures", "caching"]
 readme = "README.md"
 
 [features]

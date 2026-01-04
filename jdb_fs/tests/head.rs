@@ -4,11 +4,6 @@
 use jdb_base::Flag;
 use jdb_fs::head::{HEAD_CRC, HEAD_TOTAL, Head, HeadBuilder, MAGIC};
 
-#[static_init::constructor(0)]
-extern "C" fn _log_init() {
-  log_init::init();
-}
-
 /// Test infile val
 /// 测试 INFILE val
 #[test]

@@ -5,9 +5,9 @@ edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/js0-site/jdb.git"
 homepage = "https://github.com/js0-site/jdb/tree/main/jdb_val"
-description = "Fast, Async, Embedded Key-Value Storage / 高性能异步嵌入式键值存储"
-keywords = [ "database", "storage", "kv", "async", "embedded" ]
-categories = [ "database", "asynchronous", "data-structures" ]
+description = "Async WAL Value Storage for KV Separation / 异步 WAL 值存储，用于 KV 分离架构"
+keywords = [ "wal", "storage", "kv", "async" ]
+categories = [ "database", "asynchronous", "filesystem" ]
 readme = "README.md"
 
 [package.metadata.docs.rs]

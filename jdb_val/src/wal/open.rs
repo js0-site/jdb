@@ -20,7 +20,7 @@ use jdb_lock::WalLock;
 use log::warn;
 
 use super::{
-  WalConf, WalEntry, WalInner,
+  Conf, WalConf, WalEntry, WalInner,
   consts::{GC_SUBDIR, HEADER_SIZE, MIN_FILE_SIZE},
   header::{HeaderState, build_header, check_header},
 };
@@ -44,11 +44,16 @@ fn recover_stream(paths: Vec<PathBuf>, start_offset: u64) -> impl Stream<Item = 
 impl<C: WalConf> WalInner<C> {
   /// Open WAL with checkpoint info and return recovery stream
   /// 使用检查点信息打开 WAL 并返回恢复流
-  pub async fn open(&mut self, ckp: Option<&Ckp>) -> Result<impl Stream<Item = HeadEnd<Head>>> {
-    fs::create_dir_all(&self.wal_dir)?;
-    fs::create_dir_all(&self.bin_dir)?;
+  pub async fn open(
+    dir: impl Into<PathBuf>,
+    conf: &[Conf],
+    ckp: Option<&Ckp>,
+  ) -> Result<(Self, impl Stream<Item = HeadEnd<Head>>)> {
+    let mut wal = Self::new(dir, conf);
+    fs::create_dir_all(&wal.wal_dir)?;
+    fs::create_dir_all(&wal.bin_dir)?;
 
-    let gc_dir = self.dir().join(GC_SUBDIR);
+    let gc_dir = wal.dir().join(GC_SUBDIR);
     if gc_dir.exists() {
       let _ = fs::remove_dir_all(&gc_dir);
     }
@@ -73,31 +78,29 @@ impl<C: WalConf> WalInner<C> {
     } else {
       // No checkpoint, scan for newest
       // 无检查点，扫描最新的
-      (self.scan_newest_id(), HEADER_SIZE as u64, Vec::new())
+      (wal.scan_newest_id(), HEADER_SIZE as u64, Vec::new())
     };
 
     // Try to open current WAL
     // 尝试打开当前 WAL
     if let Some(id) = cur_id
-      && let Some((file, end)) = self.try_open_wal(id).await
+      && let Some((file, end)) = wal.try_open_wal(id).await
     {
-      self.cur_lock.try_lock(&self.wal_path(id))?;
-      self.cur_id.store(id, Ordering::Release);
-      *self.shared.file() = Some(file);
-      self.cur_pos = end;
-      self.ider.init(id);
+      wal.cur_lock.try_lock(&wal.wal_path(id))?;
+      wal.cur_id.store(id, Ordering::Release);
+      *wal.shared.file() = Some(file);
+      wal.cur_pos = end;
+      wal.ider.init(id);
 
-      return Ok(recover_stream(
-        wal_ids.iter().map(|&id| self.wal_path(id)).collect(),
-        start_offset,
-      ));
+      let paths: Vec<_> = wal_ids.iter().map(|&id| wal.wal_path(id)).collect();
+      return Ok((wal, recover_stream(paths, start_offset)));
     }
 
     // No valid WAL, create new
     // 无有效 WAL，创建新的
-    self.cur_id.store(self.ider.get(), Ordering::Release);
-    self.wal_new().await?;
-    Ok(recover_stream(Vec::new(), 0))
+    wal.cur_id.store(wal.ider.get(), Ordering::Release);
+    wal.wal_new().await?;
+    Ok((wal, recover_stream(Vec::new(), 0)))
   }
 
   /// Scan directory for newest WAL ID
@@ -141,7 +144,7 @@ impl<C: WalConf> WalInner<C> {
       .await
       .unwrap_or(HEADER_SIZE as u64);
 
-    log::info!("WAL opened: id={id}, end={end}");
+    log::debug!("WAL opened: id={id}, end={end}");
     Some((file, end))
   }
 

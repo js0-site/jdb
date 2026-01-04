@@ -31,9 +31,9 @@ pub const SMALL_BUF_SIZE: usize = 64 * 1024;
 /// 默认最大文件大小
 pub const DEFAULT_MAX_SIZE: u64 = 512 * 1024 * 1024;
 
-/// Default write queue capacity
-/// 默认写入队列容量
-pub const DEFAULT_WRITE_CHAN: usize = 4096;
+/// Default write buffer capacity
+/// 默认写入缓冲区容量
+pub const DEFAULT_BUF_CAP: usize = 4096;
 
 /// Default cache size (8MB)
 /// 默认缓存大小

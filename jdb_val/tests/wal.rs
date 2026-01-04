@@ -4,11 +4,6 @@
 use jdb_fs::head::INFILE_MAX;
 use jdb_val::Wal;
 
-#[static_init::constructor(0)]
-extern "C" fn _log_init() {
-  log_init::init();
-}
-
 fn make(size: usize, fill: u8) -> Vec<u8> {
   vec![fill; size]
 }
@@ -16,8 +11,7 @@ fn make(size: usize, fill: u8) -> Vec<u8> {
 #[compio::test]
 async fn test_infile_infile() {
   let dir = tempfile::tempdir().unwrap();
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   let key = make(100, 0x41);
   let val = make(200, 0x61);
@@ -30,8 +24,7 @@ async fn test_infile_infile() {
 #[compio::test]
 async fn test_file_mode() {
   let dir = tempfile::tempdir().unwrap();
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   let key = make(100, 0x41);
   let val = make(INFILE_MAX + 200, 0x61);
@@ -48,8 +41,9 @@ async fn test_rotate() {
   use jdb_val::Conf;
 
   let dir = tempfile::tempdir().unwrap();
-  let mut wal = Wal::new(dir.path(), &[Conf::MaxSize(200)]);
-  let _ = wal.open(None).await.unwrap();
+  let (mut wal, _) = Wal::open(dir.path(), &[Conf::MaxSize(200)], None)
+    .await
+    .unwrap();
 
   let id1 = wal.cur_id();
   for i in 0..5 {
@@ -66,19 +60,17 @@ async fn test_rotate() {
 #[compio::test]
 async fn test_sync() {
   let dir = tempfile::tempdir().unwrap();
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   wal.put(b"key", b"val").await.unwrap();
-  wal.sync_data().await.unwrap();
-  wal.sync_all().await.unwrap();
+  wal.sync().await.unwrap();
+  wal.sync().await.unwrap();
 }
 
 #[compio::test]
 async fn test_iter() {
   let dir = tempfile::tempdir().unwrap();
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   wal.put(b"k1", b"v1").await.unwrap();
   wal.put(b"k2", b"v2").await.unwrap();
@@ -91,15 +83,14 @@ async fn test_iter() {
 #[compio::test]
 async fn test_scan() {
   let dir = tempfile::tempdir().unwrap();
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   wal.put(b"k1", b"v1").await.unwrap();
   wal.put(b"k2", b"v2").await.unwrap();
-  wal.sync_all().await.unwrap();
+  wal.sync().await.unwrap();
 
   drop(wal);
-  let wal = Wal::new(dir.path(), &[]);
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   let mut count = 0;
   let id = wal.iter().next().unwrap();
@@ -117,19 +108,18 @@ async fn test_scan() {
 #[compio::test]
 async fn test_rm() {
   let dir = tempfile::tempdir().unwrap();
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   wal.put(b"key1", b"val1").await.unwrap();
   let loc = wal.rm(b"key1").await.unwrap();
-  wal.sync_all().await.unwrap();
+  wal.sync().await.unwrap();
 
   // rm returns Pos with len=0
   // rm 返回 len=0 的 Pos
   assert!(loc.is_empty());
 
   drop(wal);
-  let wal = Wal::new(dir.path(), &[]);
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   let mut count = 0;
   let mut tombstone_found = false;
@@ -151,15 +141,14 @@ async fn test_rm() {
 #[compio::test]
 async fn test_read_pending_queue() {
   let dir = tempfile::tempdir().unwrap();
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   let loc = wal.put(b"key1", b"val1").await.unwrap();
 
   let got_val = wal.val(loc).await.unwrap();
   assert_eq!(got_val.as_ref(), b"val1");
 
-  wal.sync_all().await.unwrap();
+  wal.sync().await.unwrap();
   let got_val = wal.val(loc).await.unwrap();
   assert_eq!(got_val.as_ref(), b"val1");
 }
@@ -175,16 +164,14 @@ mod prop {
       let dir = tempfile::tempdir().unwrap();
 
       let loc = {
-        let mut wal = Wal::new(dir.path(), &[]);
-        let _ = wal.open(None).await.unwrap();
+        let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
         let loc = wal.put(&key, &val).await.unwrap();
-        wal.sync_all().await.unwrap();
+        wal.sync().await.unwrap();
         loc
       };
 
-      let mut wal = Wal::new(dir.path(), &[]);
-      let _ = wal.open(None).await.unwrap();
+      let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
       let got_val = wal.val(loc).await.unwrap();
       assert_eq!(got_val.as_ref(), val.as_slice());
@@ -211,12 +198,11 @@ mod prop {
 
       let first_entry_end;
       {
-        let mut wal = Wal::new(dir.path(), &[]);
-        let _ = wal.open(None).await.unwrap();
+        let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
         wal.put(&[1u8], &[2u8]).await.unwrap();
         first_entry_end = wal.cur_pos();
         wal.put(&key, &val).await.unwrap();
-        wal.sync_all().await.unwrap();
+        wal.sync().await.unwrap();
       }
 
       let wal_path = dir.path().join("wal");
@@ -232,8 +218,7 @@ mod prop {
         file.sync_all().unwrap();
       }
 
-      let mut wal = Wal::new(dir.path(), &[]);
-      let _ = wal.open(None).await.unwrap();
+      let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
       assert_eq!(wal.cur_pos(), first_entry_end);
     });
   }
@@ -283,8 +268,7 @@ mod gc {
   #[compio::test]
   async fn test_gc_cannot_remove_current() {
     let dir = tempfile::tempdir().unwrap();
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     wal.put(b"k", b"v").await.unwrap();
 
     let checker = MockGc::new(vec![]);
@@ -297,8 +281,7 @@ mod gc {
   #[compio::test]
   async fn test_gc_empty() {
     let dir = tempfile::tempdir().unwrap();
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
     let checker = MockGc::new(vec![]);
     let index = MockIndex;
@@ -312,15 +295,16 @@ mod gc {
   async fn test_gc_merge() {
     let dir = tempfile::tempdir().unwrap();
 
-    let mut wal = Wal::new(dir.path(), &[Conf::MaxSize(150)]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[Conf::MaxSize(150)], None)
+      .await
+      .unwrap();
 
     for i in 0..20u8 {
       let key = [b'k', i];
       let val = vec![i; 20];
       wal.put(&key, &val).await.unwrap();
     }
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
 
     let cur_id = wal.cur_id();
     let ids: Vec<_> = wal.iter().filter(|&id| id < cur_id).collect();

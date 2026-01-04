@@ -8,11 +8,6 @@ use std::{
 
 use jdb_val::{HEADER_SIZE, Wal};
 
-#[static_init::constructor(0)]
-extern "C" fn _log_init() {
-  log_init::init();
-}
-
 /// Magic size is 1 byte in new format
 /// 新格式中魔数大小为 1 字节
 const MAGIC_SIZE: usize = 1;
@@ -22,8 +17,7 @@ const MAGIC_SIZE: usize = 1;
 #[compio::test]
 async fn test_open_new() {
   let dir = tempfile::tempdir().unwrap();
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
 
   assert_eq!(wal.cur_pos(), HEADER_SIZE as u64);
 }
@@ -35,13 +29,11 @@ async fn test_reopen_empty() {
   let dir = tempfile::tempdir().unwrap();
 
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
-    wal.sync_all().await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
+    wal.sync().await.unwrap();
   }
 
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   assert_eq!(wal.cur_pos(), HEADER_SIZE as u64);
 }
 
@@ -53,17 +45,14 @@ async fn test_reopen_with_data() {
 
   let expected_pos;
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     wal.put(b"key1", b"val1").await.unwrap();
     wal.put(b"key2", b"val2").await.unwrap();
     expected_pos = wal.cur_pos();
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
   }
 
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
-  dbg!(expected_pos, wal.cur_pos());
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   assert_eq!(wal.cur_pos(), expected_pos);
 }
 
@@ -75,12 +64,11 @@ async fn test_recover_truncated() {
 
   let first_entry_end;
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     wal.put(b"key1", b"val1").await.unwrap();
     first_entry_end = wal.cur_pos();
     wal.put(b"key2", b"val2").await.unwrap();
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
   }
 
   // Truncate file to middle of second entry
@@ -91,9 +79,7 @@ async fn test_recover_truncated() {
   let file = OpenOptions::new().write(true).open(&file_path).unwrap();
   file.set_len(first_entry_end + 10).unwrap();
 
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
-  dbg!(first_entry_end, wal.cur_pos());
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   assert_eq!(wal.cur_pos(), first_entry_end);
 }
 
@@ -105,12 +91,11 @@ async fn test_recover_corrupted_magic() {
 
   let first_entry_end;
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     wal.put(b"key1", b"val1").await.unwrap();
     first_entry_end = wal.cur_pos();
     wal.put(b"key2", b"val2").await.unwrap();
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
   }
 
   // Corrupt second entry's magic
@@ -126,9 +111,7 @@ async fn test_recover_corrupted_magic() {
     file.sync_all().unwrap();
   }
 
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
-  dbg!(first_entry_end, wal.cur_pos());
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   assert_eq!(wal.cur_pos(), first_entry_end);
 }
 
@@ -140,12 +123,11 @@ async fn test_recover_corrupted_head() {
 
   let first_entry_end;
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     wal.put(b"key1", b"val1").await.unwrap();
     first_entry_end = wal.cur_pos();
     wal.put(b"key2", b"val2").await.unwrap();
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
   }
 
   // Corrupt second entry's head (corrupt id field)
@@ -164,9 +146,7 @@ async fn test_recover_corrupted_head() {
     file.sync_all().unwrap();
   }
 
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
-  dbg!(first_entry_end, wal.cur_pos());
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   assert_eq!(wal.cur_pos(), first_entry_end);
 }
 
@@ -176,16 +156,13 @@ async fn test_recover_corrupted_head() {
 async fn test_recover_backward_search() {
   let dir = tempfile::tempdir().unwrap();
 
-  let first_entry_end;
   let second_entry_end;
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     wal.put(b"key1", b"val1").await.unwrap();
-    first_entry_end = wal.cur_pos();
     wal.put(b"key2", b"val2").await.unwrap();
     second_entry_end = wal.cur_pos();
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
   }
 
   // Corrupt first entry's magic (forward will fail at start)
@@ -203,9 +180,7 @@ async fn test_recover_backward_search() {
     file.sync_all().unwrap();
   }
 
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
-  dbg!(first_entry_end, second_entry_end, wal.cur_pos());
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   // Should find second entry via backward search
   // 应通过反向搜索找到第二个条目
   assert_eq!(wal.cur_pos(), second_entry_end);
@@ -217,19 +192,14 @@ async fn test_recover_backward_search() {
 async fn test_recover_backward_multiple_corrupt() {
   let dir = tempfile::tempdir().unwrap();
 
-  let first_entry_end;
   let second_entry_end;
-  let third_entry_end;
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     wal.put(b"key1", b"val1").await.unwrap();
-    first_entry_end = wal.cur_pos();
     wal.put(b"key2", b"val2").await.unwrap();
     second_entry_end = wal.cur_pos();
     wal.put(b"key3", b"val3").await.unwrap();
-    third_entry_end = wal.cur_pos();
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
   }
 
   let wal_path = dir.path().join("wal");
@@ -247,14 +217,7 @@ async fn test_recover_backward_multiple_corrupt() {
     file.sync_all().unwrap();
   }
 
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
-  dbg!(
-    first_entry_end,
-    second_entry_end,
-    third_entry_end,
-    wal.cur_pos()
-  );
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   // Should find second entry (last valid) via backward search
   // 应通过反向搜索找到第二个条目（最后一个有效的）
   assert_eq!(wal.cur_pos(), second_entry_end);
@@ -267,9 +230,8 @@ async fn test_file_too_small() {
   let dir = tempfile::tempdir().unwrap();
 
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
-    wal.sync_all().await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
+    wal.sync().await.unwrap();
   }
 
   // Truncate to less than MIN_FILE_SIZE
@@ -282,8 +244,7 @@ async fn test_file_too_small() {
 
   // Should create new file
   // 应创建新文件
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   assert_eq!(wal.cur_pos(), HEADER_SIZE as u64);
 }
 
@@ -294,10 +255,9 @@ async fn test_invalid_header() {
   let dir = tempfile::tempdir().unwrap();
 
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     wal.put(b"key", b"val").await.unwrap();
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
   }
 
   // Corrupt header
@@ -315,8 +275,7 @@ async fn test_invalid_header() {
 
   // Should create new file since header is invalid
   // 应创建新文件因为头无效
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   // New file starts at HEADER_SIZE
   // 新文件从 HEADER_SIZE 开始
   assert_eq!(wal.cur_pos(), HEADER_SIZE as u64);
@@ -334,20 +293,17 @@ async fn test_recover_infile() {
 
   let expected_pos;
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     // Key > 30B triggers infile mode
     // Key > 30B 触发 infile 模式
     let key = vec![b'k'; 100];
     let val = vec![b'v'; 200];
     wal.put(&key, &val).await.unwrap();
     expected_pos = wal.cur_pos();
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
   }
 
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
-  dbg!(expected_pos, wal.cur_pos());
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   assert_eq!(wal.cur_pos(), expected_pos);
 }
 
@@ -358,11 +314,10 @@ async fn test_all_corrupted() {
   let dir = tempfile::tempdir().unwrap();
 
   {
-    let mut wal = Wal::new(dir.path(), &[]);
-    let _ = wal.open(None).await.unwrap();
+    let (mut wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
     wal.put(b"key1", b"val1").await.unwrap();
     wal.put(b"key2", b"val2").await.unwrap();
-    wal.sync_all().await.unwrap();
+    wal.sync().await.unwrap();
   }
 
   // Corrupt all magic bytes
@@ -382,8 +337,7 @@ async fn test_all_corrupted() {
     file.sync_all().unwrap();
   }
 
-  let mut wal = Wal::new(dir.path(), &[]);
-  let _ = wal.open(None).await.unwrap();
+  let (wal, _) = Wal::open(dir.path(), &[], None).await.unwrap();
   // Should fallback to checkpoint (HEADER_SIZE)
   // 应回退到检查点
   assert_eq!(wal.cur_pos(), HEADER_SIZE as u64);

@@ -1,4 +1,4 @@
-//! jdb_mem - In-memory table implementation
+//! In-memory table implementation
 //! 内存表实现
 //!
 //! BTreeMap based memtable for recent writes.
@@ -19,8 +19,7 @@ use jdb_base::{
 /// Memtable - In-memory sorted key-value store
 /// 内存表 - 内存有序键值存储
 ///
-/// Note: Uses BTreeMap because radix trees don't support
-/// keys where one is a prefix of another (e.g., [0] and [0, 1]).
+/// Note: Uses BTreeMap because radix trees don't support keys where one is a prefix of another.
 /// 注意：使用 BTreeMap，因为基数树不支持
 /// 一个键是另一个键前缀的情况（如 [0] 和 [0, 1]）。
 pub struct Mem {
@@ -43,28 +42,28 @@ impl Mem {
 
   /// Get memtable ID
   /// 获取内存表 ID
-  #[inline(always)]
+  #[inline]
   pub fn id(&self) -> u64 {
     self.id
   }
 
   /// Get approximate size in bytes
   /// 获取近似大小（字节）
-  #[inline(always)]
+  #[inline]
   pub fn size(&self) -> u64 {
     self.size
   }
 
   /// Get entry count
   /// 获取条目数量
-  #[inline(always)]
+  #[inline]
   pub fn len(&self) -> usize {
     self.data.len()
   }
 
   /// Check if empty
   /// 检查是否为空
-  #[inline(always)]
+  #[inline]
   pub fn is_empty(&self) -> bool {
     self.data.is_empty()
   }
@@ -74,9 +73,9 @@ impl Mem {
   #[inline]
   fn upsert(&mut self, key: HipByt<'static>, val: Pos) {
     let key_len = key.len() as u64;
+    // Only increase size for new keys to keep approximation simple and fast
+    // 仅在新增键时增加大小，以保持近似计算简单快速
     if self.data.insert(key, val).is_none() {
-      // New entry, update size
-      // 新条目，更新大小
       self.size += key_len + Pos::SIZE as u64;
     }
   }

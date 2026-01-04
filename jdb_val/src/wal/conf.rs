@@ -8,8 +8,8 @@ use jdb_lock::{NoLock, WalLock, w::Lock as WLock};
 use size_lru::{Lhd, NoCache as SzNoCache, SizeLru};
 
 use super::consts::{
-  BLOCK_CACHE_RATIO, DEFAULT_BIN_CAP, DEFAULT_BUF_MAX, DEFAULT_CACHE_SIZE, DEFAULT_FILE_CAP,
-  DEFAULT_MAX_SIZE, DEFAULT_WRITE_CHAN, MIN_BIN_CAP, MIN_CACHE_SIZE, MIN_FILE_CAP,
+  BLOCK_CACHE_RATIO, DEFAULT_BIN_CAP, DEFAULT_BUF_CAP, DEFAULT_BUF_MAX, DEFAULT_CACHE_SIZE,
+  DEFAULT_FILE_CAP, DEFAULT_MAX_SIZE, MIN_BIN_CAP, MIN_CACHE_SIZE, MIN_FILE_CAP,
 };
 
 /// GC trait for data processing during GC
@@ -102,12 +102,12 @@ pub enum Conf {
   /// File handle cache capacity
   /// 文件句柄缓存容量
   FileLru(usize),
-  /// Write queue capacity
-  /// 写入队列容量
-  WriteChan(usize),
-  /// Max slot size before waiting
-  /// 等待前的最大槽大小
-  SlotMax(usize),
+  /// Write buffer initial capacity
+  /// 写入缓冲区初始容量
+  BufCap(usize),
+  /// Write buffer size limit, blocks when exceeded
+  /// 写入缓冲区大小上限，超过则等待刷盘
+  BufMax(usize),
 }
 
 /// Parsed config
@@ -118,7 +118,7 @@ pub struct ParsedConf {
   pub block_cache_size: u64,
   pub file_cap: usize,
   pub bin_cap: usize,
-  pub write_chan: usize,
+  pub buf_cap: usize,
   pub buf_max: usize,
 }
 
@@ -130,7 +130,7 @@ impl ParsedConf {
       block_cache_size: 0,
       file_cap: DEFAULT_FILE_CAP,
       bin_cap: DEFAULT_BIN_CAP,
-      write_chan: DEFAULT_WRITE_CHAN,
+      buf_cap: DEFAULT_BUF_CAP,
       buf_max: DEFAULT_BUF_MAX,
     };
     for item in conf {
@@ -138,8 +138,8 @@ impl ParsedConf {
         Conf::MaxSize(v) => c.max_size = v,
         Conf::CacheSize(v) => c.cache_size = v,
         Conf::FileLru(v) => c.file_cap = v,
-        Conf::WriteChan(v) => c.write_chan = v,
-        Conf::SlotMax(v) => c.buf_max = v,
+        Conf::BufCap(v) => c.buf_cap = v,
+        Conf::BufMax(v) => c.buf_max = v,
       }
     }
     c.cache_size = c.cache_size.max(MIN_CACHE_SIZE);

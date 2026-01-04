@@ -6,7 +6,6 @@ use std::{
 };
 
 use jdb_base::{Flag, Pos};
-use jdb_val::Record;
 
 #[test]
 fn test_infile() {
@@ -94,13 +93,6 @@ fn test_eq() {
   let p3 = Pos::infile(2, 2, 10);
   assert_eq!(p1, p2);
   assert_ne!(p1, p3);
-}
-
-#[test]
-fn test_record() {
-  let pos = Record::new(123, 456);
-  assert_eq!(pos.id(), 123);
-  assert_eq!(pos.offset(), 456);
 }
 
 #[test]

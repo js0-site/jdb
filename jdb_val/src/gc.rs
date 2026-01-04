@@ -131,9 +131,8 @@ impl Wal {
     let gc_id = state.find_gc_id(self.cur_id());
 
     fs::create_dir_all(&state.gc_dir)?;
-    let mut gc_wal = WalNoCache::new(&state.gc_dir, &[Conf::MaxSize(u64::MAX)]);
+    let (mut gc_wal, _) = WalNoCache::open(&state.gc_dir, &[Conf::MaxSize(u64::MAX)], None).await?;
     gc_wal.ider.init(gc_id);
-    let _ = gc_wal.open(None).await?;
 
     let mut gc_proc = <crate::wal::DefaultConf as WalConf>::Gc::default();
     let mut mapping: Vec<PosMap> = Vec::with_capacity(MAP_CAP);
@@ -202,7 +201,7 @@ impl Wal {
       self.rm_wal_id(id).await?;
     }
 
-    gc_wal.sync_all().await?;
+    gc_wal.sync().await?;
     index.update(&mapping);
 
     let gc_wal_id = gc_wal.cur_id();

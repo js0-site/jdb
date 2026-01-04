@@ -7,11 +7,6 @@
 use jdb_base::Flag;
 use jdb_val::{DefaultGc, GcTrait, NoGc};
 
-#[static_init::constructor(0)]
-extern "C" fn _log_init() {
-  log_init::init();
-}
-
 /// Test: DefaultGc passes through all flags unchanged
 /// DefaultGc 透传所有标志不变
 #[test]

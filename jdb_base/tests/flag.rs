@@ -3,11 +3,6 @@
 
 use jdb_base::Flag;
 
-#[static_init::constructor(0)]
-extern "C" fn _log_init() {
-  log_init::init();
-}
-
 #[test]
 fn test_flag_values() {
   assert_eq!(Flag::Infile as u8, 0);

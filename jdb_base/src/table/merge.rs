@@ -1,10 +1,7 @@
 //! MergeIter - Merge multiple sorted sources
 //! 合并迭代器 - 合并多个有序源
 
-use std::{
-  cmp::{Ordering, Reverse},
-  collections::BinaryHeap,
-};
+use std::{cmp::Ordering, collections::BinaryHeap};
 
 use hipstr::HipByt;
 
@@ -40,12 +37,12 @@ impl PartialOrd for HeapItem {
 impl Ord for HeapItem {
   #[inline]
   fn cmp(&self, other: &Self) -> Ordering {
-    // Min-heap logic: smallest key first.
+    // Reversed for min-heap: smallest key first.
     // If keys are equal, smallest src_idx first (newest source has priority 0).
-    // 最小堆逻辑：最小键优先。
+    // 反转实现最小堆：最小键优先。
     // 若键相同，最小 src_idx 优先（最新源优先级为 0）。
-    match self.key.cmp(&other.key) {
-      Ordering::Equal => self.src_idx.cmp(&other.src_idx),
+    match other.key.cmp(&self.key) {
+      Ordering::Equal => other.src_idx.cmp(&self.src_idx),
       ord => ord,
     }
   }
@@ -55,7 +52,7 @@ impl Ord for HeapItem {
 /// 合并多个有序源的迭代器
 pub struct MergeIter<I> {
   sources: Vec<I>,
-  heap: BinaryHeap<Reverse<HeapItem>>,
+  heap: BinaryHeap<HeapItem>,
   last_key: Option<HipByt<'static>>,
   skip_rm: bool,
 }
@@ -73,11 +70,11 @@ where
 
     for (idx, mut iter) in sources.into_iter().enumerate() {
       if let Some((key, pos)) = iter.next() {
-        heap.push(Reverse(HeapItem {
+        heap.push(HeapItem {
           key,
           pos,
           src_idx: idx,
-        }));
+        });
       }
       iters.push(iter);
     }
@@ -100,9 +97,9 @@ where
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
     loop {
-      // Pop smallest item (min-heap via Reverse)
-      // 弹出最小项（通过 Reverse 实现最小堆）
-      let Reverse(HeapItem { key, pos, src_idx }) = self.heap.pop()?;
+      // Pop smallest item (min-heap via reversed Ord)
+      // 弹出最小项（通过反转 Ord 实现最小堆）
+      let HeapItem { key, pos, src_idx } = self.heap.pop()?;
 
       // Push next item from the same source
       // 从同源推送下一项
@@ -110,11 +107,11 @@ where
       // 安全：src_idx 来自 new() 中的 enumerate()，受 sources.len() 限制。
       if let Some((next_key, next_pos)) = unsafe { self.sources.get_unchecked_mut(src_idx).next() }
       {
-        self.heap.push(Reverse(HeapItem {
+        self.heap.push(HeapItem {
           key: next_key,
           pos: next_pos,
           src_idx,
-        }));
+        });
       }
 
       // Dedup: skip if key matches previously yielded key

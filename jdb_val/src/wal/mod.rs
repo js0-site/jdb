@@ -122,9 +122,9 @@ async fn writer_task(shared: Rc<SharedState>) {
 }
 
 impl<C: WalConf> WalInner<C> {
-  /// Create WAL manager
-  /// 创建 WAL 管理器
-  pub fn new(dir: impl Into<PathBuf>, conf: &[Conf]) -> Self {
+  /// Create WAL manager (internal)
+  /// 创建 WAL 管理器（内部）
+  fn new(dir: impl Into<PathBuf>, conf: &[Conf]) -> Self {
     let c = ParsedConf::parse(conf);
     let (val_cache, cur_lock) = C::create(&c);
     let dir = dir.into();
@@ -132,7 +132,7 @@ impl<C: WalConf> WalInner<C> {
     Self {
       bin_dir: dir.join(BIN_SUBDIR),
       cur_id: AtomicU64::new(0),
-      shared: Rc::new(SharedState::new(c.write_chan, c.buf_max)),
+      shared: Rc::new(SharedState::new(c.buf_cap, c.buf_max)),
       cur_pos: 0,
       max_size: c.max_size,
       ider: Ider::new(),
@@ -247,15 +247,7 @@ impl<C: WalConf> WalInner<C> {
     Ok(())
   }
 
-  pub async fn sync_data(&mut self) -> Result<()> {
-    self.flush().await?;
-    if let Some(file) = self.shared.file() {
-      file.sync_data().await?;
-    }
-    Ok(())
-  }
-
-  pub async fn sync_all(&mut self) -> Result<()> {
+  pub async fn sync(&mut self) -> Result<()> {
     self.flush().await?;
     if let Some(file) = self.shared.file() {
       file.sync_all().await?;
@@ -289,5 +281,13 @@ impl<C: WalConf> WalInner<C> {
       .parent()
       .unwrap_or(self.wal_dir.as_path())
       .to_path_buf()
+  }
+}
+
+impl<C: WalConf> Drop for WalInner<C> {
+  fn drop(&mut self) {
+    if self.shared.is_task_running() || !self.shared.is_empty() {
+      log::warn!("WalInner dropped with pending writes, call flush().await before drop");
+    }
   }
 }
