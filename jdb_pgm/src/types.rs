@@ -40,8 +40,8 @@ pub struct Segment<K: Key> {
   pub max_key: K,
   pub slope: f64,
   pub intercept: f64,
-  pub start_idx: usize,
-  pub end_idx: usize,
+  pub start_idx: u32,
+  pub end_idx: u32,
 }
 
 /// Index statistics

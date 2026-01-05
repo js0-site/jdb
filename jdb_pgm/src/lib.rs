@@ -34,9 +34,7 @@ mod types;
 pub mod bench_common;
 
 pub use build::{build_lut, build_segments};
-pub use consts::{
-  LUT_BINS_MULTIPLIER, MAX_LUT_BINS, MIN_EPSILON, MIN_LUT_BINS, ZERO_SLOPE_THRESHOLD,
-};
+pub use consts::{LUT_BINS_MULTIPLIER, MAX_LUT_BINS, MIN_EPSILON, MIN_LUT_BINS};
 #[cfg(feature = "data")]
 pub use data::PgmData;
 pub use error::{PgmError, Result};

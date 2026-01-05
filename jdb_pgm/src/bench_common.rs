@@ -35,11 +35,13 @@ pub trait Benchmarkable: Sized {
   /// 查询键，找到则返回位置
   fn query(&self, data: &[u64], key: u64) -> Option<usize>;
 
-  /// Whether this algorithm uses epsilon
-  /// 此算法是否使用 epsilon
-  #[allow(dead_code)]
-  fn uses_epsilon() -> bool {
-    false
+  /// Generate benchmark name with optional epsilon
+  /// 生成带可选 epsilon 的基准测试名称
+  fn bench_name(eps: Option<usize>) -> String {
+    match eps {
+      Some(e) => format!("{}_{e}", Self::NAME),
+      None => Self::NAME.to_string(),
+    }
   }
 }
 
@@ -60,9 +62,13 @@ where
 /// Calculate statistics from timing data
 /// 从计时数据计算统计信息
 pub fn calc_stats(times: &mut [f64]) -> (f64, f64, f64) {
-  times.sort_by(|a, b| a.partial_cmp(b).unwrap());
-  let mean = times.iter().sum::<f64>() / times.len() as f64;
-  let variance = times.iter().map(|&t| (t - mean).powi(2)).sum::<f64>() / times.len() as f64;
+  if times.is_empty() {
+    return (0.0, 0.0, 0.0);
+  }
+  times.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+  let n = times.len() as f64;
+  let mean = times.iter().sum::<f64>() / n;
+  let variance = times.iter().map(|&t| (t - mean).powi(2)).sum::<f64>() / n;
   (mean, variance.sqrt(), times[times.len() / 2])
 }
 

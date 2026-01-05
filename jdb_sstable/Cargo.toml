@@ -43,7 +43,7 @@ version = "0.1.1"
 path = "../jdb_fs"
 
 [dependencies.jdb_pgm]
-version = "0.3.4"
+version = "0.3.5"
 path = "../jdb_pgm"
 features = [ "bitcode", "key_to_u64" ]
 

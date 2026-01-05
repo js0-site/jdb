@@ -75,8 +75,8 @@ pub fn build_segments<K: Key>(data: &[K], epsilon: usize) -> Vec<Segment<K>> {
       max_key: unsafe { *data.get_unchecked(end - 1) },
       slope,
       intercept,
-      start_idx: start,
-      end_idx: end,
+      start_idx: start as u32,
+      end_idx: end as u32,
     });
 
     start = end;
@@ -87,7 +87,7 @@ pub fn build_segments<K: Key>(data: &[K], epsilon: usize) -> Vec<Segment<K>> {
 
 /// Build lookup table for fast segment search
 /// 构建查找表以快速搜索段
-pub fn build_lut<K: Key>(data: &[K], segments: &[Segment<K>]) -> (Vec<usize>, f64, f64) {
+pub fn build_lut<K: Key>(data: &[K], segments: &[Segment<K>]) -> (Vec<u32>, f64, f64) {
   if data.is_empty() || segments.is_empty() {
     return (vec![0], 0.0, 0.0);
   }
@@ -100,24 +100,21 @@ pub fn build_lut<K: Key>(data: &[K], segments: &[Segment<K>]) -> (Vec<usize>, f6
   let span = (max_key - min_key).max(1.0);
   let scale = bins as f64 / span;
 
-  let mut lut = vec![0usize; bins + 1];
-  let mut seg_idx = 0usize;
+  let mut lut = vec![0u32; bins + 1];
+  let mut seg_idx = 0u32;
+  let seg_len = segments.len();
 
-  for b in 0..=bins {
-    let key_at_bin = if scale == 0.0 {
-      min_key
-    } else {
-      min_key + (b as f64) / scale
-    };
+  for (b, slot) in lut.iter_mut().enumerate() {
+    let key_at_bin = min_key + (b as f64) / scale;
 
-    while seg_idx + 1 < segments.len() {
-      let seg_max = unsafe { segments.get_unchecked(seg_idx).max_key }.as_f64();
+    while (seg_idx as usize) + 1 < seg_len {
+      let seg_max = unsafe { segments.get_unchecked(seg_idx as usize).max_key }.as_f64();
       if seg_max >= key_at_bin {
         break;
       }
       seg_idx += 1;
     }
-    unsafe { *lut.get_unchecked_mut(b) = seg_idx };
+    *slot = seg_idx;
   }
 
   (lut, scale, min_key)

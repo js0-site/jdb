@@ -5,6 +5,10 @@ use std::{mem::size_of, ops::Deref};
 
 use crate::{Key, Pgm, Result};
 
+/// Linear scan threshold
+/// 线性扫描阈值
+const LINEAR_THRESHOLD: usize = 32;
+
 /// Pgm-Index with data ownership
 /// 持有数据的 Pgm 索引
 #[cfg_attr(feature = "bitcode", derive(bitcode::Encode, bitcode::Decode))]
@@ -44,21 +48,34 @@ impl<K: Key> PgmData<K> {
   #[inline]
   #[must_use]
   pub fn get(&self, key: K) -> Option<usize> {
-    let (start, end) = self.pgm.predict_range(key);
-    if start >= self.data.len() {
+    let (lo, hi) = self.pgm.predict_range(key);
+    if lo >= self.data.len() {
       return None;
     }
-    let end = end.min(self.data.len());
-    if start >= end {
-      return None;
-    }
-    unsafe {
-      let slice = self.data.get_unchecked(start..end);
-      if let Ok(pos) = slice.binary_search(&key) {
-        return Some(start + pos);
+    let hi = hi.min(self.data.len());
+    let len = hi - lo;
+    
+    if len <= LINEAR_THRESHOLD {
+      // Linear scan for small ranges
+      // 小范围线性扫描
+      for i in lo..hi {
+        let v = unsafe { *self.data.get_unchecked(i) };
+        if v == key {
+          return Some(i);
+        }
+        if v > key {
+          return None;
+        }
       }
+      None
+    } else {
+      // Binary search for large ranges
+      // 大范围二分查找
+      unsafe { self.data.get_unchecked(lo..hi) }
+        .binary_search(&key)
+        .ok()
+        .map(|p| lo + p)
     }
-    None
   }
 
   /// Batch lookup returning an iterator

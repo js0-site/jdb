@@ -8,7 +8,7 @@ use std::mem::size_of;
 use crate::{
   Key, PgmError, Result, Segment,
   build::{build_lut, build_segments},
-  consts::{MIN_EPSILON, ZERO_SLOPE_THRESHOLD},
+  consts::MIN_EPSILON,
 };
 
 /// Pgm-Index core structure (no data ownership, serializable)
@@ -18,7 +18,7 @@ use crate::{
 pub struct Pgm<K: Key> {
   pub epsilon: usize,
   pub segments: Vec<Segment<K>>,
-  pub lut: Vec<usize>,
+  pub lut: Vec<u32>,
   pub scale: f64,
   pub min_key: f64,
   pub len: usize,
@@ -91,7 +91,7 @@ impl<K: Key> Pgm<K> {
   #[inline]
   #[must_use]
   pub fn mem_usage(&self) -> usize {
-    self.segments.len() * size_of::<Segment<K>>() + self.lut.len() * size_of::<usize>()
+    self.segments.len() * size_of::<Segment<K>>() + self.lut.len() * size_of::<u32>()
   }
 
   /// Predict position for a key
@@ -110,8 +110,8 @@ impl<K: Key> Pgm<K> {
   pub fn predict_range(&self, key: K) -> (usize, usize) {
     let seg = self.find_seg(key);
     let pred = predict_in_seg(seg, key.as_f64());
-    let start = pred.saturating_sub(self.epsilon).max(seg.start_idx);
-    let end = (pred + self.epsilon + 1).min(seg.end_idx);
+    let start = pred.saturating_sub(self.epsilon).max(seg.start_idx as usize);
+    let end = (pred + self.epsilon + 1).min(seg.end_idx as usize);
     (start, end)
   }
 
@@ -135,7 +135,7 @@ impl<K: Key> Pgm<K> {
         idx_i as usize
       };
 
-      let mut idx = unsafe { *self.lut.get_unchecked(bin) };
+      let mut idx = unsafe { *self.lut.get_unchecked(bin) } as usize;
       let mut seg = unsafe { self.segments.get_unchecked(idx) };
 
       while idx + 1 < self.segments.len() {
@@ -162,32 +162,15 @@ impl<K: Key> Pgm<K> {
 /// 使用段的线性模型预测索引位置
 #[inline]
 fn predict_in_seg(seg: &Segment<impl Key>, key_f64: f64) -> usize {
-  if seg.slope.abs() < ZERO_SLOPE_THRESHOLD {
-    seg.start_idx
-  } else {
-    let pos = seg.slope.mul_add(key_f64, seg.intercept) + 0.5;
-    let pos_i = pos as isize;
-    let lo = seg.start_idx as isize;
-    let hi = (seg.end_idx - 1) as isize;
-
-    if pos_i < lo {
-      lo as usize
-    } else if pos_i > hi {
-      hi as usize
-    } else {
-      pos_i as usize
-    }
-  }
+  let pos = seg.slope.mul_add(key_f64, seg.intercept) + 0.5;
+  let lo = seg.start_idx as usize;
+  let hi = (seg.end_idx - 1) as usize;
+  (pos as usize).clamp(lo, hi)
 }
 
 /// Check if data is sorted (early termination)
 /// 检查数据是否已排序（提前终止）
 #[inline]
 fn is_sorted<K: Ord>(data: &[K]) -> bool {
-  for i in 1..data.len() {
-    if unsafe { data.get_unchecked(i - 1) > data.get_unchecked(i) } {
-      return false;
-    }
-  }
-  true
+  data.windows(2).all(|w| w[0] <= w[1])
 }

@@ -36,40 +36,66 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-jdb_pgm = "0.3.3"
+jdb_pgm = "0.3"
 ```
 
-### Basic Example
+### Two Modes
+
+**`Pgm<K>`** - Core index without data ownership (ideal for SSTable, mmap scenarios)
 
 ```rust
-use jdb_pgm::PgmIndex;
+use jdb_pgm::Pgm;
 
 fn main() {
-  // 1. Prepare sorted data
   let data: Vec<u64> = (0..1_000_000).collect();
-
-  // 2. Build the index
-  // epsilon=32, check_sorted=true
-  let index = PgmIndex::load(data, 32, true).unwrap();
-
-  // 3. Query
-  if let Some(pos) = index.get(123_456) {
-    println!("Found at index: {}", pos);
-  } else {
-    println!("Not found");
+  
+  // Build index from data reference
+  let pgm = Pgm::new(&data, 32, true).unwrap();
+  
+  // Get predicted search range
+  let (start, end) = pgm.predict_range(123_456);
+  
+  // Search in your own data store
+  if let Ok(pos) = data[start..end].binary_search(&123_456) {
+    println!("Found at index: {}", start + pos);
   }
 }
 ```
 
+**`PgmData<K>`** - Index with data ownership (convenient for in-memory use)
+
+```rust
+use jdb_pgm::PgmData;
+
+fn main() {
+  let data: Vec<u64> = (0..1_000_000).collect();
+  
+  // Build index and take ownership of data
+  let index = PgmData::load(data, 32, true).unwrap();
+  
+  // Direct lookup
+  if let Some(pos) = index.get(123_456) {
+    println!("Found at index: {}", pos);
+  }
+}
+```
+
+### Feature Flags
+
+- `data` (default): Enables `PgmData` struct with data ownership
+- `bitcode`: Enables serialization via bitcode
+- `key_to_u64`: Enables `key_to_u64()` helper for byte keys
+
 ## Performance
 
-Based on internal benchmarks with 1,000,000 `u64` keys:
+Based on internal benchmarks with 1,000,000 `u64` keys (jdb_pgm's Pgm does not own data, memory is index-only):
 
-*   **~2.3x Faster** than standard Binary Search.
-*   **~1.2x - 1.4x Faster** than [pgm_index](https://crates.io/crates/pgm_index).
-*   **~4.7x Faster** than BTreeMap.
-*   **~2x Faster** than HashMap.
-*   **0.3% Memory Overhead** (approx) for `ε=32`.
+*   **~2.3x Faster** than standard Binary Search (17.85ns vs 40.89ns).
+*   **~1.1x - 1.3x Faster** than [pgm_index](https://crates.io/crates/pgm_index) (17.85ns vs 20.13ns).
+*   **~4.7x Faster** than BTreeMap (17.85ns vs 84.21ns).
+*   **~2.2x Faster** than HashMap (17.85ns vs 39.99ns).
+*   **1.01 MB Index Memory** for `ε=32` (pgm_index uses 8.35 MB).
+*   Prediction Accuracy: jdb_pgm max error equals ε exactly, pgm_index max error is 8ε.
 
 ## 🆚 Comparison with `pgm_index`
 
@@ -84,6 +110,7 @@ This crate (`jdb_pgm`) is a specialized fork/rewrite of the original concept fou
 | Prediction Model | `slope * key + intercept` | `(key - intercept) / slope` |
 | Prediction Accuracy | ε-bounded (guaranteed) | Heuristic (not guaranteed) |
 | Memory | Arc-free, zero-copy | Arc<Vec<K>> wrapper |
+| Data Ownership | Optional (`Pgm` vs `PgmData`) | Always owns data |
 | Dependencies | Minimal | rayon, num_cpus, num-traits |
 
 ### 1. Architectural Shift: Single-Threaded by Design
@@ -127,25 +154,13 @@ The shrinking cone algorithm guarantees that prediction error never exceeds ε, 
 - Division is slower than multiplication
 - Risk of division by zero when slope ≈ 0
 
-### 4. Prediction Accuracy Comparison
-
-Due to the algorithmic differences, jdb_pgm achieves significantly better prediction accuracy:
-
-| Data Size | Epsilon | jdb_pgm (Max Error) | jdb_pgm (Avg Error) | pgm_index (Max Error) | pgm_index (Avg Error) |
-|-----------|---------|---------------------|---------------------|----------------------|----------------------|
-| 1,000,000 | 32 | 32 | 11.29 | 891 | 326.85 |
-| 1,000,000 | 64 | 64 | 22.54 | 891 | 326.85 |
-| 1,000,000 | 128 | 128 | 46.44 | 891 | 326.85 |
-
-*Note: pgm_index doesn't expose `predict_pos()`, so we measure using linear interpolation as baseline. The actual Pgm prediction may differ.*
-
-### 5. Core Implementation Upgrades
+### 4. Core Implementation Upgrades
 While based on the same Pgm theory, our implementation details are significantly more aggressive:
 *   **Eliminating Float Overhead**: We replaced expensive floating-point rounding operations (`round/floor`) with bitwise-based integer casting (`as isize + 0.5`), bringing a qualitative leap in instruction cycles.
 *   **Transparent to Compiler**: The core loops are refactored to remove dependencies that block LLVM's auto-vectorization, generating AVX2/AVX-512 instructions without manual `intrinsic` code.
 *   **Reducing Branch Misprediction**: We rewrote the `predict` and `search` phases with manual clamping and branchless logic, drastically reducing pipeline stalls.
 
-### 6. Allocation Strategy
+### 5. Allocation Strategy
 *   **Heuristic Pre-allocation**: The build process estimates segment count `(N / 2ε)` ahead of time, effectively eliminating vector reallocations during construction.
 *   **Zero-Copy**: Keys (especially integers) are handled without unnecessary cloning.
 
@@ -155,6 +170,7 @@ While based on the same Pgm theory, our implementation details are significantly
 *   **Zero-Copy Key Support**: Supports `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`.
 *   **Predictable Error Bounds**: The `epsilon` parameter strictly controls the search range.
 *   **Vectorized Sorting Check**: Uses SIMD-friendly sliding windows for validation.
+*   **Flexible Data Ownership**: `Pgm` for external data, `PgmData` for owned data.
 
 ## Design
 
@@ -195,20 +211,41 @@ graph TD
 ```text
 jdb_pgm/
 ├── src/
-│   ├── lib.rs          # Exports and entry point
-│   ├── pgm_index.rs    # Core PgmIndex struct and logic
-│   └── pgm/            # Internal modules (build, search, types)
-├── tests/              # Integration tests
-├── benches/            # Criterion benchmarks
-└── examples/           # Usage examples
+│   ├── lib.rs      # Exports and entry point
+│   ├── pgm.rs      # Core Pgm struct (no data ownership)
+│   ├── data.rs     # PgmData struct (with data ownership)
+│   ├── build.rs    # Segment building algorithm
+│   ├── types.rs    # Key trait, Segment, PgmStats
+│   ├── consts.rs   # Constants
+│   └── error.rs    # Error types
+├── tests/          # Integration tests
+├── benches/        # Criterion benchmarks
+└── examples/       # Usage examples
 ```
 
 ## API Reference
 
-### `PgmIndex<K>`
+### `Pgm<K>` (Core, no data ownership)
+
+*   `new(data: &[K], epsilon: usize, check_sorted: bool) -> Result<Self>`
+    Constructs the index from a data slice. Index does not own the data.
+
+*   `predict(key: K) -> usize`
+    Returns the predicted position for a key.
+
+*   `predict_range(key: K) -> (usize, usize)`
+    Returns the search range `[start, end)` for a key.
+
+*   `segment_count() -> usize`
+    Returns the number of segments.
+
+*   `mem_usage() -> usize`
+    Returns memory usage of the index (excluding data).
+
+### `PgmData<K>` (With data ownership, requires `data` feature)
 
 *   `load(data: Vec<K>, epsilon: usize, check_sorted: bool) -> Result<Self>`
-    Constructs the index. `epsilon` controls the size/speed trade-off (typical values: 16-64).
+    Constructs the index and takes ownership of data.
 
 *   `get(key: K) -> Option<usize>`
     Returns the index of the key if found, or `None`.
@@ -218,6 +255,8 @@ jdb_pgm/
 
 *   `stats() -> PgmStats`
     Returns internal statistics like segment count and memory usage.
+
+*   All `Pgm` methods are available via `Deref`.
 
 ## History
 
@@ -235,30 +274,30 @@ Performance comparison of Pgm-Index vs Binary Search with different epsilon valu
 
 | Algorithm | Epsilon | Mean Time | Std Dev | Throughput | Memory |
 |-----------|---------|-----------|---------|------------|--------|
-| jdb_pgm | 32 | 19.91ns | 66.98ns | 50.23M/s | 9.01 MB |
-| jdb_pgm | 64 | 20.46ns | 71.18ns | 48.87M/s | 8.50 MB |
-| jdb_pgm | 128 | 22.18ns | 72.06ns | 45.09M/s | 8.25 MB |
-| pgm_index | 32 | 26.82ns | 190.03ns | 37.29M/s | 8.35 MB |
-| pgm_index | 64 | 28.76ns | 83.53ns | 34.77M/s | 8.34 MB |
-| pgm_index | 128 | 31.13ns | 82.36ns | 32.12M/s | 8.04 MB |
-| Binary Search | null | 44.97ns | 117.01ns | 22.24M/s | - |
-| HashMap | null | 46.13ns | 101.80ns | 21.68M/s | 40.00 MB |
-| BTreeMap | null | 99.45ns | 155.36ns | 10.06M/s | 16.86 MB |
+| jdb_pgm | 32 | 17.85ns | 58.01ns | 56.01M/s | 1.01 MB |
+| jdb_pgm | 64 | 17.91ns | 56.67ns | 55.83M/s | 512.00 KB |
+| pgm_index | 32 | 20.13ns | 54.58ns | 49.67M/s | 8.35 MB |
+| pgm_index | 64 | 23.16ns | 66.31ns | 43.18M/s | 8.38 MB |
+| pgm_index | 128 | 25.91ns | 62.66ns | 38.60M/s | 8.02 MB |
+| jdb_pgm | 128 | 26.15ns | 96.65ns | 38.25M/s | 256.00 KB |
+| HashMap | null | 39.99ns | 130.55ns | 25.00M/s | 40.00 MB |
+| Binary Search | null | 40.89ns | 79.06ns | 24.46M/s | - |
+| BTreeMap | null | 84.21ns | 99.32ns | 11.87M/s | 16.83 MB |
 
 ### Accuracy Comparison: jdb_pgm vs pgm_index
 
 | Data Size | Epsilon | jdb_pgm (Max) | jdb_pgm (Avg) | pgm_index (Max) | pgm_index (Avg) |
 |-----------|---------|---------------|---------------|-----------------|------------------|
-| 1,000,000 | 128 | 128 | 46.44 | 891 | 326.85 |
-| 1,000,000 | 32 | 32 | 11.29 | 891 | 326.85 |
-| 1,000,000 | 64 | 64 | 22.54 | 891 | 326.85 |
+| 1,000,000 | 128 | 128 | 46.80 | 1024 | 511.28 |
+| 1,000,000 | 32 | 32 | 11.35 | 256 | 127.48 |
+| 1,000,000 | 64 | 64 | 22.59 | 512 | 255.39 |
 ### Build Time Comparison: jdb_pgm vs pgm_index
 
 | Data Size | Epsilon | jdb_pgm (Time) | pgm_index (Time) | Speedup |
 |-----------|---------|---------------------|-----------------|---------|
-| 1,000,000 | 128 | 2.10ms | 1.21ms | 0.57x |
-| 1,000,000 | 32 | 2.04ms | 1.18ms | 0.58x |
-| 1,000,000 | 64 | 2.06ms | 1.28ms | 0.62x |
+| 1,000,000 | 128 | 1.28ms | 1.26ms | 0.98x |
+| 1,000,000 | 32 | 1.28ms | 1.27ms | 0.99x |
+| 1,000,000 | 64 | 1.28ms | 1.20ms | 0.94x |
 ### Configuration
 Query Count: 1500000
 Data Sizes: 10,000, 100,000, 1,000,000
@@ -340,7 +379,7 @@ We are redefining the development paradigm of the Internet in a componentized wa
 
 `jdb_pgm` 是 Pgm-index 数据结构的专用重构版本。它使用分段线性模型近似排序键的分布，从而实现 **O(log ε)** 复杂度的搜索操作。
 
-本 crate 专注于 **单线程性能**，为“一线程一核 (One Thread Per CPU)”的架构做准备。通过移除并发开销并优化内存布局（如 SIMD 友好的循环），与标准二分查找和传统树状索引相比，它实现了具有统计意义的显著速度提升。
+本 crate 专注于 **单线程性能**，为"一线程一核 (One Thread Per CPU)"的架构做准备。通过移除并发开销并优化内存布局（如 SIMD 友好的循环），与标准二分查找和传统树状索引相比，它实现了具有统计意义的显著速度提升。
 
 ## 使用方法
 
@@ -348,40 +387,66 @@ We are redefining the development paradigm of the Internet in a componentized wa
 
 ```toml
 [dependencies]
-jdb_pgm = "0.3.3"
+jdb_pgm = "0.3"
 ```
 
-### 基础示例
+### 两种模式
+
+**`Pgm<K>`** - 核心索引，不持有数据（适用于 SSTable、mmap 场景）
 
 ```rust
-use jdb_pgm::PgmIndex;
+use jdb_pgm::Pgm;
 
 fn main() {
-  // 1. 准备已排序数据
   let data: Vec<u64> = (0..1_000_000).collect();
-
-  // 2. 构建索引
-  // epsilon=32, check_sorted=true
-  let index = PgmIndex::load(data, 32, true).unwrap();
-
-  // 3. 查询
-  if let Some(pos) = index.get(123_456) {
-    println!("Found at index: {}", pos);
-  } else {
-    println!("Not found");
+  
+  // 从数据引用构建索引
+  let pgm = Pgm::new(&data, 32, true).unwrap();
+  
+  // 获取预测的搜索范围
+  let (start, end) = pgm.predict_range(123_456);
+  
+  // 在你自己的数据存储中搜索
+  if let Ok(pos) = data[start..end].binary_search(&123_456) {
+    println!("Found at index: {}", start + pos);
   }
 }
 ```
 
+**`PgmData<K>`** - 持有数据的索引（适用于内存使用场景）
+
+```rust
+use jdb_pgm::PgmData;
+
+fn main() {
+  let data: Vec<u64> = (0..1_000_000).collect();
+  
+  // 构建索引并获取数据所有权
+  let index = PgmData::load(data, 32, true).unwrap();
+  
+  // 直接查找
+  if let Some(pos) = index.get(123_456) {
+    println!("Found at index: {}", pos);
+  }
+}
+```
+
+### Feature 标志
+
+- `data`（默认）：启用持有数据的 `PgmData` 结构体
+- `bitcode`：启用 bitcode 序列化
+- `key_to_u64`：启用 `key_to_u64()` 辅助函数用于字节键
+
 ## 性能
 
-基于 1,000,000 个 `u64` 键的内部基准测试：
+基于 1,000,000 个 `u64` 键的内部基准测试（jdb_pgm 的 Pgm 不持有数据，仅统计索引内存）：
 
-*   比标准二分查找 **快 ~2.3 倍**。
-*   比 [pgm_index](https://crates.io/crates/pgm_index) **快 ~1.2 - 1.4 倍**。
-*   比 BTreeMap **快 ~4.7 倍**。
-*   比 HashMap **快 ~2 倍**。
-*   在 `ε=32` 时，内存开销仅为 **0.3%** 左右。
+*   比标准二分查找 **快 ~2.3 倍**（17.85ns vs 40.89ns）。
+*   比 [pgm_index](https://crates.io/crates/pgm_index) **快 ~1.1 - 1.3 倍**（17.85ns vs 20.13ns）。
+*   比 BTreeMap **快 ~4.7 倍**（17.85ns vs 84.21ns）。
+*   比 HashMap **快 ~2.2 倍**（17.85ns vs 39.99ns）。
+*   在 `ε=32` 时，索引内存仅 **1.01 MB**（pgm_index 为 8.35 MB）。
+*   预测精度：jdb_pgm 最大误差严格等于 ε，pgm_index 最大误差为 8ε。
 
 ## 🆚 与 `pgm_index` 的对比
 
@@ -396,6 +461,7 @@ fn main() {
 | 预测公式 | `slope * key + intercept` | `(key - intercept) / slope` |
 | 预测精度 | ε 有界（保证） | 启发式（无保证） |
 | 内存 | 无 Arc，零拷贝 | Arc<Vec<K>> 包装 |
+| 数据所有权 | 可选（`Pgm` vs `PgmData`） | 始终持有数据 |
 | 依赖 | 最小化 | rayon, num_cpus, num-traits |
 
 ### 1. 架构转型：原生单线程设计
@@ -439,25 +505,13 @@ segments = (0..target_segments).par_iter().map(|i| {
 - 除法比乘法慢
 - 当 slope ≈ 0 时有除零风险
 
-### 4. 预测精度对比
-
-由于算法差异，jdb_pgm 实现了显著更好的预测精度：
-
-| 数据大小 | Epsilon | jdb_pgm (最大误差) | jdb_pgm (平均误差) | pgm_index (最大误差) | pgm_index (平均误差) |
-|----------|---------|-------------------|-------------------|---------------------|---------------------|
-| 1,000,000 | 32 | 32 | 11.29 | 891 | 326.85 |
-| 1,000,000 | 64 | 64 | 22.54 | 891 | 326.85 |
-| 1,000,000 | 128 | 128 | 46.44 | 891 | 326.85 |
-
-*注：pgm_index 不暴露 `predict_pos()`，因此我们使用线性插值作为基准测量。实际 Pgm 预测可能有所不同。*
-
-### 5. 核心算法实现升级
+### 4. 核心算法实现升级
 虽然基于相同的 Pgm 理论，但在**具体代码实现**层面上，我们的算法更加激进：
 *   **消除浮点开销**：我们将所有昂贵的浮点取整操作 (`round/floor`) 替换为基于位操作的整数转换 (`as isize + 0.5`)，这在指令周期层面带来了质的飞跃。
 *   **对编译器透明**：核心循环结构经过重构，移除了阻碍 LLVM 自动向量化的依赖，无需编写 `intrinsic` 代码即可生成 AVX2/AVX-512 指令。
 *   **减少分支预测失败**：通过手动 clamp 和无分支逻辑重写了 `predict` 和 `search` 阶段，大幅降低了流水线停顿。
 
-### 6. 分配策略
+### 5. 分配策略
 *   **启发式预分配**：构建过程会提前估算段的数量 `(N / 2ε)`，有效消除了构建过程中的向量重分配 (Reallocation)。
 *   **零拷贝**：键（尤其是整数）的处理避免了不必要的克隆。
 
@@ -467,6 +521,7 @@ segments = (0..target_segments).par_iter().map(|i| {
 *   **零拷贝支持**：支持 `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`。
 *   **可预测的误差界限**：`epsilon` 参数严格控制搜索范围。
 *   **向量化排序检查**：使用 SIMD 友好的滑动窗口进行验证。
+*   **灵活的数据所有权**：`Pgm` 用于外部数据，`PgmData` 用于持有数据。
 
 ## 设计
 
@@ -507,20 +562,41 @@ graph TD
 ```text
 jdb_pgm/
 ├── src/
-│   ├── lib.rs          # 导出和入口点
-│   ├── pgm_index.rs    # 核心 PgmIndex 结构体和逻辑
-│   └── pgm/            # 内部模块 (build, search, types)
-├── tests/              # 集成测试
-├── benches/            # Criterion 基准测试
-└── examples/           # 使用示例
+│   ├── lib.rs      # 导出和入口点
+│   ├── pgm.rs      # 核心 Pgm 结构体（不持有数据）
+│   ├── data.rs     # PgmData 结构体（持有数据）
+│   ├── build.rs    # 段构建算法
+│   ├── types.rs    # Key trait, Segment, PgmStats
+│   ├── consts.rs   # 常量
+│   └── error.rs    # 错误类型
+├── tests/          # 集成测试
+├── benches/        # Criterion 基准测试
+└── examples/       # 使用示例
 ```
 
 ## API 参考
 
-### `PgmIndex<K>`
+### `Pgm<K>`（核心，不持有数据）
+
+*   `new(data: &[K], epsilon: usize, check_sorted: bool) -> Result<Self>`
+    从数据切片构建索引。索引不持有数据。
+
+*   `predict(key: K) -> usize`
+    返回键的预测位置。
+
+*   `predict_range(key: K) -> (usize, usize)`
+    返回键的搜索范围 `[start, end)`。
+
+*   `segment_count() -> usize`
+    返回段的数量。
+
+*   `mem_usage() -> usize`
+    返回索引的内存使用量（不含数据）。
+
+### `PgmData<K>`（持有数据，需要 `data` feature）
 
 *   `load(data: Vec<K>, epsilon: usize, check_sorted: bool) -> Result<Self>`
-    构建索引。`epsilon` 控制大小/速度的权衡（典型值：16-64）。
+    构建索引并获取数据所有权。
 
 *   `get(key: K) -> Option<usize>`
     如果找到，返回键的索引；否则返回 `None`。
@@ -531,9 +607,11 @@ jdb_pgm/
 *   `stats() -> PgmStats`
     返回内部统计信息，如段数和内存使用情况。
 
+*   通过 `Deref` 可访问所有 `Pgm` 方法。
+
 ## 历史背景
 
-在“大数据”时代，传统的 B-Tree 由于其内存消耗和缓存效率低逐渐成为瓶颈。2020 年，Paolo Ferragina 和 Giorgio Vinciguerra 提出了 **分段几何模型 (Pgm) 索引**。他们的核心见解简单而具有革命性：如果数据分布通常遵循可预测的模式，为什么还要存储每个键呢？
+在"大数据"时代，传统的 B-Tree 由于其内存消耗和缓存效率低逐渐成为瓶颈。2020 年，Paolo Ferragina 和 Giorgio Vinciguerra 提出了 **分段几何模型 (Pgm) 索引**。他们的核心见解简单而具有革命性：如果数据分布通常遵循可预测的模式，为什么还要存储每个键呢？
 
 通过将索引视为一个机器学习问题——学习数据的 CDF（累积分布函数）——他们在保持 O(log N) 最坏情况性能的同时，将索引大小减少了几个数量级。本项目 `jdb_pgm` 借鉴了这一概念，并将其剥离至最本质的 Rust 实现，在每一纳秒都至关重要的现代 CPU 上优先考虑原始速度。
 
@@ -547,30 +625,30 @@ Pgm-Index 与二分查找在不同 epsilon 值下的性能对比。
 
 | 算法 | Epsilon | 平均时间 | 标准差 | 吞吐量 | 内存 |
 |------|---------|----------|--------|--------|------|
-| jdb_pgm | 32 | 19.91ns | 66.98ns | 50.23M/s | 9.01 MB |
-| jdb_pgm | 64 | 20.46ns | 71.18ns | 48.87M/s | 8.50 MB |
-| jdb_pgm | 128 | 22.18ns | 72.06ns | 45.09M/s | 8.25 MB |
-| pgm_index | 32 | 26.82ns | 190.03ns | 37.29M/s | 8.35 MB |
-| pgm_index | 64 | 28.76ns | 83.53ns | 34.77M/s | 8.34 MB |
-| pgm_index | 128 | 31.13ns | 82.36ns | 32.12M/s | 8.04 MB |
-| 二分查找 | null | 44.97ns | 117.01ns | 22.24M/s | - |
-| HashMap | null | 46.13ns | 101.80ns | 21.68M/s | 40.00 MB |
-| BTreeMap | null | 99.45ns | 155.36ns | 10.06M/s | 16.86 MB |
+| jdb_pgm | 32 | 17.85ns | 58.01ns | 56.01M/s | 1.01 MB |
+| jdb_pgm | 64 | 17.91ns | 56.67ns | 55.83M/s | 512.00 KB |
+| pgm_index | 32 | 20.13ns | 54.58ns | 49.67M/s | 8.35 MB |
+| pgm_index | 64 | 23.16ns | 66.31ns | 43.18M/s | 8.38 MB |
+| pgm_index | 128 | 25.91ns | 62.66ns | 38.60M/s | 8.02 MB |
+| jdb_pgm | 128 | 26.15ns | 96.65ns | 38.25M/s | 256.00 KB |
+| HashMap | null | 39.99ns | 130.55ns | 25.00M/s | 40.00 MB |
+| 二分查找 | null | 40.89ns | 79.06ns | 24.46M/s | - |
+| BTreeMap | null | 84.21ns | 99.32ns | 11.87M/s | 16.83 MB |
 
 ### 精度对比: jdb_pgm vs pgm_index
 
 | 数据大小 | Epsilon | jdb_pgm (最大) | jdb_pgm (平均) | pgm_index (最大) | pgm_index (平均) |
 |----------|---------|----------------|----------------|------------------|-------------------|
-| 1,000,000 | 128 | 128 | 46.44 | 891 | 326.85 |
-| 1,000,000 | 32 | 32 | 11.29 | 891 | 326.85 |
-| 1,000,000 | 64 | 64 | 22.54 | 891 | 326.85 |
+| 1,000,000 | 128 | 128 | 46.80 | 1024 | 511.28 |
+| 1,000,000 | 32 | 32 | 11.35 | 256 | 127.48 |
+| 1,000,000 | 64 | 64 | 22.59 | 512 | 255.39 |
 ### 构建时间对比: jdb_pgm vs pgm_index
 
 | 数据大小 | Epsilon | jdb_pgm (时间) | pgm_index (时间) | 加速比 |
 |----------|---------|---------------------|-----------------|--------|
-| 1,000,000 | 128 | 2.10ms | 1.21ms | 0.57x |
-| 1,000,000 | 32 | 2.04ms | 1.18ms | 0.58x |
-| 1,000,000 | 64 | 2.06ms | 1.28ms | 0.62x |
+| 1,000,000 | 128 | 1.28ms | 1.26ms | 0.98x |
+| 1,000,000 | 32 | 1.28ms | 1.27ms | 0.99x |
+| 1,000,000 | 64 | 1.28ms | 1.20ms | 0.94x |
 ### 配置
 查询次数: 1500000
 数据大小: 10,000, 100,000, 1,000,000

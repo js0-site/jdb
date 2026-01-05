@@ -81,13 +81,14 @@ fn main() {
 
 ## Performance
 
-Based on internal benchmarks with 1,000,000 `u64` keys:
+Based on internal benchmarks with 1,000,000 `u64` keys (jdb_pgm's Pgm does not own data, memory is index-only):
 
-*   **~2.3x Faster** than standard Binary Search.
-*   **~1.2x - 1.4x Faster** than [pgm_index](https://crates.io/crates/pgm_index).
-*   **~4.7x Faster** than BTreeMap.
-*   **~2x Faster** than HashMap.
-*   **0.3% Memory Overhead** (approx) for `ε=32`.
+*   **~2.3x Faster** than standard Binary Search (17.85ns vs 40.89ns).
+*   **~1.1x - 1.3x Faster** than [pgm_index](https://crates.io/crates/pgm_index) (17.85ns vs 20.13ns).
+*   **~4.7x Faster** than BTreeMap (17.85ns vs 84.21ns).
+*   **~2.2x Faster** than HashMap (17.85ns vs 39.99ns).
+*   **1.01 MB Index Memory** for `ε=32` (pgm_index uses 8.35 MB).
+*   Prediction Accuracy: jdb_pgm max error equals ε exactly, pgm_index max error is 8ε.
 
 ## 🆚 Comparison with `pgm_index`
 

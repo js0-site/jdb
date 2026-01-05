@@ -1,6 +1,6 @@
 [package]
 name = "jdb_pgm"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2024"
 description = "Ultra-fast single-threaded Pgm-Index optimized for thread-per-core architecture / 专为单线程一核架构优化的超快 Pgm 索引"
 license = "MIT"
@@ -53,6 +53,7 @@ default = ["data"]
 data = []
 key_to_u64 = []
 bitcode = ["dep:bitcode"]
+pk = []
 
 [[example]]
 name = "simple_benchmark"

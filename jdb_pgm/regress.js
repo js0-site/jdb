@@ -121,12 +121,11 @@ const genHtml = (entry, history) => `<!DOCTYPE html>
 
 console.log("Running jdb_pgm regression benchmark...");
 
-// Run benchmark (jdb_pgm only)
-// 运行评测（仅 jdb_pgm）
+// Run benchmark (jdb_pgm only, no pk feature)
+// 运行评测（仅 jdb_pgm，不启用 pk feature）
 execSync(`cargo bench --bench main`, {
   cwd: ROOT,
   stdio: ["inherit", "inherit", "inherit"],
-  env: { ...process.env, BENCH_CFG: "jdb_pgm" },
 });
 
 if (!existsSync(BENCH_JSON)) {
@@ -143,17 +142,19 @@ const r = bench.results.find(
   (x) =>
     x.algorithm === "jdb_pgm" &&
     x.epsilon === 64 &&
-    x.data_size === targetDataSize
+    x.data_size === targetDataSize,
 );
 
 if (!r) {
   console.error(
-    `Error: jdb_pgm result not found (epsilon=64, data_size=${targetDataSize})`
+    `Error: jdb_pgm result not found (epsilon=64, data_size=${targetDataSize})`,
   );
   process.exit(1);
 }
 
-const commit = execSync("git rev-parse --short HEAD 2>/dev/null || echo unknown")
+const commit = execSync(
+  "git rev-parse --short HEAD 2>/dev/null || echo unknown",
+)
   .toString()
   .trim();
 const branch = execSync("git branch --show-current 2>/dev/null || echo unknown")

@@ -19,8 +19,4 @@ impl Benchmarkable for ExternalPgm {
   fn query(&self, _data: &[u64], key: u64) -> Option<usize> {
     self.index.get(key)
   }
-
-  fn uses_epsilon() -> bool {
-    true
-  }
 }
