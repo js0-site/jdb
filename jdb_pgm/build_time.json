@@ -1,0 +1,124 @@
+{
+  "results": [
+    {
+      "algorithm": "jdb_pgm",
+      "epsilon": 32,
+      "build_time_ns": 41042.0,
+      "data_size": 10000
+    },
+    {
+      "epsilon": 32,
+      "data_size": 10000,
+      "build_time_ns": 164041.0,
+      "algorithm": "external_pgm"
+    },
+    {
+      "epsilon": 64,
+      "algorithm": "jdb_pgm",
+      "build_time_ns": 19208.0,
+      "data_size": 10000
+    },
+    {
+      "build_time_ns": 151125.0,
+      "epsilon": 64,
+      "algorithm": "external_pgm",
+      "data_size": 10000
+    },
+    {
+      "build_time_ns": 18625.0,
+      "data_size": 10000,
+      "algorithm": "jdb_pgm",
+      "epsilon": 128
+    },
+    {
+      "build_time_ns": 143708.0,
+      "data_size": 10000,
+      "epsilon": 128,
+      "algorithm": "external_pgm"
+    },
+    {
+      "data_size": 100000,
+      "algorithm": "jdb_pgm",
+      "epsilon": 32,
+      "build_time_ns": 181625.0
+    },
+    {
+      "build_time_ns": 270708.0,
+      "algorithm": "external_pgm",
+      "epsilon": 32,
+      "data_size": 100000
+    },
+    {
+      "build_time_ns": 185167.0,
+      "epsilon": 64,
+      "algorithm": "jdb_pgm",
+      "data_size": 100000
+    },
+    {
+      "build_time_ns": 226583.0,
+      "data_size": 100000,
+      "algorithm": "external_pgm",
+      "epsilon": 64
+    },
+    {
+      "algorithm": "jdb_pgm",
+      "data_size": 100000,
+      "epsilon": 128,
+      "build_time_ns": 170167.0
+    },
+    {
+      "algorithm": "external_pgm",
+      "build_time_ns": 216416.0,
+      "data_size": 100000,
+      "epsilon": 128
+    },
+    {
+      "algorithm": "jdb_pgm",
+      "data_size": 1000000,
+      "build_time_ns": 2037584.0,
+      "epsilon": 32
+    },
+    {
+      "data_size": 1000000,
+      "build_time_ns": 1182083.0,
+      "epsilon": 32,
+      "algorithm": "external_pgm"
+    },
+    {
+      "build_time_ns": 2057250.0,
+      "epsilon": 64,
+      "data_size": 1000000,
+      "algorithm": "jdb_pgm"
+    },
+    {
+      "algorithm": "external_pgm",
+      "data_size": 1000000,
+      "epsilon": 64,
+      "build_time_ns": 1276667.0
+    },
+    {
+      "build_time_ns": 2101208.0,
+      "algorithm": "jdb_pgm",
+      "data_size": 1000000,
+      "epsilon": 128
+    },
+    {
+      "algorithm": "external_pgm",
+      "epsilon": 128,
+      "build_time_ns": 1205583.0,
+      "data_size": 1000000
+    }
+  ],
+  "config": {
+    "data_sizes": [
+      10000,
+      100000,
+      1000000
+    ],
+    "epsilon_values": [
+      32,
+      64,
+      128
+    ]
+  }
+}

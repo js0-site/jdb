@@ -1,0 +1,314 @@
+{
+  "config": {
+    "query_count": 1500000,
+    "data_sizes": [
+      10000,
+      100000,
+      1000000
+    ],
+    "epsilon_values": [
+      32,
+      64,
+      128
+    ]
+  },
+  "results": [
+    {
+      "name": "hashmap/10000",
+      "data_size": 10000,
+      "epsilon": null,
+      "algorithm": "hashmap",
+      "mean_ns": 16.370179333333333,
+      "std_dev_ns": 53.724938752148084,
+      "median_ns": 0.0,
+      "throughput": 61086685.71295228,
+      "memory_bytes": 327680
+    },
+    {
+      "name": "jdb_pgm_eps_64/10000",
+      "data_size": 10000,
+      "epsilon": 64,
+      "algorithm": "jdb_pgm",
+      "mean_ns": 16.609681333333334,
+      "std_dev_ns": 61.49333392056818,
+      "median_ns": 0.0,
+      "throughput": 60205851.02937154,
+      "memory_bytes": 163840
+    },
+    {
+      "name": "binary_search/10000",
+      "data_size": 10000,
+      "epsilon": null,
+      "algorithm": "binary_search",
+      "mean_ns": 16.799764,
+      "std_dev_ns": 49.520622386361396,
+      "median_ns": 0.0,
+      "throughput": 59524645.70335631,
+      "memory_bytes": 0
+    },
+    {
+      "name": "jdb_pgm_eps_32/10000",
+      "data_size": 10000,
+      "epsilon": 32,
+      "algorithm": "jdb_pgm",
+      "mean_ns": 16.836518666666667,
+      "std_dev_ns": 57.15699909762283,
+      "median_ns": 0.0,
+      "throughput": 59394701.469955504,
+      "memory_bytes": 184320
+    },
+    {
+      "name": "jdb_pgm_eps_64/100000",
+      "data_size": 100000,
+      "epsilon": 64,
+      "algorithm": "jdb_pgm",
+      "mean_ns": 17.242003333333333,
+      "std_dev_ns": 79.37330988259596,
+      "median_ns": 0.0,
+      "throughput": 57997900.86264145,
+      "memory_bytes": 974848
+    },
+    {
+      "name": "jdb_pgm_eps_32/100000",
+      "data_size": 100000,
+      "epsilon": 32,
+      "algorithm": "jdb_pgm",
+      "mean_ns": 17.244583333333335,
+      "std_dev_ns": 67.23882587458581,
+      "median_ns": 0.0,
+      "throughput": 57989223.669268124,
+      "memory_bytes": 1049472
+    },
+    {
+      "name": "jdb_pgm_eps_128/10000",
+      "data_size": 10000,
+      "epsilon": 128,
+      "algorithm": "jdb_pgm",
+      "mean_ns": 17.480436666666666,
+      "std_dev_ns": 76.44083747103966,
+      "median_ns": 0.0,
+      "throughput": 57206808.9069476,
+      "memory_bytes": 163840
+    },
+    {
+      "name": "jdb_pgm_eps_128/100000",
+      "data_size": 100000,
+      "epsilon": 128,
+      "algorithm": "jdb_pgm",
+      "mean_ns": 17.956734,
+      "std_dev_ns": 74.65908810530766,
+      "median_ns": 0.0,
+      "throughput": 55689414.34450162,
+      "memory_bytes": 1204080
+    },
+    {
+      "name": "external_pgm_eps_32/10000",
+      "data_size": 10000,
+      "epsilon": 32,
+      "algorithm": "external_pgm",
+      "mean_ns": 18.031512666666668,
+      "std_dev_ns": 63.94791587653445,
+      "median_ns": 0.0,
+      "throughput": 55458464.216849394,
+      "memory_bytes": 2881216
+    },
+    {
+      "name": "hashmap/100000",
+      "data_size": 100000,
+      "epsilon": null,
+      "algorithm": "hashmap",
+      "mean_ns": 18.179912,
+      "std_dev_ns": 82.74877468384803,
+      "median_ns": 0.0,
+      "throughput": 55005766.80459179,
+      "memory_bytes": 2621440
+    },
+    {
+      "name": "external_pgm_eps_128/100000",
+      "data_size": 100000,
+      "epsilon": 128,
+      "algorithm": "external_pgm",
+      "mean_ns": 18.749132,
+      "std_dev_ns": 66.07970734331552,
+      "median_ns": 0.0,
+      "throughput": 53335802.425413616,
+      "memory_bytes": 929728
+    },
+    {
+      "name": "external_pgm_eps_128/10000",
+      "data_size": 10000,
+      "epsilon": 128,
+      "algorithm": "external_pgm",
+      "mean_ns": 19.003858666666666,
+      "std_dev_ns": 80.74778090517927,
+      "median_ns": 0.0,
+      "throughput": 52620892.29036573,
+      "memory_bytes": 81920
+    },
+    {
+      "name": "external_pgm_eps_64/10000",
+      "data_size": 10000,
+      "epsilon": 64,
+      "algorithm": "external_pgm",
+      "mean_ns": 19.014019333333334,
+      "std_dev_ns": 70.4675250698226,
+      "median_ns": 0.0,
+      "throughput": 52592772.86243775,
+      "memory_bytes": 81920
+    },
+    {
+      "name": "external_pgm_eps_64/100000",
+      "data_size": 100000,
+      "epsilon": 64,
+      "algorithm": "external_pgm",
+      "mean_ns": 19.034237333333333,
+      "std_dev_ns": 65.24486294827193,
+      "median_ns": 0.0,
+      "throughput": 52536909.28024574,
+      "memory_bytes": 1032192
+    },
+    {
+      "name": "jdb_pgm_eps_32/1000000",
+      "data_size": 1000000,
+      "epsilon": 32,
+      "algorithm": "jdb_pgm",
+      "mean_ns": 19.909475333333333,
+      "std_dev_ns": 66.97642524016757,
+      "median_ns": 0.0,
+      "throughput": 50227340.66355608,
+      "memory_bytes": 9447424
+    },
+    {
+      "name": "jdb_pgm_eps_64/1000000",
+      "data_size": 1000000,
+      "epsilon": 64,
+      "algorithm": "jdb_pgm",
+      "mean_ns": 20.463545333333332,
+      "std_dev_ns": 71.18197548337811,
+      "median_ns": 0.0,
+      "throughput": 48867387.527961105,
+      "memory_bytes": 8912896
+    },
+    {
+      "name": "external_pgm_eps_32/100000",
+      "data_size": 100000,
+      "epsilon": 32,
+      "algorithm": "external_pgm",
+      "mean_ns": 20.632111333333334,
+      "std_dev_ns": 64.56486996242445,
+      "median_ns": 0.0,
+      "throughput": 48468137.06285092,
+      "memory_bytes": 1077248
+    },
+    {
+      "name": "jdb_pgm_eps_128/1000000",
+      "data_size": 1000000,
+      "epsilon": 128,
+      "algorithm": "jdb_pgm",
+      "mean_ns": 22.178444666666667,
+      "std_dev_ns": 72.06212522193651,
+      "median_ns": 0.0,
+      "throughput": 45088824.53344263,
+      "memory_bytes": 8650752
+    },
+    {
+      "name": "binary_search/100000",
+      "data_size": 100000,
+      "epsilon": null,
+      "algorithm": "binary_search",
+      "mean_ns": 25.023832666666667,
+      "std_dev_ns": 317.870701955991,
+      "median_ns": 41.0,
+      "throughput": 39961904.050456,
+      "memory_bytes": 0
+    },
+    {
+      "name": "external_pgm_eps_32/1000000",
+      "data_size": 1000000,
+      "epsilon": 32,
+      "algorithm": "external_pgm",
+      "mean_ns": 26.815483333333333,
+      "std_dev_ns": 190.03005668818972,
+      "median_ns": 41.0,
+      "throughput": 37291887.95776569,
+      "memory_bytes": 8757536
+    },
+    {
+      "name": "external_pgm_eps_64/1000000",
+      "data_size": 1000000,
+      "epsilon": 64,
+      "algorithm": "external_pgm",
+      "mean_ns": 28.761984666666667,
+      "std_dev_ns": 83.53231139325409,
+      "median_ns": 41.0,
+      "throughput": 34768115.32963986,
+      "memory_bytes": 8744000
+    },
+    {
+      "name": "external_pgm_eps_128/1000000",
+      "data_size": 1000000,
+      "epsilon": 128,
+      "algorithm": "external_pgm",
+      "mean_ns": 31.134928,
+      "std_dev_ns": 82.35960481387018,
+      "median_ns": 41.0,
+      "throughput": 32118269.23126336,
+      "memory_bytes": 8429568
+    },
+    {
+      "name": "btreemap/10000",
+      "data_size": 10000,
+      "epsilon": null,
+      "algorithm": "btreemap",
+      "mean_ns": 33.13702933333333,
+      "std_dev_ns": 69.25091218858206,
+      "median_ns": 42.0,
+      "throughput": 30177720.215676546,
+      "memory_bytes": 204800
+    },
+    {
+      "name": "binary_search/1000000",
+      "data_size": 1000000,
+      "epsilon": null,
+      "algorithm": "binary_search",
+      "mean_ns": 44.97336266666667,
+      "std_dev_ns": 117.01088976006712,
+      "median_ns": 42.0,
+      "throughput": 22235384.252047032,
+      "memory_bytes": 0
+    },
+    {
+      "name": "hashmap/1000000",
+      "data_size": 1000000,
+      "epsilon": null,
+      "algorithm": "hashmap",
+      "mean_ns": 46.13487933333333,
+      "std_dev_ns": 101.79989330169225,
+      "median_ns": 42.0,
+      "throughput": 21675574.195714455,
+      "memory_bytes": 41943040
+    },
+    {
+      "name": "btreemap/100000",
+      "data_size": 100000,
+      "epsilon": null,
+      "algorithm": "btreemap",
+      "mean_ns": 57.728897333333336,
+      "std_dev_ns": 221.98541913531,
+      "median_ns": 42.0,
+      "throughput": 17322347.146627177,
+      "memory_bytes": 1609400
+    },
+    {
+      "name": "btreemap/1000000",
+      "data_size": 1000000,
+      "epsilon": null,
+      "algorithm": "btreemap",
+      "mean_ns": 99.452068,
+      "std_dev_ns": 155.35708270919503,
+      "median_ns": 83.0,
+      "throughput": 10055095.083593436,
+      "memory_bytes": 17680256
+    }
+  ]
+}

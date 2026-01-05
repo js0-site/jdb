@@ -1,0 +1,65 @@
+[package]
+name = "jdb_pgm"
+version = "0.3.4"
+edition = "2024"
+description = "Ultra-fast single-threaded PGM-Index optimized for thread-per-core architecture / 专为单线程一核架构优化的超快 PGM 索引"
+license = "MIT"
+repository = "https://github.com/js0-site/jdb.git"
+keywords = ["pgm-index", "learned-index", "search", "database", "performance"]
+categories = ["data-structures", "algorithms", "database-implementations"]
+authors = ["jssite@googlegroups.com", "Andrei Riaskov <code@riaskov.com>"]
+readme = "README.md"
+homepage = "https://github.com/js0-site/jdb"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies.bitcode]
+version = "0.6.9"
+optional = true
+
+[dependencies.tikv-jemalloc-ctl]
+version = "0.6"
+features = ["stats"]
+optional = true
+
+[dependencies.tikv-jemallocator]
+version = "0.6"
+optional = true
+
+[dev-dependencies]
+aok = "0.1.18"
+log = "0.4.29"
+log_init = "0.1.34"
+rand = "0.9"
+static_init = "1.0.4"
+serde = "1.0"
+serde_json = "1.0"
+sonic-rs = "0.5"
+
+[dev-dependencies.criterion]
+version = "0.8"
+features = ["html_reports"]
+
+[dev-dependencies.pgm_index]
+version = "0.3"
+
+[features]
+default = []
+key_to_u64 = []
+bitcode = ["dep:bitcode"]
+jemalloc = ["tikv-jemalloc-ctl", "tikv-jemallocator"]
+
+[[example]]
+name = "simple_benchmark"
+path = "examples/simple_benchmark.rs"
+
+[[example]]
+name = "test_bitcode"
+path = "examples/test_bitcode.rs"
+required-features = ["bitcode"]
+
+[[bench]]
+name = "pgm_vs_binary"
+harness = false

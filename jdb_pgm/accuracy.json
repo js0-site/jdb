@@ -1,0 +1,188 @@
+{
+  "config": {
+    "data_sizes": [
+      10000,
+      100000,
+      1000000
+    ],
+    "epsilon_values": [
+      32,
+      64,
+      128
+    ],
+    "sample_count": 10000
+  },
+  "results": [
+    {
+      "algorithm": "jdb_pgm",
+      "samples": 10000,
+      "data_size": 10000,
+      "avg_error": 11.7554,
+      "max_error": 33,
+      "linear_avg_error": 31.7143,
+      "linear_max_error": 89,
+      "epsilon": 32
+    },
+    {
+      "samples": 10000,
+      "max_error": 89,
+      "avg_error": 31.7143,
+      "algorithm": "external_pgm",
+      "epsilon": 32,
+      "note": "linear_interpolation",
+      "data_size": 10000
+    },
+    {
+      "algorithm": "jdb_pgm",
+      "data_size": 10000,
+      "max_error": 64,
+      "linear_max_error": 89,
+      "epsilon": 64,
+      "linear_avg_error": 31.7143,
+      "avg_error": 22.9961,
+      "samples": 10000
+    },
+    {
+      "samples": 10000,
+      "algorithm": "external_pgm",
+      "epsilon": 64,
+      "avg_error": 31.7143,
+      "data_size": 10000,
+      "note": "linear_interpolation",
+      "max_error": 89
+    },
+    {
+      "linear_max_error": 89,
+      "algorithm": "jdb_pgm",
+      "linear_avg_error": 31.7143,
+      "avg_error": 31.3953,
+      "samples": 10000,
+      "max_error": 92,
+      "epsilon": 128,
+      "data_size": 10000
+    },
+    {
+      "avg_error": 31.7143,
+      "epsilon": 128,
+      "note": "linear_interpolation",
+      "algorithm": "external_pgm",
+      "max_error": 89,
+      "data_size": 10000,
+      "samples": 10000
+    },
+    {
+      "max_error": 33,
+      "algorithm": "jdb_pgm",
+      "linear_avg_error": 149.5878,
+      "avg_error": 12.2946,
+      "linear_max_error": 367,
+      "samples": 10000,
+      "epsilon": 32,
+      "data_size": 100000
+    },
+    {
+      "note": "linear_interpolation",
+      "algorithm": "external_pgm",
+      "avg_error": 149.5878,
+      "data_size": 100000,
+      "samples": 10000,
+      "max_error": 367,
+      "epsilon": 32
+    },
+    {
+      "data_size": 100000,
+      "max_error": 64,
+      "samples": 10000,
+      "algorithm": "jdb_pgm",
+      "avg_error": 25.7977,
+      "linear_max_error": 367,
+      "epsilon": 64,
+      "linear_avg_error": 149.5878
+    },
+    {
+      "epsilon": 64,
+      "data_size": 100000,
+      "avg_error": 149.5878,
+      "samples": 10000,
+      "max_error": 367,
+      "note": "linear_interpolation",
+      "algorithm": "external_pgm"
+    },
+    {
+      "linear_avg_error": 149.5878,
+      "max_error": 127,
+      "data_size": 100000,
+      "linear_max_error": 367,
+      "algorithm": "jdb_pgm",
+      "epsilon": 128,
+      "avg_error": 41.9242,
+      "samples": 10000
+    },
+    {
+      "samples": 10000,
+      "max_error": 367,
+      "algorithm": "external_pgm",
+      "avg_error": 149.5878,
+      "data_size": 100000,
+      "note": "linear_interpolation",
+      "epsilon": 128
+    },
+    {
+      "linear_max_error": 891,
+      "linear_avg_error": 326.8546,
+      "samples": 10000,
+      "max_error": 32,
+      "data_size": 1000000,
+      "avg_error": 11.2918,
+      "epsilon": 32,
+      "algorithm": "jdb_pgm"
+    },
+    {
+      "max_error": 891,
+      "epsilon": 32,
+      "algorithm": "external_pgm",
+      "samples": 10000,
+      "note": "linear_interpolation",
+      "data_size": 1000000,
+      "avg_error": 326.8546
+    },
+    {
+      "linear_avg_error": 326.8546,
+      "max_error": 64,
+      "samples": 10000,
+      "algorithm": "jdb_pgm",
+      "avg_error": 22.541,
+      "linear_max_error": 891,
+      "data_size": 1000000,
+      "epsilon": 64
+    },
+    {
+      "algorithm": "external_pgm",
+      "max_error": 891,
+      "note": "linear_interpolation",
+      "samples": 10000,
+      "epsilon": 64,
+      "data_size": 1000000,
+      "avg_error": 326.8546
+    },
+    {
+      "algorithm": "jdb_pgm",
+      "linear_max_error": 891,
+      "max_error": 128,
+      "linear_avg_error": 326.8546,
+      "avg_error": 46.4368,
+      "data_size": 1000000,
+      "epsilon": 128,
+      "samples": 10000
+    },
+    {
+      "epsilon": 128,
+      "note": "linear_interpolation",
+      "samples": 10000,
+      "data_size": 1000000,
+      "avg_error": 326.8546,
+      "max_error": 891,
+      "algorithm": "external_pgm"
+    }
+  ]
+}
