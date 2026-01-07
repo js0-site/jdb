@@ -1,13 +1,13 @@
 [package]
 name = "cpu_bind"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MulanPSL-2.0"
 repository = "https://github.com/js0/jdb.git"
 homepage = "https://github.com/js0/jdb/tree/main/cpu_bind"
-description = "cpu_bind"
-keywords = []
-categories = []
+description = "Bind threads to idlest CPU core / 将线程绑定到最空闲 CPU 核心"
+keywords = ["cpu-affinity", "thread-binding", "cpu-load", "compio", "scheduling"]
+categories = ["concurrency", "hardware-support", "os", "asynchronous", "development-tools"]
 readme = "README.md"
 
 [features]
