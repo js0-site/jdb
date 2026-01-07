@@ -3,8 +3,9 @@ extern "C" fn _log_init() {
   log_init::init();
 }
 
+#[allow(clippy::await_holding_refcell_ref)]
 mod sstable_tests {
-  use std::ops::Bound;
+  use std::{cell::RefCell, ops::Bound, rc::Rc};
 
   use aok::{OK, Void};
   use futures::StreamExt;
@@ -12,9 +13,27 @@ mod sstable_tests {
     Pos,
     table::{Kv, SsTable, TableMut},
   };
+  use jdb_ckp::Ckp;
   use jdb_fs::FileLru;
   use jdb_mem::Mem;
   use jdb_sstable::{Conf, Read, Table, write};
+
+  /// Create test Ckp for SSTable tests
+  /// 为 SSTable 测试创建测试用 Ckp
+  async fn test_ckp(dir: &std::path::Path) -> Rc<RefCell<Ckp>> {
+    let (ckp, _) = jdb_ckp::open(dir, &[]).await.unwrap();
+    Rc::new(RefCell::new(ckp))
+  }
+
+  /// Load Read manager for tests with SST id registered
+  /// 为测试加载 Read 管理器，并注册 SST id
+  async fn test_read_with_sst(dir: &std::path::Path, sst_id: u64) -> Read {
+    let ckp = test_ckp(dir).await;
+    // Register SST in ckp before load
+    // 加载前在 ckp 中注册 SST
+    ckp.borrow_mut().sst_add(sst_id, 0).await.unwrap();
+    Read::load(dir, 16, ckp).await.unwrap()
+  }
 
   /// Collect stream to vec
   /// 收集流到 vec
@@ -58,8 +77,7 @@ mod sstable_tests {
         .expect("tombstone should be found");
       assert!(entry.is_tombstone());
 
-      let mut mgr = Read::new(&sst_dir, 16);
-      mgr.add(info);
+      let mgr = test_read_with_sst(&sst_dir, meta.id).await;
       let l0 = mgr.level(0).expect("L0 should exist");
       let tbl = &l0.get(0).unwrap();
       let items = collect_stream(mgr.range_table(tbl, Bound::Unbounded, Bound::Unbounded)).await;
@@ -87,7 +105,7 @@ mod sstable_tests {
       let meta = write(&sst_dir, 0, &mem, &[]).await?;
       let path = jdb_fs::fs_id::id_path(&sst_dir, meta.id);
       let info = Table::load(&path, meta.id).await?;
-      let mut mgr = Read::new(&sst_dir, 16);
+      let mut mgr = test_read_with_sst(&sst_dir, meta.id).await;
       mgr.add(info);
       let l0 = mgr.level(0).expect("L0 should exist");
       let tbl = &l0.get(0).unwrap();
@@ -163,7 +181,7 @@ mod sstable_tests {
         assert_eq!(pos, expected);
       }
 
-      let mut mgr = Read::new(&sst_dir, 16);
+      let mut mgr = test_read_with_sst(&sst_dir, meta.id).await;
       mgr.add(info);
       let l0 = mgr.level(0).expect("L0 should exist");
       let tbl = &l0.get(0).unwrap();
@@ -238,7 +256,7 @@ mod sstable_tests {
       let meta = write(&sst_dir, 0, &mem, &[]).await?;
       let path = jdb_fs::fs_id::id_path(&sst_dir, meta.id);
       let info = Table::load(&path, meta.id).await?;
-      let mut mgr = Read::new(&sst_dir, 16);
+      let mut mgr = test_read_with_sst(&sst_dir, meta.id).await;
       mgr.add(info);
 
       // Test SsTable::get via trait
@@ -304,8 +322,7 @@ mod sstable_tests {
         info.block_count()
       );
 
-      let mut mgr = Read::new(&sst_dir, 16);
-      mgr.add(info);
+      let mgr = test_read_with_sst(&sst_dir, meta.id).await;
 
       let l0 = mgr.level(0).expect("L0 should exist");
       let tbl = &l0.get(0).unwrap();

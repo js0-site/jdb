@@ -1,34 +1,41 @@
 //! SSTable loading utilities (concurrent)
 //! SSTable 加载工具（并发）
 
-use std::path::Path;
+use std::{cell::RefCell, collections::HashSet, path::Path, rc::Rc};
 
 use coarsetime::Clock;
 use compio::fs;
 use futures::{StreamExt, stream::iter};
 use ider::id_to_ts;
+use jdb_base::table::Meta;
+use jdb_ckp::Ckp;
 use jdb_fs::fs_id::{decode_id, id_path};
 
 use crate::{
   Result, SstLevels, Table,
   consts::{HOUR_MS, TMP_DIR},
-  level::new_levels,
+  level::new,
 };
 
-/// Load all SSTables from directory
-/// 从目录加载所有 SSTable
+/// Load all SSTables from directory using Ckp for level info
+/// 从目录加载所有 SSTable，使用 Ckp 获取层级信息
 ///
-/// Level info is read from each file's foot
-/// 层级信息从每个文件的 foot 读取
-pub async fn load(dir: &Path) -> Result<SstLevels> {
+/// Files not in Ckp will be deleted (orphaned files)
+/// 不在 Ckp 中的文件将被删除（孤立文件）
+pub async fn load(dir: &Path, ckp: Rc<RefCell<Ckp>>) -> Result<SstLevels> {
   // Clean up stale temp files (older than 1 hour)
   // 清理过期临时文件（超过 1 小时）
   clean_tmp(dir).await;
 
+  // Get SST ids from ckp
+  // 从 ckp 获取 SST id
+  let sst_map = ckp.borrow().sst_all().clone();
+  let valid_ids: HashSet<u64> = sst_map.keys().copied().collect();
+
   // Return empty if directory doesn't exist
   // 目录不存在时返回空
   let Ok(entries) = std::fs::read_dir(dir) else {
-    return Ok(new_levels());
+    return Ok(new(ckp));
   };
 
   // Scan directory, decode base32 id from filename
@@ -43,14 +50,19 @@ pub async fn load(dir: &Path) -> Result<SstLevels> {
       continue;
     }
     if let Some(id) = decode_id(name) {
-      ids.push(id);
+      if valid_ids.contains(&id) {
+        ids.push(id);
+      } else {
+        // Delete orphaned file not in ckp
+        // 删除不在 ckp 中的孤立文件
+        let path = id_path(dir, id);
+        let _ = fs::remove_file(&path).await;
+      }
     }
   }
 
   // Load tables concurrently (IO bound optimization)
   // 并发加载表（IO 密集型优化）
-  // buffer_unordered(16) balances FD usage and throughput
-  // buffer_unordered(16) 平衡文件描述符使用和吞吐量
   let tables: Vec<Table> = iter(ids)
     .map(|id| {
       let path = id_path(dir, id);
@@ -69,12 +81,13 @@ pub async fn load(dir: &Path) -> Result<SstLevels> {
     .collect()
     .await;
 
-  // Group tables by level
-  // 按层级分组表
-  let mut levels = new_levels();
+  // Group tables by level from ckp
+  // 按 ckp 中的层级分组表
+  let mut levels = new(ckp);
   for t in tables {
-    if let Some(level) = levels.li.get_mut(t.level as usize) {
-      level.add(t);
+    let level = sst_map.get(&t.id()).copied().unwrap_or(0);
+    if let Some(lv) = levels.levels.get_mut(level as usize) {
+      lv.add(t);
     }
   }
 

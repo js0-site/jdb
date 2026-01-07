@@ -18,7 +18,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-zerocopy = { version = "0.8.31", features = ["derive"] }
+zerocopy = { version = "0.8.32", features = ["derive"] }
 futures-core = "0.3.31"
 ider = "0.1.2"
 

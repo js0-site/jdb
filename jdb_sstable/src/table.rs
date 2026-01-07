@@ -40,9 +40,6 @@ pub struct Table {
   first_keys: Vec<Box<[u8]>>,
   meta: Meta,
   data_end: u64,
-  /// Level number (0 = L0, 1 = L1, ...)
-  /// 层级编号（0 = L0, 1 = L1, ...）
-  pub level: u8,
 }
 
 impl Table {
@@ -177,7 +174,6 @@ impl Table {
       first_keys,
       meta,
       data_end,
-      level: foot.level,
     })
   }
 
@@ -326,5 +322,10 @@ impl MetaTrait for Table {
   #[inline]
   fn count(&self) -> u64 {
     self.meta.item_count
+  }
+
+  #[inline]
+  fn rm_count(&self) -> u64 {
+    self.meta.rm_count
   }
 }

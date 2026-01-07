@@ -1,7 +1,10 @@
 //! Checkpoint management for JDB
 //! JDB 检查点管理
 
-use std::{collections::VecDeque, path::Path};
+use std::{
+  collections::{HashMap, VecDeque},
+  path::Path,
+};
 
 use futures::StreamExt;
 use jdb_fs::{
@@ -21,6 +24,7 @@ pub use ckp::{Ckp, Conf};
 pub use error::{Error, Result};
 pub use load::CkpLoad;
 use rewrite::rewrite;
+pub use row::Op;
 use row::Row;
 
 const DEFAULT_TRUNCATE: usize = 65536;
@@ -45,6 +49,7 @@ pub async fn open(dir: &Path, conf: &[Conf]) -> Result<(Ckp, Option<jdb_base::Ck
   // 扫描
   let mut saves = VecDeque::new();
   let mut rotates = Vec::new();
+  let mut sst: HashMap<u64, u8> = HashMap::new();
   let mut count = 0usize;
   let mut file_pos = 0u64;
 
@@ -60,6 +65,12 @@ pub async fn open(dir: &Path, conf: &[Conf]) -> Result<(Ckp, Option<jdb_base::Ck
         }
       }
       Row::Rotate { wal_id } => rotates.push(wal_id),
+      Row::SstAdd { id, level } => {
+        sst.insert(id, level);
+      }
+      Row::SstRm { id } => {
+        sst.remove(&id);
+      }
     }
     count += 1;
     file_pos = end;
@@ -88,9 +99,10 @@ pub async fn open(dir: &Path, conf: &[Conf]) -> Result<(Ckp, Option<jdb_base::Ck
 
   // Rewrite if has garbage
   // 有垃圾时重写
-  if count > saves.len() + rotates.len() {
-    file_pos = rewrite(&path, &saves, &rotates).await?;
-    count = saves.len() + rotates.len();
+  let expected_count = saves.len() + rotates.len() + sst.len();
+  if count > expected_count {
+    file_pos = rewrite(&path, &saves, &rotates, &sst).await?;
+    count = expected_count;
   }
 
   Ok((
@@ -103,6 +115,7 @@ pub async fn open(dir: &Path, conf: &[Conf]) -> Result<(Ckp, Option<jdb_base::Ck
       keep,
       saves,
       rotates,
+      sst,
     },
     after,
   ))

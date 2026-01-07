@@ -5,6 +5,8 @@
 //! *对于任意* 写入序列，关闭后重新打开，所有数据应可读取
 //! **验证: 需求 1.2, 7.1, 7.2**
 
+#![allow(clippy::await_holding_refcell_ref)]
+
 use std::collections::BTreeMap;
 
 use jdb::Db;
@@ -58,10 +60,12 @@ proptest! {
 
         // Save checkpoint BEFORE writing data
         // 在写入数据之前保存检查点
-        db.ckp
-          .set_wal_ptr(db.wal.cur_id(), db.wal.cur_pos())
-          .await
-          .expect("save ckp before write");
+        {
+          let mut ckp = db.ckp.borrow_mut();
+          ckp.set_wal_ptr(db.wal.cur_id(), db.wal.cur_pos())
+            .await
+            .expect("save ckp before write");
+        }
 
         for (key, val) in &kvs {
           let pos = db.wal.put(key, val).await.expect("put");

@@ -4,7 +4,10 @@
 use jdb_base::{WalId, WalOffset};
 use zerocopy::{Immutable, IntoBytes, little_endian::U64};
 
-use crate::row::{KIND_ROTATE, KIND_SAVE, MAGIC, MAGIC_SIZE, ROTATE_SIZE, SAVE_SIZE};
+use crate::row::{
+  KIND_ROTATE, KIND_SAVE, KIND_SST_ADD, KIND_SST_RM, MAGIC, MAGIC_SIZE, ROTATE_SIZE, SAVE_SIZE,
+  SST_ADD_SIZE, SST_RM_SIZE,
+};
 
 pub(crate) trait ToDiskBytes<const N: usize>: IntoBytes + Immutable {
   const KIND: u8;
@@ -40,12 +43,37 @@ pub(crate) struct Rotate {
   wal_id: U64,
 }
 
+/// Disk format for SST add entry
+/// SST 添加条目的数据
+#[derive(IntoBytes, Immutable)]
+#[repr(C, packed)]
+pub(crate) struct SstAdd {
+  id: U64,
+  level: u8,
+}
+
+/// Disk format for SST remove entry
+/// SST 删除条目的数据
+#[derive(IntoBytes, Immutable)]
+#[repr(C, packed)]
+pub(crate) struct SstRm {
+  id: U64,
+}
+
 impl ToDiskBytes<SAVE_SIZE> for SaveWalPtr {
   const KIND: u8 = KIND_SAVE;
 }
 
 impl ToDiskBytes<ROTATE_SIZE> for Rotate {
   const KIND: u8 = KIND_ROTATE;
+}
+
+impl ToDiskBytes<SST_ADD_SIZE> for SstAdd {
+  const KIND: u8 = KIND_SST_ADD;
+}
+
+impl ToDiskBytes<SST_RM_SIZE> for SstRm {
+  const KIND: u8 = KIND_SST_RM;
 }
 
 impl SaveWalPtr {
@@ -64,5 +92,22 @@ impl Rotate {
     Self {
       wal_id: U64::new(wal_id),
     }
+  }
+}
+
+impl SstAdd {
+  #[inline]
+  pub(crate) fn new(id: u64, level: u8) -> Self {
+    Self {
+      id: U64::new(id),
+      level,
+    }
+  }
+}
+
+impl SstRm {
+  #[inline]
+  pub(crate) fn new(id: u64) -> Self {
+    Self { id: U64::new(id) }
   }
 }

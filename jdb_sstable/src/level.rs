@@ -1,7 +1,7 @@
 //! SSTable level re-exports
 //! SSTable 层级重导出
 
-pub use jdb_level::{Conf, Level, Levels, new_levels, new_levels_conf};
+pub use jdb_level::{Conf, Level, Levels, conf, new};
 
 use crate::Table;
 

@@ -71,7 +71,7 @@ fn ns_to_mops(ns: f64) -> f64 {
 trait Filter {
   fn add_key(&mut self, key: &[u8]);
   fn has_key(&self, key: &[u8]) -> bool;
-  fn del_key(&mut self, key: &[u8]);
+  fn rm_key(&mut self, key: &[u8]);
   fn mem_bits(&self) -> u64;
 }
 
@@ -82,7 +82,7 @@ impl Filter for autoscale_cuckoo_filter::CuckooFilter<[u8], GxHasher> {
   fn has_key(&self, key: &[u8]) -> bool {
     self.contains(key)
   }
-  fn del_key(&mut self, key: &[u8]) {
+  fn rm_key(&mut self, key: &[u8]) {
     self.remove(key);
   }
   fn mem_bits(&self) -> u64 {
@@ -97,7 +97,7 @@ impl Filter for ScalableCuckooFilter<[u8]> {
   fn has_key(&self, key: &[u8]) -> bool {
     self.contains(key)
   }
-  fn del_key(&mut self, key: &[u8]) {
+  fn rm_key(&mut self, key: &[u8]) {
     self.remove(key);
   }
   fn mem_bits(&self) -> u64 {
@@ -112,7 +112,7 @@ impl Filter for OriginalCuckooFilter<FarmHasher> {
   fn has_key(&self, key: &[u8]) -> bool {
     self.contains(key)
   }
-  fn del_key(&mut self, key: &[u8]) {
+  fn rm_key(&mut self, key: &[u8]) {
     self.delete(key);
   }
   fn mem_bits(&self) -> u64 {
@@ -151,7 +151,7 @@ fn bench_filter(
   // Remove
   let start = Instant::now();
   for k in remove_keys {
-    filter.del_key(k);
+    filter.rm_key(k);
   }
   let remove_ns = start.elapsed().as_nanos() as f64 / remove_keys.len() as f64;
 

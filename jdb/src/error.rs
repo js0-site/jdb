@@ -17,7 +17,7 @@ pub enum Error {
   #[error("SSTable: {0}")]
   SSTable(#[from] jdb_sstable::Error),
 
-  #[error("Database closed / 数据库已关闭")]
+  #[error("Database closed")]
   Closed,
 }
 

@@ -1,7 +1,7 @@
 //! Database core structure
 //! 数据库核心结构
 
-use std::{ops::Bound, path::PathBuf};
+use std::{cell::RefCell, ops::Bound, path::PathBuf, rc::Rc};
 
 use jdb_base::{
   Pos,
@@ -37,11 +37,13 @@ pub struct Db {
   /// WAL manager / WAL 管理器
   pub wal: Wal,
   /// Checkpoint manager / 检查点管理器
-  pub ckp: Ckp,
+  pub ckp: Rc<RefCell<Ckp>>,
   /// SSTable read manager / SSTable 读取管理器
   pub sst: Read,
   /// Memory table size threshold / 内存表大小阈值
   pub mem_threshold: u64,
+  /// Compaction in progress flag / 压缩进行中标志
+  compacting: bool,
 }
 
 impl Db {
@@ -68,6 +70,7 @@ impl Db {
 
     // 1. Open checkpoint / 打开检查点
     let (ckp, after) = jdb_ckp::open(&dir, &ckp_conf).await?;
+    let ckp = Rc::new(RefCell::new(ckp));
 
     // 2. Create memtable for recovery / 创建用于恢复的内存表
     let mut mem = Mem::new();
@@ -84,7 +87,7 @@ impl Db {
 
     // 4. Load SSTable manager / 加载 SSTable 管理器
     let sst_dir = dir.join(SST_DIR);
-    let sst = Read::load(&sst_dir, file_cap).await?;
+    let sst = Read::load(&sst_dir, file_cap, Rc::clone(&ckp)).await?;
 
     Ok(Self::from_parts(dir, mem, wal, ckp, sst, mem_threshold))
   }
@@ -95,7 +98,7 @@ impl Db {
     dir: PathBuf,
     mem: Mem,
     wal: Wal,
-    ckp: Ckp,
+    ckp: Rc<RefCell<Ckp>>,
     sst: Read,
     mem_threshold: u64,
   ) -> Self {
@@ -107,6 +110,7 @@ impl Db {
       ckp,
       sst,
       mem_threshold,
+      compacting: false,
     }
   }
 
@@ -172,6 +176,7 @@ impl Db {
   /// 2. Write to SSTable
   /// 3. Load Table
   /// 4. Save checkpoint
+  #[allow(clippy::await_holding_refcell_ref)]
   pub async fn flush(&mut self) -> Result<()> {
     // Pop oldest frozen memtable (FIFO order)
     // 弹出最旧的冻结内存表（FIFO 顺序）
@@ -210,6 +215,10 @@ impl Db {
     // 添加到 SSTable 管理器
     self.sst.add(table_info);
 
+    // Record SST in checkpoint
+    // 在检查点中记录 SST
+    self.ckp.borrow_mut().sst_add(meta.id, 0).await?;
+
     // Flush WAL to ensure data is persisted
     // 刷新 WAL 确保数据持久化
     self.wal.flush().await?;
@@ -218,6 +227,7 @@ impl Db {
     // 保存检查点，记录当前 WAL 位置
     self
       .ckp
+      .borrow_mut()
       .set_wal_ptr(self.wal.cur_id(), self.wal.cur_pos())
       .await?;
 
@@ -230,6 +240,47 @@ impl Db {
     while !self.frozen.is_empty() {
       self.flush().await?;
     }
+    Ok(())
+  }
+
+  /// Check if compaction is needed
+  /// 检查是否需要压缩
+  #[inline]
+  pub fn need_compact(&mut self) -> bool {
+    self.sst.levels_mut().needs_compaction(0)
+  }
+
+  /// Execute one round of compaction
+  /// 执行一轮压缩
+  ///
+  /// Returns true if compaction was performed
+  /// 如果执行了压缩则返回 true
+  pub async fn compact(&mut self) -> Result<bool> {
+    // Prevent concurrent compaction
+    // 防止并发压缩
+    if self.compacting {
+      return Ok(false);
+    }
+    self.compacting = true;
+
+    let result = self.sst.compact().await;
+
+    self.compacting = false;
+    Ok(result?)
+  }
+
+  /// Execute compaction until no more work
+  /// 执行压缩直到没有更多工作
+  pub async fn compact_all(&mut self) -> Result<()> {
+    while self.compact().await? {}
+    Ok(())
+  }
+
+  /// Flush and compact (typical maintenance operation)
+  /// 刷写并压缩（典型维护操作）
+  pub async fn maintain(&mut self) -> Result<()> {
+    self.flush_all().await?;
+    self.compact_all().await?;
     Ok(())
   }
 

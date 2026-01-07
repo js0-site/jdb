@@ -3,6 +3,14 @@
 
 use crate::conf::{MAX_LEVEL, MAX_LEVELS};
 
+/// Score scale factor for precision
+/// 评分缩放因子以保持精度
+pub const SCORE_SCALE: u32 = 100;
+
+/// Score threshold for urgent compaction (levels above base_level)
+/// 紧急压缩评分阈值（base_level 之上的层级）
+pub const SCORE_URGENT: u32 = 200;
+
 /// Dynamic level limits result
 /// 动态层级限制结果
 #[derive(Debug, Clone, Copy)]
@@ -56,16 +64,38 @@ pub fn calc(total: u64, base_size: u64, ratio: u64) -> Limits {
   // Set limits from base_level down
   // 从 base_level 往下设置 limits
   let mut cur = limit;
-  for i in base_level..=MAX_LEVEL {
-    r.limits[i as usize] = cur;
+  for lim in &mut r.limits[base_level as usize..] {
+    *lim = cur;
     cur = cur.saturating_mul(ratio);
   }
 
   r
 }
 
-/// Check if level needs compaction
-/// 检查层级是否需要压缩
+/// Calculate compaction score for a level (RocksDB style)
+/// 计算层级的压缩评分（RocksDB 风格）
+/// Returns score * 100 as integer for precision
+/// 返回 score * 100 的整数以保持精度
+#[inline]
+pub fn score(level: u8, level_len: usize, level_size: u64, l0_limit: usize, limit: u64) -> u32 {
+  if level >= MAX_LEVEL {
+    return 0;
+  }
+  if level == 0 {
+    // L0: files_count * 100 / l0_limit
+    // L0：文件数 * 100 / l0_limit
+    (level_len as u32).saturating_mul(SCORE_SCALE) / l0_limit.max(1) as u32
+  } else if limit > 0 {
+    // L1+: current_size * 100 / target_size
+    // L1+：当前大小 * 100 / 目标大小
+    (level_size.saturating_mul(SCORE_SCALE as u64) / limit) as u32
+  } else {
+    0
+  }
+}
+
+/// Check if level needs compaction (score > SCORE_SCALE)
+/// 检查层级是否需要压缩（score > SCORE_SCALE）
 #[inline]
 pub fn needs_compact(
   level: u8,
@@ -75,6 +105,9 @@ pub fn needs_compact(
   base_level: u8,
   limit: u64,
 ) -> bool {
+  if level >= MAX_LEVEL {
+    return false;
+  }
   if level == 0 {
     level_len >= l0_limit
   } else if level < base_level {

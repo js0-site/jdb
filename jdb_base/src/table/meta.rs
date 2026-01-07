@@ -26,6 +26,24 @@ pub trait Meta {
   /// 条目数量
   fn count(&self) -> u64;
 
+  /// Delete/tombstone count for compaction priority
+  /// 删除标记数量，用于压缩优先级
+  fn rm_count(&self) -> u64;
+
+  /// Compensated size = size + rm_count * avg_entry_size
+  /// 补偿大小 = 大小 + 删除数 * 平均条目大小
+  #[inline]
+  fn compensated_size(&self) -> u64 {
+    let avg = if self.count() > 0 {
+      self.size() / self.count()
+    } else {
+      64 // default avg entry size / 默认平均条目大小
+    };
+    self
+      .size()
+      .saturating_add(self.rm_count().saturating_mul(avg))
+  }
+
   /// Check if key is in range [min_key, max_key]
   /// 检查键是否在范围内
   #[inline]

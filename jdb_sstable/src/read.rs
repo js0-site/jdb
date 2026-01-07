@@ -13,11 +13,12 @@ use jdb_base::{
   Pos,
   table::{Kv, Meta, SsTable},
 };
+use jdb_ckp::Ckp;
 use jdb_fs::FileLru;
+use log::error;
 
 use crate::{
-  Result, SstLevel, SstLevels, Table,
-  level::new_levels,
+  Compactor, Conf, Error, Result, SstLevel, SstLevels, Table,
   load::load,
   stream::{MultiAsc, MultiDesc, asc_stream, desc_stream},
 };
@@ -30,28 +31,39 @@ pub struct Read {
   lru: Lru,
   levels: SstLevels,
   dir: PathBuf,
+  conf: Vec<Conf>,
 }
 
 impl Read {
-  /// Create empty manager
-  /// 创建空管理器
-  #[inline]
-  pub fn new(dir: &Path, lru_cap: usize) -> Self {
-    Self {
-      lru: Rc::new(RefCell::new(FileLru::new(dir, lru_cap))),
-      levels: new_levels(),
-      dir: dir.to_path_buf(),
-    }
-  }
-
   /// Load all SSTables from directory
   /// 从目录加载所有 SSTable
-  pub async fn load(dir: &Path, lru_cap: usize) -> Result<Self> {
-    let levels = load(dir).await?;
+  pub async fn load(dir: &Path, lru_cap: usize, ckp: Rc<RefCell<Ckp>>) -> Result<Self> {
+    let levels = load(dir, ckp).await?;
     Ok(Self {
       lru: Rc::new(RefCell::new(FileLru::new(dir, lru_cap))),
       levels,
       dir: dir.to_path_buf(),
+      conf: Vec::new(),
+    })
+  }
+
+  /// Set write config for compaction
+  /// 设置压缩写入配置
+  #[inline]
+  pub fn set_conf(&mut self, conf: Vec<Conf>) {
+    self.conf = conf;
+  }
+
+  /// Execute one round of compaction
+  /// 执行一轮压缩
+  ///
+  /// Returns true if compaction was performed
+  /// 如果执行了压缩则返回 true
+  pub async fn compact(&mut self) -> Result<bool> {
+    let mut compactor = Compactor::new(&self.dir, Rc::clone(&self.lru), &self.conf);
+    self.levels.compact(&mut compactor).await.map_err(|e| {
+      error!("compact failed: {e:?}");
+      Error::Compact
     })
   }
 
@@ -65,7 +77,7 @@ impl Read {
   /// Add table to L0
   /// 添加表到 L0
   pub fn add(&mut self, info: Table) {
-    if let Some(l0) = self.levels.li.get_mut(0) {
+    if let Some(l0) = self.levels.levels.get_mut(0) {
       l0.add(info);
     }
   }
@@ -88,14 +100,14 @@ impl Read {
   /// 按编号获取层级
   #[inline]
   pub fn level(&self, n: u8) -> Option<&SstLevel> {
-    self.levels.li.get(n as usize)
+    self.levels.levels.get(n as usize)
   }
 
   /// Get mutable level by number
   /// 按编号获取可变层级
   #[inline]
   pub fn level_mut(&mut self, n: u8) -> Option<&mut SstLevel> {
-    self.levels.li.get_mut(n as usize)
+    self.levels.levels.get_mut(n as usize)
   }
 
   /// Total table count across all levels
@@ -116,7 +128,11 @@ impl Read {
   /// 按层级和索引获取表
   #[inline]
   pub fn get(&self, level: u8, idx: usize) -> Option<&Table> {
-    self.levels.li.get(level as usize).and_then(|l| l.get(idx))
+    self
+      .levels
+      .levels
+      .get(level as usize)
+      .and_then(|l| l.get(idx))
   }
 
   /// Collect overlapping tables for range query
@@ -124,11 +140,11 @@ impl Read {
   fn range_tables<'a>(&'a self, start: Bound<&[u8]>, end: Bound<&[u8]>) -> Vec<&'a Table> {
     // Estimate: L0 tables + ~2 tables per L1+ level
     // 预估：L0 表数 + 每个 L1+ 层约 2 个表
-    let l0_len = self.levels.li.first().map_or(0, |l| l.len());
+    let l0_len = self.levels.levels.first().map_or(0, |l| l.len());
     let cap = l0_len + (self.levels.max_level() as usize) * 2;
     let mut result = Vec::with_capacity(cap.min(32));
 
-    for level in self.levels.li.iter() {
+    for level in self.levels.levels.iter() {
       if level.is_l0() {
         // L0: all tables may overlap, add all (newest first)
         // L0：所有表可能重叠，全部添加（最新优先）
@@ -183,7 +199,7 @@ impl SsTable for Read {
     // 先搜索 L0（从新到旧）
     // Bloom filter first (faster than range check for L0 with many tables)
     // 先检查布隆过滤器（对于 L0 多表场景比范围检查更快）
-    if let Some(l0) = self.levels.li.first() {
+    if let Some(l0) = self.levels.levels.first() {
       for info in l0.iter().rev() {
         if !info.may_contain(key) || !info.contains(key) {
           continue;
@@ -197,7 +213,7 @@ impl SsTable for Read {
     // Search L1+ (PGM + binary search within each level)
     // 搜索 L1+（每层内 PGM + 二分查找）
     for level_num in 1..=self.levels.max_level() {
-      if let Some(level) = self.levels.li.get_mut(level_num as usize)
+      if let Some(level) = self.levels.levels.get_mut(level_num as usize)
         && let Some(idx) = level.find_table(key)
         && let Some(info) = level.get(idx)
         && info.may_contain(key)

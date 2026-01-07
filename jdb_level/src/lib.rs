@@ -7,8 +7,13 @@ mod calc;
 mod conf;
 mod level;
 mod levels;
+mod refcount;
+mod snapshot;
 
-pub use calc::Limits;
+pub use calc::{Limits, SCORE_SCALE, SCORE_URGENT, score};
 pub use conf::{Conf, MAX_LEVEL, MAX_LEVELS, ParsedConf, default};
+pub use jdb_ckp::Op;
 pub use level::Level;
-pub use levels::{Levels, new_levels, new_levels_conf};
+pub use levels::{Levels, conf, new};
+pub use refcount::RefCountMap;
+pub use snapshot::Snapshot;

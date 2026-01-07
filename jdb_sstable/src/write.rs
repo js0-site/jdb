@@ -10,8 +10,12 @@ use compio::{
 };
 use crc32fast::Hasher;
 use defer_lite::defer;
+use futures::StreamExt;
 use gxhash::gxhash64;
-use jdb_base::table::Table;
+use jdb_base::{
+  Pos,
+  table::{Kv, Table},
+};
 use jdb_fs::fs_id::id_path;
 use jdb_pgm::{Pgm, key_to_u64};
 use jdb_xorf::BinaryFuse8;
@@ -30,103 +34,86 @@ use crate::{
 /// Create SSTable from Table (streaming write)
 /// 从 Table 创建 SSTable（流式写入）
 ///
-/// Returns Meta with id = max ver of all entries
-/// 返回 Meta，id = 所有条目的最大 ver
+/// Returns Meta with auto-generated id
+/// 返回 Meta，id 自动生成
 pub async fn write(dir: &Path, level: u8, table: &impl Table, conf_li: &[Conf]) -> Result<Meta> {
-  let mut w = State::new(level, conf_li);
+  let id = gen_id(dir);
+  write_with_id(dir, level, table, conf_li, id).await
+}
 
-  // Create .tmp directory if not exists
-  // 如果不存在则创建 .tmp 目录
+/// Generate unique id for SSTable
+/// 为 SSTable 生成唯一 id
+pub fn gen_id(dir: &Path) -> u64 {
   let tmp_dir = dir.join(TMP_DIR);
-  fs::create_dir_all(&tmp_dir).await?;
-
-  // Generate unique id before write
-  // 写入前生成唯一 id
-  let id = loop {
+  loop {
     let id = jdb_base::id();
     let path = id_path(dir, id);
     let tmp_path = id_path(&tmp_dir, id);
     if !path.exists() && !tmp_path.exists() {
-      break id;
+      return id;
     }
-  };
-  w.meta.id = id;
+  }
+}
 
-  // Use temporary file for streaming write
-  // 使用临时文件进行流式写入
+/// Create SSTable from Table with specified id
+/// 使用指定 id 从 Table 创建 SSTable
+pub async fn write_with_id(
+  dir: &Path,
+  level: u8,
+  table: &impl Table,
+  conf_li: &[Conf],
+  id: u64,
+) -> Result<Meta> {
+  let mut w = State::new(level, conf_li, id);
+  let tmp_dir = dir.join(TMP_DIR);
+  fs::create_dir_all(&tmp_dir).await?;
+
   let temp_path = id_path(&tmp_dir, id);
   let mut file = File::create(&temp_path).await?;
-
-  // Auto cleanup temp file if exists on exit
-  // 退出时自动清理临时文件（如果存在）
   defer! { let _ = std::fs::remove_file(&temp_path); }
 
-  // Single pass: collect metadata and build blocks
-  // 单次遍历：收集元数据并构建块
   let mut last_key: Box<[u8]> = Box::default();
   for (key, pos) in table.iter() {
     if key.len() > u16::MAX as usize {
       return Err(Error::KeyTooLarge(key.len()));
     }
-
-    let ver = pos.ver();
-    if ver > w.max_ver {
-      w.max_ver = ver;
-    }
-
-    if w.meta.min_key.is_empty() {
-      w.meta.min_key = key.clone();
-    }
-
-    // Record first key and offset at block start
-    // 在 block 开始时记录首键和偏移
-    if w.builder.item_count == 0 {
-      w.first_keys.push(key.clone());
-      w.offsets.push(w.file_offset);
-    }
-
-    w.hashes.push(gxhash64(&key, 0));
-    w.builder.add(&key, &pos);
-    w.meta.item_count += 1;
+    w.add_entry(&key, &pos, &mut file).await?;
     last_key = key;
+  }
 
-    // Flush block to file when full (streaming write)
-    // 块满时刷新到文件（流式写入）
-    if w.builder.size() >= w.block_size {
-      let data = w.builder.build_encoded();
-      w.file_offset += write_at(&mut file, &data, w.file_offset).await?;
+  w.finish(&mut file, last_key, dir, id).await
+}
+
+/// Create SSTable from async stream with specified id
+/// 使用指定 id 从异步流创建 SSTable
+pub async fn write_stream<S>(
+  dir: &Path,
+  level: u8,
+  mut stream: S,
+  conf_li: &[Conf],
+  id: u64,
+) -> Result<Meta>
+where
+  S: futures::Stream<Item = Kv> + Unpin,
+{
+  let mut w = State::new(level, conf_li, id);
+  let tmp_dir = dir.join(TMP_DIR);
+  fs::create_dir_all(&tmp_dir).await?;
+
+  let temp_path = id_path(&tmp_dir, id);
+  let mut file = File::create(&temp_path).await?;
+  defer! { let _ = std::fs::remove_file(&temp_path); }
+
+  let mut last_key: Box<[u8]> = Box::default();
+  while let Some((key, pos)) = stream.next().await {
+    if key.len() > u16::MAX as usize {
+      return Err(Error::KeyTooLarge(key.len()));
     }
+    w.add_entry(&key, &pos, &mut file).await?;
+    last_key = key;
   }
 
-  if w.meta.item_count == 0 {
-    return Ok(w.meta);
-  }
-
-  w.meta.max_key = last_key;
-
-  // Flush remaining block
-  // 刷新剩余块
-  if w.builder.item_count > 0 {
-    let data = w.builder.build_encoded();
-    w.file_offset += write_at(&mut file, &data, w.file_offset).await?;
-  }
-
-  // Write metadata and foot
-  // 写入元数据和尾部
-  let offset = w.file_offset;
-  write_foot(&mut file, &mut w, offset).await?;
-  file.sync_all().await?;
-
-  // Close file before rename
-  // 重命名前关闭文件
-  drop(file);
-
-  // Move to final path
-  // 移动到最终路径
-  let final_path = id_path(dir, id);
-  fs::rename(&temp_path, &final_path).await?;
-
-  Ok(w.meta)
+  w.finish(&mut file, last_key, dir, id).await
 }
 
 #[inline]
@@ -253,7 +240,7 @@ struct State {
 const DEFAULT_CAP: usize = 1024;
 
 impl State {
-  fn new(level: u8, conf_li: &[Conf]) -> Self {
+  fn new(level: u8, conf_li: &[Conf], id: u64) -> Self {
     let mut block_size = default::BLOCK_SIZE;
     let mut epsilon = default::PGM_EPSILON;
     let mut restart_interval = default::RESTART_INTERVAL;
@@ -274,9 +261,80 @@ impl State {
       first_keys: Vec::with_capacity(DEFAULT_CAP / 16),
       offsets: Vec::with_capacity(DEFAULT_CAP / 16),
       file_offset: 0,
-      meta: Meta::default(),
+      meta: Meta {
+        id,
+        ..Meta::default()
+      },
       max_ver: 0,
       level,
     }
+  }
+
+  /// Add entry to SSTable
+  /// 添加条目到 SSTable
+  async fn add_entry(&mut self, key: &[u8], pos: &Pos, file: &mut File) -> Result<()> {
+    self.hashes.push(gxhash64(key, 0));
+    self.meta.item_count += 1;
+    self.max_ver = self.max_ver.max(pos.ver());
+
+    // Record first key of block
+    // 记录块的首键
+    if self.builder.item_count == 0 {
+      self.first_keys.push(key.into());
+      self.offsets.push(self.file_offset);
+    }
+
+    self.builder.add(key, pos);
+
+    // Flush block if size exceeded
+    // 超过大小则刷新块
+    if self.builder.size() >= self.block_size {
+      self.flush_block(file).await?;
+    }
+
+    Ok(())
+  }
+
+  /// Flush current block to file
+  /// 将当前块刷新到文件
+  async fn flush_block(&mut self, file: &mut File) -> Result<()> {
+    let data = self.builder.build_encoded();
+    if !data.is_empty() {
+      self.file_offset += write_at(file, &data, self.file_offset).await?;
+    }
+    Ok(())
+  }
+
+  /// Finish writing SSTable
+  /// 完成 SSTable 写入
+  async fn finish(
+    mut self,
+    file: &mut File,
+    last_key: Box<[u8]>,
+    dir: &Path,
+    id: u64,
+  ) -> Result<Meta> {
+    // Flush remaining block
+    // 刷新剩余块
+    self.flush_block(file).await?;
+
+    if self.meta.item_count == 0 {
+      return Ok(Meta::default());
+    }
+
+    self.meta.min_key = self.first_keys.first().cloned().unwrap_or_default();
+    self.meta.max_key = last_key;
+
+    let offset = self.file_offset;
+    write_foot(file, &mut self, offset).await?;
+
+    // Rename temp file to final path
+    // 重命名临时文件到最终路径
+    let tmp_dir = dir.join(TMP_DIR);
+    let temp_path = id_path(&tmp_dir, id);
+    let final_path = id_path(dir, id);
+    fs::rename(&temp_path, &final_path).await?;
+
+    Ok(self.meta)
   }
 }

@@ -15,6 +15,8 @@ pub struct Meta {
   pub max_key: Box<[u8]>,
   /// Item count / 条目数量
   pub item_count: u64,
+  /// Delete/tombstone count / 删除标记数量
+  pub rm_count: u64,
   /// File size / 文件大小
   pub file_size: u64,
 }
@@ -27,6 +29,7 @@ impl Meta {
       min_key: Box::default(),
       max_key: Box::default(),
       item_count: 0,
+      rm_count: 0,
       file_size: 0,
     }
   }
@@ -56,5 +59,10 @@ impl table::Meta for Meta {
   #[inline]
   fn count(&self) -> u64 {
     self.item_count
+  }
+
+  #[inline]
+  fn rm_count(&self) -> u64 {
+    self.rm_count
   }
 }

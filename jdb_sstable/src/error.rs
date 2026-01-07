@@ -34,6 +34,9 @@ pub enum Error {
 
   #[error("Key too large: {0} bytes (max 65535)")]
   KeyTooLarge(usize),
+
+  #[error("Compaction failed")]
+  Compact,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
