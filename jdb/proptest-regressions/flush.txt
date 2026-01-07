@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 05686f18bb001d7420cb4514691467d0a6c8b5ea4b22fed07d56c202b2dba98e # shrinks to kvs = [([0], [])]
