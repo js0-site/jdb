@@ -1,0 +1,32 @@
+[package]
+name = "jdb_bench_data"
+version = "0.1.2"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_bench_data"
+description = "jdb_bench_data"
+readme = "README.md"
+keywords = ["benchmark", "testing", "database", "performance"]
+categories = ["development-tools::profiling", "database", "development-tools::testing"]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+fastrand = "2.3.0"
+serde = { version = "1.0.228", features = ["derive"] }
+thiserror = "2.0.17"
+tikv-jemalloc-ctl = { version = "0.6.1", features = ["stats"] }
+tikv-jemallocator = { version = "0.6.1", features = ["stats"] }
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = { version = "0.17.0", features = ["macros"] }
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
