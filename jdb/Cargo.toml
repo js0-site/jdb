@@ -1,0 +1,75 @@
+[package]
+name = "jdb"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0/jdb.git"
+homepage = "https://github.com/js0/jdb/tree/main/jdb"
+description = "jdb"
+keywords = []
+categories = ["database", "storage", "embedded", "structures", "kvstore"]
+readme = "README.md"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+
+[dependencies]
+futures-core = "0.3.31"
+log = "0.4.29"
+thiserror = "2.0.17"
+
+[dependencies.jdb_base]
+version = "0.1.1"
+path = "../jdb_base"
+
+[dependencies.jdb_ckp]
+version = "0.1.3"
+path = "../jdb_ckp"
+
+[dependencies.jdb_fs]
+version = "0.1.1"
+path = "../jdb_fs"
+
+[dependencies.jdb_index]
+version = "0.1.0"
+path = "../jdb_index"
+
+[dependencies.jdb_mem]
+version = "0.1.0"
+path = "../jdb_mem"
+
+[dependencies.jdb_sst]
+version = "0.1.0"
+path = "../jdb_sst"
+
+[dependencies.wlog]
+version = "0.1.0"
+path = "../wlog"
+
+[dependencies.zbin]
+version = "0.1.4"
+path = "../zbin"
+
+[dev-dependencies]
+aok = "0.1.18"
+compio-runtime = "0.10.1"
+fastrand = "2.3.0"
+futures-executor = "0.3.31"
+futures-util = "0.3.31"
+log = "0.4.29"
+log_init = "0.1.34"
+proptest = "1.9.0"
+static_init = "1.0.4"
+tempfile = "3.24.0"
+
+[dev-dependencies.compio]
+version = "0.17.0"
+features = ["macros"]
+
+[dev-dependencies.jdb_mem]
+path = "../jdb_mem"
+version = "0.1.0"
