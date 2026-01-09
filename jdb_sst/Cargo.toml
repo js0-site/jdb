@@ -1,0 +1,101 @@
+[package]
+name = "jdb_sst"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_sst"
+description = "jdb_sst"
+keywords = [ ]
+categories = [
+"database",
+"structures",
+"encoding",
+"filesystem",
+"compression"
+]
+readme = "README.md"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
+
+[dependencies]
+async-stream = "0.3.6"
+bitcode = "0.6.9"
+coarsetime = "0.1.36"
+crc32fast = "1.5.0"
+defer-lite = "1.0.0"
+fastrand = "2.3.0"
+futures-core = "0.3.31"
+gxhash = "3.5.0"
+ider = "0.1.2"
+log = "0.4.29"
+oneshot = "0.1.11"
+thiserror = "2.0.17"
+zerocopy = "0.8.33"
+
+[dependencies.cpu_bind]
+version = "0.1.2"
+path = "../cpu_bind"
+
+[dependencies.jdb_ckp]
+version = "0.1.3"
+path = "../jdb_ckp"
+
+[dependencies.futures]
+version = "0.3.31"
+features = [ "std" ]
+
+[dependencies.zbin]
+version = "0.1.4"
+path = "../zbin"
+
+[dependencies.compio]
+version = "0.17.0"
+features = [ "runtime", "io" ]
+
+[dependencies.jdb_base]
+version = "0.1.1"
+path = "../jdb_base"
+
+[dependencies.jdb_fs]
+version = "0.1.1"
+path = "../jdb_fs"
+
+[dependencies.jdb_pgm]
+version = "0.3.10"
+path = "../jdb_pgm"
+features = [ "bitcode", "key_to_u64" ]
+
+[dependencies.jdb_xorf]
+version = "0.12.0"
+path = "../jdb_xorf"
+features = [ "bitcode" ]
+
+[dependencies.shared_prefix_len]
+version = "0.1.1"
+path = "../shared_prefix_len"
+
+[dev-dependencies]
+aok = "0.1.18"
+fastrand = "2.3.0"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
+tempfile = "3.24.0"
+
+[dev-dependencies.jdb_mem]
+path = "../jdb_mem"
+version = "0.1.0"
+
+[dev-dependencies.compio]
+version = "0.17.0"
+features = [ "macros" ]
+
+[dev-dependencies.jdb_fs]
+path = "../jdb_fs"
+version = "0.1.1"
