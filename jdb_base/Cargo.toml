@@ -1,0 +1,32 @@
+[package]
+name = "jdb_base"
+version = "0.1.1"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/jdb_base"
+description = "jdb_base"
+keywords = ["database", "storage", "async", "embedded"]
+categories = ["database", "data-structures", "encoding"]
+readme = "README.md"
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+zerocopy = { version = "0.8.33", features = ["derive"] }
+oneshot = "0.1.11"
+
+[dev-dependencies]
+aok = "0.1.18"
+compio-runtime = "0.10.1"
+futures-executor = "0.3.31"
+futures-util = "0.3.31"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
+tempfile = "3.24.0"
