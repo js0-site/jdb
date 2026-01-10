@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+  "wlog",
+  "jdb_bench",
+  "zbin",
+  "jdb_lock",
+  "autopin",
+  "jdb_bench_data",
+  "jdb_base",
+  "jdb_ckp",
+  "jdb_fs",
+  "jdb_mem",
+  "jdb_sst",
+  "jdb_level",
+  "jdb_index",
+  "jdb_sink",
+  "jdb_sst_write",
+  "jdb_sst_read",
+  "gc_log",
+]
+exclude = ["sh/_tmpl"]
+
+[profile.release]
+lto = true
+opt-level = 3
+incremental = true
+codegen-units = 1
+overflow-checks = false
+debug-assertions = false
+# panic = 'abort'
+# strip = false
+
+[profile.dev]
+split-debuginfo = "unpacked"
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
