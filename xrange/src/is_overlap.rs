@@ -1,0 +1,59 @@
+use std::{
+  borrow::Borrow,
+  ops::{Bound, RangeBounds},
+};
+
+/// Check if a range overlaps with an item
+///
+/// Returns true if the query range and item range have any intersection.
+///
+/// 检查查询范围与项是否重叠
+///
+/// 如果查询范围与项范围有交集则返回 true。
+#[inline]
+#[must_use]
+pub fn is_overlap<T, Q, R1, R2>(range: &R1, item: &R2) -> bool
+where
+  T: PartialOrd + ?Sized,
+  Q: Borrow<T> + ?Sized,
+  R1: RangeBounds<Q>,
+  R2: RangeBounds<Q>,
+{
+  use Bound::*;
+
+  // Cache bounds to avoid repeated calls
+  // 缓存边界值，避免重复调用
+  let range_start = range.start_bound();
+  let range_end = range.end_bound();
+  let item_start = item.start_bound();
+  let item_end = item.end_bound();
+
+  // Overlap condition: range.start <= item.end AND item.start <= range.end
+  // 重叠条件：range.start <= item.end 且 item.start <= range.end
+
+  // Check range.start <= item.end (item is not entirely before range)
+  // 检查 range.start <= item.end（项不完全在范围之前）
+  let not_before = match (range_start, item_end) {
+    (Included(rs), Included(ie)) => rs.borrow() <= ie.borrow(),
+    (Included(rs), Excluded(ie)) => rs.borrow() < ie.borrow(),
+    (Excluded(rs), Included(ie)) => rs.borrow() < ie.borrow(),
+    (Excluded(rs), Excluded(ie)) => rs.borrow() < ie.borrow(),
+    (_, Unbounded) => true,
+    (Unbounded, _) => true,
+  };
+
+  if !not_before {
+    return false;
+  }
+
+  // Check item.start <= range.end (item is not entirely after range)
+  // 检查 item.start <= range.end（项不完全在范围之后）
+  match (item_start, range_end) {
+    (Included(is), Included(re)) => is.borrow() <= re.borrow(),
+    (Included(is), Excluded(re)) => is.borrow() < re.borrow(),
+    (Excluded(is), Included(re)) => is.borrow() < re.borrow(),
+    (Excluded(is), Excluded(re)) => is.borrow() < re.borrow(),
+    (_, Unbounded) => true,
+    (Unbounded, _) => true,
+  }
+}

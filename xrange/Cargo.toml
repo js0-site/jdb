@@ -1,0 +1,34 @@
+[package]
+name = "xrange"
+version = "0.1.3"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0/jdb.git"
+homepage = "https://github.com/js0/jdb/tree/main/xrange"
+description = "High-performance range overlap search algorithms / 高性能区间重叠搜索算法"
+keywords = [ "range", "binary-search", "overlap", "interval", "algorithm" ]
+categories = [
+  "algorithms",
+  "data-structures",
+  "database-implementations",
+  "no-std",
+  "rust-patterns"
+]
+readme = "README.md"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
+
+[features]
+default = [ ]
+
+[dev-dependencies]
+aok = "0.1.18"
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
+
+[dev-dependencies.compio]
+version = "0.17.0"
+features = [ "macros" ]
