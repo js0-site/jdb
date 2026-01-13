@@ -1,0 +1,67 @@
+3. 文件格式 (File Format)
+
+与旧版不同，新版不使用 jdb_fs::Item 格式包装每个 Block。
+原因: Data Block 需要随机读取，Item 格式的 CRC 校验在此场景下开销大且意义不大。
+改为: Data Block 裸存储，仅 Footer 使用 zerocopy 定长结构。
+
+
+3.1 整体布局
+
+[ Data Block 0 ]           // 裸数据，带前缀压缩
+[ Data Block 1 ]
+...
+[ Data Block N ]
+[ Filter Data ]            // bitcode 序列化 + 可选压缩
+[ Index Data  ]            // first_keys + offsets + pgm，bitcode + 可选压缩
+[ Foot ]                   // 定长 zerocopy 结构，末尾
+
+
+3.2 Data Block 格式 (带前缀压缩)
+
+[prefix_len: u16][prefix: bytes]
+[entries...]
+[restart_offsets: u32 * N][restart_count: u32][item_count: u32]
+
+Entry 格式:
+- Restart entry: [suffix_len: u16][suffix: bytes][pos: Pos]
+- Delta entry:   [shared: u16][unshared: u16][suffix: bytes][pos: Pos]
+
+restart_interval 默认 16，每 16 个 entry 一个 restart point。
+块内二分查找 restart point，再线性扫描。
+
+
+3.3 Filter Data
+
+BinaryFuse8 (xor filter)，用 bitcode::encode 序列化。
+可选 LZ4/ZSTD 压缩。
+key hash 用 gxhash64(key, 0)。
+
+
+3.4 Index Data
+
+包含三部分，顺序写入:
+- first_keys: Vec<Box<[u8]>>  每个 block 的首 key
+- offsets: Vec<u64>           每个 block 的文件偏移
+- pgm: Pgm<u64>               PGM 索引 (block_count > 1 时)
+
+全部用 bitcode::encode，可选压缩。
+PGM 构建: 提取 first_keys 的公共前缀，对后缀部分 key_to_u64 后建索引。
+
+
+3.5 Foot (定长 zerocopy)
+
+#[repr(C, packed)]
+struct Foot {
+    filter_offset: U64,    // filter 数据起始位置
+    filter_size: U32,      // filter 数据大小
+    index_size: U32,       // index 数据大小
+    offsets_size: U32,     // offsets 数据大小
+    pgm_size: U32,         // pgm 数据大小
+    block_count: U32,      // data block 数量
+    prefix_len: u8,        // PGM 公共前缀长度
+    compress: u8,          // 0=None, 1=LZ4, 2=ZSTD
+    version: u8,           // 格式版本
+    checksum: U32,         // CRC32 校验 (覆盖 filter+index+foot 前部分)
+}
+
+Foot::SIZE = 44 bytes
