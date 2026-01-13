@@ -1,0 +1,54 @@
+2. 核心结构 (Core Structures)
+
+2.1 Sst (Manager)
+
+实现 jdb_base::Sst trait，管理多个 SstFile。
+
+struct Sst {
+    dir: PathBuf,
+    files: Vec<SstFile>,  // 按 id 降序，新文件在前
+    conf: Conf,
+}
+
+impl jdb_base::Sst for Sst:
+  - write(): 接收 Iterator<Item=Kv>，用 AtomWrite 生成新 SstFile
+  - push(): 将 Meta 加入管理列表
+
+
+2.2 SstFile (Single File Handle)
+
+单个 SST 文件的内存表示，加载时读取 Index/Filter 常驻内存。
+
+struct SstFile {
+    id: u64,
+    meta: Meta,              // jdb_base::sst::Meta
+    filter: BinaryFuse8,     // xor filter
+    pgm: Option<Pgm<u64>>,   // pgm index (block_count > 1 时有效)
+    prefix_len: u8,          // pgm 的公共前缀长度
+    first_keys: Vec<Box<[u8]>>,  // 每个 block 的首 key
+    offsets: Vec<u64>,       // 每个 block 的文件偏移
+    data_end: u64,           // data block 区域结束位置
+    compress: Compress,      // 压缩算法 (None/LZ4/ZSTD)
+}
+
+注意: 不持有 File 句柄，读取时传入 BufFile 或通过 read_at
+
+
+2.3 Compress 枚举
+
+#[repr(u8)]
+enum Compress {
+    None = 0,
+    Lz4 = 1,
+    Zstd = 2,
+}
+
+
+2.4 Conf 配置
+
+enum Conf {
+    BlockSize(usize),       // 默认 16KB
+    PgmEpsilon(usize),      // 默认 16
+    RestartInterval(usize), // 默认 16
+    Compress(Compress),     // 默认 None
+}

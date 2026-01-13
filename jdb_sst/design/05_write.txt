@@ -1,0 +1,59 @@
+5. 写入流程 (Write Flow)
+
+使用 jdb_fs::AtomWrite 保证原子写。
+
+5.1 Writer 状态
+
+struct Writer {
+    builder: BlockBuilder,   // 当前 block 构建器
+    block_size: usize,
+    epsilon: usize,
+    compress: Compress,
+    hashes: Vec<u64>,        // filter 用
+    first_keys: Vec<Box<[u8]>>,
+    offsets: Vec<u64>,
+    file_offset: u64,
+    meta: Meta,
+    max_ver: u64,
+    rmed_size: u64,
+    level: u8,
+}
+
+
+5.2 写入步骤
+
+1. AtomWrite::open(path) 创建临时文件
+2. 遍历 KV 流:
+   a. builder.add(key, pos)
+   b. hashes.push(gxhash64(key, 0))
+   c. 更新 max_ver, rmed_size
+   d. 若 builder.size() >= block_size:
+      - 记录 first_key 和 offset
+      - builder.build_encoded() 生成 block 数据
+      - write_all(block_data)
+      - file_offset += block_data.len()
+3. flush 最后一个 block
+4. 构建 filter: BinaryFuse8::try_from(&hashes)
+5. 构建 pgm: Pgm::new(&data, epsilon, false)
+6. 序列化并压缩 filter/index
+7. 写入 filter_data, index_data
+8. 构建并写入 Foot
+9. AtomWrite::rename() 原子提交
+
+
+5.3 BlockBuilder (复用旧版)
+
+struct BlockBuilder {
+    key_arena: Vec<u8>,
+    entries: Vec<(u32, u16, Pos)>,  // (offset, len, pos)
+    restart_interval: usize,
+    item_count: usize,
+    restarts: Vec<u32>,
+    buf: Vec<u8>,
+    estimated_size: usize,
+}
+
+方法:
+- add(key, pos): 添加 KV
+- build_encoded(): 生成带前缀压缩的 block 数据
+- reset(): 重置复用

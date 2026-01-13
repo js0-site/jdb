@@ -1,0 +1,30 @@
+[package]
+name = "jdb_sst"
+version = "0.1.0"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0/jdb.git"
+homepage = "https://github.com/js0/jdb/tree/main/jdb_sst"
+description = "jdb_sst"
+keywords = []
+categories = []
+readme = "README.md"
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+ider = { version = "0.1.3", features = ["id"] }
+jdb_base = { version = "0.1.0", path = "../jdb_base" }
+zerocopy = "0.8.33"
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = { version = "0.17.0", features = ["macros"] }
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"
