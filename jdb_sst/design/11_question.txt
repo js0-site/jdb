@@ -1,0 +1,30 @@
+11. 待确认问题 (Open Questions)
+
+Q1: max_key 存储位置
+    方案A: 写入时存到 Foot (增加 Foot 大小)
+    方案B: 加载时读取最后一个 block 解析 (增加加载时间)
+    建议: 方案B，加载时顺便读取
+
+Q2: Index/Filter 是否常驻内存
+    当前设计: 加载时读入内存常驻
+    问题: 大量 SST 时内存占用
+    建议: 先常驻，后续可加 LRU 缓存
+
+Q3: Data Block 是否需要压缩
+    当前设计: 不压缩
+    原因: 随机读场景解压开销大
+    备选: 可配置，对冷数据启用压缩
+
+Q4: SstFile 是否持有 File 句柄
+    当前设计: SstFile 不持有，由 Sst 统一管理
+    实现方案: Sst 持有 RefCell<Lru<u64, File>>
+    原因: 避免每次读取重复打开文件(系统调用开销)，同时 RefCell 允许内部可变性且满足 Send 约束(compio 单线程模型)。
+
+Q5: Foot checksum 覆盖范围
+    当前设计: filter_data + index_data + foot (除 checksum)
+    备选: 仅覆盖 foot 本身 (更快但校验范围小)
+
+Q6: 空 SST 处理
+    当前设计: write() 返回 Meta::default()
+    问题: 是否需要生成空文件
+    建议: 不生成空文件，直接返回空 Meta

@@ -1,0 +1,28 @@
+10. 依赖库 (Dependencies)
+
+内部依赖:
+- jdb_base: Sst trait, Query trait, Meta, Pos
+- jdb_fs: 基础文件操作 (Item 格式读取, File 等)
+- jdb_pgm: Pgm, key_to_u64
+- jdb_xorf: BinaryFuse8, Filter
+
+外部依赖:
+- compio: 异步运行时, File, AsyncReadAt, AsyncWrite
+- bitcode: 序列化 (不用 serde)
+- zerocopy: Foot 零拷贝
+- gxhash: key hash
+- crc32fast: checksum
+- shared_prefix_len: 前缀长度计算
+- lz4_flex: LZ4 压缩
+- zstd: ZSTD 压缩
+- thiserror: 错误定义
+- log: 日志
+- lru: LRU 缓存 (用于 Sst 文件句柄)
+
+
+Cargo.toml features:
+
+[features]
+default = []
+lz4 = ["lz4_flex"]
+zstd = ["zstd"]

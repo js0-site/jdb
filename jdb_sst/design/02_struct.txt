@@ -1,0 +1,91 @@
+2. 核心结构 (Core Structures)
+
+2.1 Sst (Manager)
+
+实现 jdb_base::Sst trait，管理多个 SstFile。
+
+
+
+struct Sst {
+    dir: PathBuf,           // 根目录
+    sst_dir: PathBuf,       // sst/ 子目录: 存放已完成的 SST 文件
+    tmp_dir: PathBuf,       // tmp/ 子目录: 存放写入中的临时文件
+    files: Vec<SstFile>,    // 按 id 降序，新文件在前
+    cache: RefCell<Lru<u64, File>>, // 文件句柄缓存 (LRU)，提供内部可变性
+    conf: Conf,
+}
+
+impl Sst {
+    pub fn new(dir: impl Into<PathBuf>, conf: Conf) -> Self {
+        // 1. 初始化 dir, sst_dir, tmp_dir
+        // 2. 确保目录存在
+        // 3. 加载 sst_dir 下的所有 sst 文件
+        // 4. 清理 tmp_dir
+        todo!()
+    }
+}
+
+impl jdb_base::Sst for Sst:
+  - write(): 接收 Iterator<Item=Kv>，在 tmp_dir 生成新文件，完成后移动到 sst_dir
+  - push(): 将 Meta 加入管理列表
+
+
+2.2 SstFile (Single File Handle)
+
+单个 SST 文件的内存表示，加载时读取 Index/Filter 常驻内存。
+
+struct SstFile {
+    id: u64,
+    meta: Meta,              // jdb_base::sst::Meta
+    filter: BinaryFuse8,     // xor filter
+    pgm: Option<Pgm<u64>>,   // pgm index (block_count > 1 时有效)
+    prefix_len: u8,          // pgm 的公共前缀长度
+    first_keys: Vec<Box<[u8]>>,  // 每个 block 的首 key
+    offsets: Vec<u64>,       // 每个 block 的文件偏移
+    data_end: u64,           // data block 区域结束位置
+    compress: Compress,      // 压缩算法 (None/LZ4/ZSTD)
+}
+
+注意: SstFile 不持有 File 句柄，Sst 在查询时从 cache 获取句柄并传入。
+
+
+
+
+2.3 Compress 枚举
+
+#[repr(u8)]
+enum Compress {
+    None = 0,
+    Lz4 = 1,
+    Zstd = 2,
+}
+
+
+2.4 Conf 配置
+
+enum Conf {
+    BlockSize(usize),       // 默认 16KB
+    PgmEpsilon(usize),      // 默认 16
+    RestartInterval(usize), // 默认 16
+    Compress(Compress),     // 默认 None
+}
+
+
+
+2.5 文件路径生成 (File Path Generation)
+
+使用 ider::path::new 创建 SST 文件 id 和文件名:
+
+// 1. 生成 id 和 base32 编码的文件名
+let (id, name) = ider::path::new(&self.dir); 
+// 注意: ider::path::new 默认使用 dir，这里可能需要拆分逻辑或仅使用其 id 生成部分。
+// 实际上，我们应该只需生成 id 和 name。
+
+文件命名规则:
+- 使用 Crockford Base32 编码 id
+- 示例: id=1234567890 -> "14pc0mi"
+
+路径:
+- 临时文件: "{tmp_dir}/{name}"
+- 正式文件: "{sst_dir}/{name}"
+
