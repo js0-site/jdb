@@ -1,0 +1,70 @@
+jdb_sst 依赖库
+
+1. jdb_fs
+   - 用途：文件系统基础操作，包括原子写、Item 格式、File 句柄。
+   - 常用：
+     - `AtomWrite`: 结构体，用于写入临时文件并在成功后重命名。`AtomWrite::new(path).await?`, `write_all`, `rename()`.
+     - `Item`: 核心 trait，定义数据块格式 (Magic + Head + CRC32)。
+     - `load`: `jdb_fs::load::open` 或 `jdb_fs::load::load` 用于读取 Item 格式文件。
+     - `read_write`: 获取 `compio::fs::File`。
+
+2. jdb_xorf
+   - 用途：Xor Filter (BinaryFuse8)，用于快速判断 Key 是否不存在。
+   - 依赖：`jdb_xorf = { version = "...", features = ["bitcode"] }`
+   - 常用：
+     - 构建：`BinaryFuse8::try_from(&hashes)` (hashes 为 `Vec<u64>`)。
+     - 序列化：`bitcode::encode(&filter)`。
+     - 反序列化：`bitcode::decode(bytes)`。
+     - 查询：`filter.contains(&hash)`。
+
+3. jdb_pgm
+   - 用途：PGM 索引 (Piecewise Geometric Model)，用于压缩存储 Key -> Block Index 的映射。
+   - 依赖：`jdb_pgm = { version = "...", features = ["bitcode", "key_to_u64"] }`
+   - 常用：
+     - 构建：`Pgm::new(&data, epsilon, recursive)` (data 为 `&[u64]`, epsilon 为误差参数，recursive 是否递归)。
+     - 序列化：`bitcode::encode(&pgm)`。
+     - 反序列化：`bitcode::decode(bytes)`。
+     - 查询：`pgm.find(key, lookup_fn)`。
+
+4. bitcode
+   - 用途：高效二进制序列化/反序列化，比 Bincode/Serde 更快更小。
+   - 常用：
+     - `bitcode::encode(&T) -> Vec<u8>`
+     - `bitcode::decode(&[u8]) -> Result<T>`
+     - 注意：jdb_pgm 和 jdb_xorf 都内置了 bitcode 支持 (features)。
+
+5. zerocopy
+   - 用途：零拷贝解析定长结构体（如 Footer, Header）。
+   - 常用：
+     - Define: `#[derive(FromBytes, IntoBytes, Immutable, KnownLayout, Unaligned)] #[repr(C, packed)]`
+     - Write: `struct.as_bytes()`
+     - Read: `Struct::read_from_bytes(bytes)` 或直接强转 slice。
+
+6. gxhash
+   - 用途：极速哈希函数，用于 Xor Filter 的输入。
+   - 常用：`gxhash64(key, seed)`。
+
+7. compio
+   - 用途：异步运行时和 IO。
+   - 常用：
+     - `compio::fs::File`: 异步文件对象。
+     - `AsyncReadAt`, `AsyncWrite`: 读写 trait。
+     - `buf::IoBuf`: 缓冲区 trait。
+
+8. shared_prefix_len
+   - 用途：计算两个字节切片的共享前缀长度。
+   - 常用：`shared_prefix_len(a, b) -> usize`。
+
+9. lz4_flex / zstd (新需求)
+   - 用途：数据块压缩。
+   - 常用 (Standard):
+     - LZ4: `lz4_flex::compress_prepend_size(src)` / `lz4_flex::decompress_size_prepended(src)`
+     - ZSTD: `zstd::encode_all(src, level)` / `zstd::decode_all(src)`
+   - 注意：需要在 `Cargo.toml` 中添加依赖，并在 Header/Footer 中标记使用的算法。
+10. jdb_meta
+   - 用途：元数据管理逻辑，包括 SST 列表维护和自动删除逻辑。
+   - 常用：
+     - `MetaLi`: 分层管理 SST `Meta` 的列表，支持 `overlap` 查询。
+     - `MetaWithAutoRm`: 包装了 `Meta`，在被 Drop 时如果 `is_rm` 被标记为 true，则自动删除对应磁盘文件。
+     - `Ckp`: 检查点管理 Trait。
+

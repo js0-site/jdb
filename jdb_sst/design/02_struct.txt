@@ -1,0 +1,79 @@
+2. 核心结构 (Core Structures)
+
+2.1 Sst (Manager)
+
+实现 jdb_base::Sst trait，管理多个 SstFile。
+
+
+
+struct Sst<C> {
+    ckp: C,                 // Checkpoint manager
+    lru: ReadLru,     // Reader 缓存 (包含文件句柄和 Index/Filter)
+    sst_dir: PathBuf,       // sst/ 子目录
+    tmp_dir: PathBuf,       // tmp/ 子目录
+    config: Config,         // 解析后的配置
+}
+
+impl<C: jdb_meta::Ckp> Sst<C> {
+    pub fn new(dir: impl Into<PathBuf>, ckp: C, conf_li: &[Conf]) -> Self {
+        let lru = ReadLru::new();
+        let conf = Conf::from(conf_li);
+        // ... (同前: 目录初始化)
+        todo!()
+    }
+}
+
+// ... impl jdb_base::Sst for Sst ...
+
+2.2 Read (Lazy Loaded SST)
+
+单个 SST 文件的内存读取器，按需加载。包含 I/O 句柄和索引数据。
+
+struct Read {
+    file: File,              // compio 文件句柄
+    filter: BinaryFuse8,     // xor filter
+    prefix_len: u8,          // pgm 的 key 公共前缀长度 (用于压缩索引 key)
+    pgm: Pgm<u64>,           // pgm 索引 (映射: 压缩后的 key -> block 序号)
+    // 原始 first_keys 太大，内存中不存，只存 pgm 和 offsets
+    // first_keys: Vec<Box<[u8]>>, 
+    offsets: Vec<u64>,       // block 序号 -> 文件偏移量 (size = block_count + 1)
+    data_end: u64,           // 数据块区域的结束位置 (用于计算最后一个块的大小)
+    compress: Compress,      // 数据块压缩算法
+}
+
+2.3 ReadLru (Cache Manager)
+
+管理 Reader 的缓存，通过 ID 获取。
+
+struct ReadLru {
+    cache: RefCell<Lru<u64, Rc<Read>>>, // 缓存加载好的 Reader (含 File)
+}
+
+impl ReadLru {
+    pub fn new() -> Self { ... }
+    // 获取 Reader，若缓存未命中则打开文件并加载 Index/Filter
+    pub async fn get(&self, dir: &Path, id: u64) -> Result<Rc<Read>> { ... }
+}
+
+2.4 Conf 配置 (Configuration)
+
+对应文件: src/conf.rs
+
+
+2.5 文件路径生成 (File Path Generation)
+
+使用 ider::path::new 创建 SST 文件 id 和文件名:
+
+// 1. 生成 id 和 base32 编码的文件名
+let (id, name) = ider::path::new(&self.lru.dir); 
+// 注意: ider::path::new 默认使用 dir，这里可能需要拆分逻辑或仅使用其 id 生成部分。
+// 实际上，我们应该只需生成 id 和 name。
+
+文件命名规则:
+- 使用 Crockford Base32 编码 id
+- 示例: id=1234567890 -> "14pc0mi"
+
+路径:
+- 临时文件: "{tmp_dir}/{name}"
+- 正式文件: "{sst_dir}/{name}"
+

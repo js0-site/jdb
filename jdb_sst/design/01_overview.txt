@@ -1,0 +1,14 @@
+jdb_sst 设计方案 v2
+
+1. 概述 (Overview)
+
+jdb_sst 负责管理磁盘上的静态排序表（SSTable）。
+实现 jdb_base::Sst trait (write/push) 和 jdb_base::Query trait (get/iter/range)。
+基于 compio 单线程异步，不用 Arc/Mutex，契合 Thread-per-Core 架构。
+写入使用 `tmp/` + `rename` 方式保证原子性，读取用 read_at 随机读。
+
+与旧版主要区别:
+- 不使用 jdb_fs::Item 格式包装 Data Block (随机读场景 CRC 开销大)
+- Data Block 裸存储，仅 Filter/Index 用 bitcode + 可选压缩
+- SstFile 不持有 File 句柄，由 Sst 持有的 FileLru 模块统一管理
+
