@@ -1,0 +1,17 @@
+4. 压缩策略 (Compression Strategy)
+
+支持算法: LZ4, ZSTD
+配置方式: 每个 SST 文件使用统一的一个压缩算法，记录在 Foot.compress
+
+压缩范围:
+- Data Block: 不压缩 (随机读场景解压开销大)
+- Filter Data: 可选压缩
+- Index Data: 可选压缩
+
+实现:
+- 写入时: bitcode::encode -> compress (if enabled) -> write
+- 读取时: read -> decompress (if needed) -> bitcode::decode
+
+压缩库:
+- LZ4: lz4_flex::compress_prepend_size / decompress_size_prepended
+- ZSTD: zstd::bulk::compress / decompress
