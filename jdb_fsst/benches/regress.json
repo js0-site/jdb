@@ -1,0 +1,129 @@
+[
+  {
+    "date": "2026-01-14 10:44:58",
+    "commit": "850f3d9",
+    "branch": "dev",
+    "my_ratio": 50.4408,
+    "my_throughput": 454.31,
+    "ref_ratio": 52.7828,
+    "ref_throughput": 334.28,
+    "speedup": 1.3591
+  },
+  {
+    "date": "2026-01-14 10:45:06",
+    "commit": "850f3d9",
+    "branch": "dev",
+    "my_ratio": 50.3195,
+    "my_throughput": 448.97,
+    "ref_ratio": 52.9412,
+    "ref_throughput": 337.01,
+    "speedup": 1.3322
+  },
+  {
+    "date": "2026-01-14 10:45:08",
+    "commit": "850f3d9",
+    "branch": "dev",
+    "my_ratio": 50.5688,
+    "my_throughput": 450.6,
+    "ref_ratio": 52.6824,
+    "ref_throughput": 334.7,
+    "speedup": 1.3463
+  },
+  {
+    "date": "2026-01-14 10:45:11",
+    "commit": "850f3d9",
+    "branch": "dev",
+    "my_ratio": 50.2036,
+    "my_throughput": 443.92,
+    "ref_ratio": 52.7674,
+    "ref_throughput": 330.34,
+    "speedup": 1.3438
+  },
+  {
+    "date": "2026-01-14 10:45:35",
+    "commit": "f658946",
+    "branch": "dev",
+    "my_ratio": 50.0591,
+    "my_throughput": 428.84,
+    "ref_ratio": 53.3967,
+    "ref_throughput": 319.96,
+    "speedup": 1.3403
+  },
+  {
+    "date": "2026-01-14 10:49:48",
+    "commit": "4412284",
+    "branch": "dev",
+    "my_ratio": 50.5487,
+    "my_throughput": 413.11,
+    "ref_ratio": 52.8468,
+    "ref_throughput": 310.41,
+    "speedup": 1.3309,
+    "ratio_speedup": 1.0455
+  },
+  {
+    "date": "2026-01-14 10:50:59",
+    "commit": "4412284",
+    "branch": "dev",
+    "my_ratio": 49.9585,
+    "my_throughput": 420.76,
+    "ref_ratio": 53.0452,
+    "ref_throughput": 308.33,
+    "speedup": 1.3646,
+    "ratio_speedup": 1.0618
+  },
+  {
+    "date": "2026-01-14 10:51:45",
+    "commit": "44774a9",
+    "branch": "dev",
+    "my_ratio": 50.2284,
+    "my_throughput": 433.51,
+    "ref_ratio": 52.9788,
+    "ref_throughput": 322.61,
+    "speedup": 1.3438,
+    "ratio_speedup": 1.0548
+  },
+  {
+    "date": "2026-01-14 10:51:54",
+    "commit": "44774a9",
+    "branch": "dev",
+    "my_ratio": 49.9518,
+    "my_throughput": 441.83,
+    "ref_ratio": 52.8626,
+    "ref_throughput": 335.81,
+    "speedup": 1.3157,
+    "ratio_speedup": 1.0583
+  },
+  {
+    "date": "2026-01-14 10:52:22",
+    "commit": "44774a9",
+    "branch": "dev",
+    "my_ratio": 50.448,
+    "my_throughput": 414.77,
+    "ref_ratio": 52.9093,
+    "ref_throughput": 313.11,
+    "speedup": 1.3247,
+    "ratio_speedup": 1.0488
+  },
+  {
+    "date": "2026-01-14 10:52:52",
+    "commit": "ddd4213",
+    "branch": "dev",
+    "my_ratio": 50.1724,
+    "my_throughput": 423.75,
+    "ref_ratio": 53.0295,
+    "ref_throughput": 317.89,
+    "speedup": 1.333,
+    "ratio_speedup": 1.0569
+  },
+  {
+    "date": "2026-01-14 10:53:12",
+    "commit": "ddd4213",
+    "branch": "dev",
+    "my_ratio": 50.625,
+    "my_throughput": 457.4,
+    "ref_ratio": 53.3806,
+    "ref_throughput": 340.75,
+    "speedup": 1.3423,
+    "ratio_speedup": 1.0544
+  }
+]
