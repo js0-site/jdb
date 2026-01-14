@@ -1,0 +1,33 @@
+[package]
+name = "file_lru"
+version = "0.1.5"
+edition = "2024"
+license = "MulanPSL-2.0"
+repository = "https://github.com/js0-site/jdb.git"
+homepage = "https://github.com/js0-site/jdb/tree/main/file_lru"
+description = "Efficient file handle caching for WAL random reads / 高效 WAL 随机读取的文件句柄缓存"
+keywords = ["wal", "lru", "cache", "async", "file"]
+categories = ["database", "filesystem", "caching", "asynchronous", "data-structures"]
+readme = "README.md"
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+compio = "0.17.0"
+compio-fs = "0.10.0"
+hashlink = "0.11.0"
+ider = { version = "0.1.7", features = ["path"] }
+jdb_lru = "0.1.8"
+log = "0.4.29"
+
+[dev-dependencies]
+aok = "0.1.18"
+compio = { version = "0.17.0", features = ["macros"] }
+log = "0.4.29"
+log_init = "0.1.34"
+static_init = "1.0.4"

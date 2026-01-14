@@ -1,0 +1,42 @@
+8. 多表合并 (Multi-table Merge)
+
+用于 compaction 和跨多个 SstFile 的范围查询。
+
+
+8.1 Multi 结构 (复用旧版)
+
+struct Multi<O, S, D> {
+    streams: Vec<S>,
+    src_ids: Vec<u64>,
+    heap: BinaryHeap<Item<O>>,
+    refill_idx: Option<usize>,
+    last_key: Option<Box<[u8]>>,
+    init_idx: usize,
+    discard: D,
+    bottom: bool,
+}
+
+O: Order (Asc/Desc)
+S: Stream<Item = Kv>
+D: OnDiscard callback
+
+
+8.2 合并逻辑
+
+1. 初始化: 从每个 stream 取第一个 item 放入 heap
+2. 循环:
+   a. heap.pop() 取最小/最大 key
+   b. 若与 last_key 相同，调用 discard 丢弃旧版本
+   c. 若 bottom && is_tombstone，丢弃墓碑
+   d. 否则 yield (key, pos)
+   e. refill: 从对应 stream 取下一个 item
+
+
+8.3 Order trait
+
+trait Order {
+    fn cmp(a: &[u8], b: &[u8]) -> Ordering;
+}
+
+struct Asc;  // 升序
+struct Desc; // 降序

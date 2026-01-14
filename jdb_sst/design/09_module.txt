@@ -1,0 +1,30 @@
+9. 模块划分 (Module Structure)
+
+src/
+├── lib.rs          // pub use 导出
+├── error.rs        // Error, Result
+├── foot.rs         // Foot 结构
+├── compress.rs     // Compress 枚举, compress/decompress 函数
+├── conf.rs         // Conf 配置
+├── block/
+│   ├── mod.rs      // Block 结构
+│   ├── builder.rs  // BlockBuilder
+│   └── iter.rs     // BlockIter, read_entry, restore_key
+├── file.rs         // SstFile 结构, load 函数
+├── write.rs        // Writer, write 函数
+├── query.rs        // Query trait 实现
+├── multi.rs        // Multi, Item, Order
+└── sst.rs          // Sst 结构, Sst trait 实现
+
+
+lib.rs 导出:
+
+pub use error::{Error, Result};
+pub use foot::Foot;
+pub use compress::Compress;
+pub use conf::Conf;
+pub use block::{Block, BlockBuilder};
+pub use file::SstFile;
+pub use write::{Writer, write};
+pub use multi::{Multi, Item, Asc, Desc, Order};
+pub use sst::Sst;
