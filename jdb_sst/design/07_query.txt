@@ -1,0 +1,45 @@
+7. 查询流程 (Query Flow)
+
+实现 jdb_base::Query trait。
+
+
+7.1 get(key) -> Option<Pos>
+
+1. meta.contains(key) 检查范围
+2. filter.contains(&gxhash64(key, 0)) 检查 filter
+3. find_block(key) 定位 block:
+   - pgm.is_some(): pgm.find(suffix, lookup_fn).saturating_sub(1)
+   - pgm.is_none(): first_keys.partition_point(|k| k <= key).saturating_sub(1)
+4. read_block(idx) 读取 block 数据
+5. Block::from_bytes(data) 解析
+6. block.search_restart(key) 二分查找 restart point
+7. block.find_key(suffix, restart_idx, buf) 线性扫描
+
+
+7.2 iter() / rev_iter()
+
+返回 Stream<Item = (Key, Pos)>
+
+正向:
+- 从 block 0 开始顺序读取
+- 每个 block 用 BlockIter 遍历
+
+反向:
+- 从最后一个 block 开始
+- 每个 block 读取所有 restart interval，倒序输出
+
+
+7.3 range(bounds) / rev_range(bounds)
+
+1. 根据 start bound 定位起始 block
+2. 根据 end bound 判断终止条件
+3. 过滤不在范围内的 key
+
+
+7.4 Block 查找 (复用旧版)
+
+Block 方法:
+- search_restart(key): 二分查找 restart point
+- find_key(suffix, restart_idx, buf): 在 restart interval 内线性查找
+- read_interval(restart_idx, buf): 读取整个 restart interval
+- iter(): 遍历所有 entry
