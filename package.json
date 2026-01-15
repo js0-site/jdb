@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@3-/cargo_upgrade": "^0.1.3",
+    "cli-table3": "^0.6.5",
+    "pug": "^3.0.3",
+    "zx": "^8.8.5"
+  }
+}
