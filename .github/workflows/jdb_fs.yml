@@ -1,0 +1,28 @@
+name: jdb_fs
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'jdb_fs/**'
+  pull_request:
+    paths:
+      - 'jdb_fs/**'
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout / 检出代码
+        uses: actions/checkout@main
+
+      - name: Install Rust stable / 安装 Rust 稳定版
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Run tests / 运行测试
+        working-directory: jdb_fs
+        shell: bash
+        run: ./test.sh
